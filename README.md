@@ -4,8 +4,8 @@ A cross-platform app that lets patients report side effects in text, voice, or p
 ---
 
 ## ✨ Features:
-- 📄 Text Reports.
-- 🎙️ Voice Reports.
-- 📸 Photo Uploads.
-- 🤖 AI Severity Detection.
-- 📱 Cross-Platform.
+- 📄 Text Reports
+- 🎙️ Voice Reports
+- 📸 Photo Uploads
+- 🤖 AI Severity Detection
+- 📱 Cross-Platform
