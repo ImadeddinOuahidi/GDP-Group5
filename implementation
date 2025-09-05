@@ -1,0 +1,39 @@
+1.Implement Core Feature Prototypes
+
+Text Reporting Module
+
+Create the text input form where users can submit side effects.
+
+Commit message: feat: add text reporting form for symptom submission
+
+Voice Recording Prototype
+
+Add a button to record voice notes and store as audio files.
+
+Commit message: feat: add voice note recording functionality
+
+Photo Upload Component
+
+Enable users to upload images of symptoms.
+
+Commit message: feat: implement photo upload component
+
+2.Backend / API Setup
+
+User Authentication
+
+Implement basic signup/login endpoints.
+
+Commit message: feat: add user authentication endpoints
+
+Report Submission API
+
+Backend endpoint to receive text, voice, or photo reports.
+
+Commit message: feat: create API for report submission
+
+Database Schema Initialization
+
+Create tables for users and reports.
+
+Commit message: feat: setup database schema for users and reports
