@@ -1,4 +1,4 @@
-🌐 SafeMed
+# 🌐 SafeMed
 
 A cross-platform healthcare app that empowers patients to report medication side effects in text, voice, or photos, with built-in AI severity detection to support timely medical attention.
 
@@ -28,4 +28,7 @@ SafeMed bridges the gap between patients and healthcare providers by making adve
 
 🤝 Contributing
 
-Contributions are welcome! Please open an issue or submit a pull request to help make SafeMed even better.
+## Repo Structure
+- **frontend/** – UI code
+- **backend/** – API and processing logic
+- **docs/** – project documentation and diagrams
