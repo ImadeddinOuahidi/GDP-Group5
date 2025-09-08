@@ -37,3 +37,11 @@ Database Schema Initialization
 Create tables for users and reports.
 
 Commit message: feat: setup database schema for users and reports
+
+- Set up a clean backend project skeleton for the healthcare app  
+- Added API routes to handle side-effect reporting via text, photo, and voice  
+- Included placeholder AI severity detection logic to classify reports as Mild, Moderate, or Severe  
+- Implemented input validation for text, photo, and audio submissions  
+- Designed database schema to store reports with type, description, severity, and timestamps  
+- Added API documentation file describing endpoints and expected responses  
+
