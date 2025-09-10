@@ -32,3 +32,10 @@ SafeMed bridges the gap between patients and healthcare providers by making adve
 - **frontend/** – UI code
 - **backend/** – API and processing logic
 - **docs/** – project documentation and diagrams
+
+# Technology Stack – SafeMed ADR
+
+- **Frontend**: React Native (cross-platform mobile app)
+- **Backend**: Node.js
+- **Database**: MongoDB
+- **AI/ML**: Python 
