@@ -45,3 +45,19 @@ Commit message: feat: setup database schema for users and reports
 - Designed database schema to store reports with type, description, severity, and timestamps  
 - Added API documentation file describing endpoints and expected responses  
 
+1.Frontend → Backend Integration
+
+Connect text/voice/photo components to the API you just built.
+
+Ensure reports are actually submitted and saved in DB.
+
+Commit: feat: integrate frontend reporting components with backend API
+
+2. Severity Feedback UI
+
+After a report is submitted, show the AI severity classification (Mild / Moderate / Severe).
+
+Helps users know their submission was processed.
+
+Commit: feat: display AI severity feedback after report submission
+
