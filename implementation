@@ -57,7 +57,27 @@ Commit: feat: integrate frontend reporting components with backend API
 
 After a report is submitted, show the AI severity classification (Mild / Moderate / Severe).
 
-Helps users know their submission was processed.
+Helps us know their submission was processed.
 
 Commit: feat: display AI severity feedback after report submission
+
+Report History / Dashboard
+
+Let us see their past submissions (text, photo, voice) with severity labels.
+
+Backend: add /reports GET endpoint (filter by user).
+
+Frontend: build a simple list UI to display report type, date, and severity color badge.
+
+Commit: feat: add report history screen showing previous submissions
+
+2. User Authentication in Frontend
+
+We have auth backend — now wire it into the frontend.
+
+Add signup/login screens.
+
+Store JWT token in AsyncStorage and attach to all API calls.
+
+Commit: feat: implement login/signup UI with JWT-based authentication
 
