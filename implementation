@@ -81,3 +81,35 @@ Store JWT token in AsyncStorage and attach to all API calls.
 
 Commit: feat: implement login/signup UI with JWT-based authentication
 
+1. User-Specific Report History
+
+Now that users can log in, show only their submitted reports.
+
+Backend: update /reports GET to filter by userId from JWT.
+
+Frontend: fetch and display reports in a simple list view.
+
+Commit: feat: implement user-specific report history screen
+
+🟢 Why this is good: Makes login meaningful; gives users visibility of what they’ve submitted.
+
+2. Logout & Auth Session Handling
+
+Add logout button to clear token from AsyncStorage.
+
+Auto-redirect to login if token is missing or expired.
+
+Commit: feat: add logout functionality and session management
+
+🟢 Why this is good: Completes the authentication cycle and prevents unauthorized access.
+
+3. Voice & Photo Upload Integration
+
+Connect your existing voice/photo components to backend now that users are authenticated.
+
+Include Authorization header with uploads.
+
+Commit: feat: enable voice and photo report submission with authentication
+
+🟢 Why this is good: Expands functionality beyond text now that identity is secured.
+
