@@ -113,3 +113,12 @@ Commit: feat: enable voice and photo report submission with authentication
 
 🟢 Why this is good: Expands functionality beyond text now that identity is secured.
 
+Add Input Validation & Error Handling
+
+Use express-validator on the backend to:
+
+Validate fields like email, password strength
+
+Validate text/photo/audio report fields
+
+Improve error responses with proper status codes and JSON error format.
