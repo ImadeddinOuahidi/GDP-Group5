@@ -2,10 +2,11 @@ import { useState } from "react";
 
 export default function Report() {
   const [report, setReport] = useState("");
+  const [photo, setPhoto] = useState(null);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    alert("Report submitted: " + report);
+    alert(`Report: ${report}\nPhoto: ${photo ? photo.name : "No photo uploaded"}`);
   };
 
   return (
@@ -18,6 +19,16 @@ export default function Report() {
           placeholder="Type your side effect..."
         />
       </label>
+      <br /><br />
+      <label>
+        Upload a photo:
+        <input 
+          type="file"
+          accept="image/*"
+          onChange={(e) => setPhoto(e.target.files[0])}
+        />
+      </label>
+      <br /><br />
       <button type="submit">Submit</button>
     </form>
   );
