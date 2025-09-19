@@ -1,5 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const cors = require('cors');
+const authRoutes = require('./routes/auth');
 const app = express();
 const port = 3000;
 
@@ -10,8 +12,13 @@ mongoose.connect(mongoURI)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// Middleware to parse JSON
-app.use(express.json());
+// Middleware
+app.use(cors()); // Enable CORS for all routes
+app.use(express.json({ limit: '10mb' })); // Parse JSON with size limit
+app.use(express.urlencoded({ extended: true })); // Parse URL-encoded data
+
+// Routes
+app.use('/api/auth', authRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
