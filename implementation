@@ -122,3 +122,27 @@ Validate fields like email, password strength
 Validate text/photo/audio report fields
 
 Improve error responses with proper status codes and JSON error format.
+
+1. Loading & Error States UI
+
+Show spinners/loaders while API calls are in progress
+
+Display friendly error messages (e.g. “Upload failed, please try again”)
+
+Prevent double submissions
+
+Commit message:
+feat: add loading indicators and error state UI for report submissions
+
+Why: Improves UX and gives clear feedback during network actions.
+
+2. Form Field Validation on Frontend
+
+Validate required fields before sending to backend
+
+Show inline error messages (e.g. “Please enter a description”)
+
+Commit message:
+feat: add frontend form validation for text/voice/photo reports
+
+Why: Avoids unnecessary API calls and improves data quality.
