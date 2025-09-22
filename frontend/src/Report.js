@@ -13,7 +13,7 @@ export default function Report() {
     <form onSubmit={handleSubmit}>
       <label>
         Describe your side effect:
-        <textarea 
+        <textarea
           value={report}
           onChange={(e) => setReport(e.target.value)}
           placeholder="Type your side effect..."
@@ -22,12 +22,19 @@ export default function Report() {
       <br /><br />
       <label>
         Upload a photo:
-        <input 
+        <input
           type="file"
           accept="image/*"
           onChange={(e) => setPhoto(e.target.files[0])}
         />
       </label>
+      <br /><br />
+      <button
+        type="button"
+        onClick={() => alert("Voice input coming soon!")}
+      >
+        🎤 Record Voice
+      </button>
       <br /><br />
       <button type="submit">Submit</button>
     </form>
