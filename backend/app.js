@@ -34,3 +34,13 @@ app.get('/health', (req, res) => {
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
+
+// Extra diagnostics route (new addition only)
+app.get('/info', (req, res) => {
+  res.json({
+    appName: 'MyApp Backend',
+    version: '1.0.0',
+    serverTime: new Date().toISOString()
+  });
+});
+
