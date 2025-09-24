@@ -18,7 +18,12 @@ app.use(express.json({ limit: '10mb' })); // Parse JSON with size limit
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded data
 
 // Routes
+const medicineRoutes = require('./routes/medicines');
+const reportRoutes = require('./routes/reports');
+
 app.use('/api/auth', authRoutes);
+app.use('/api/medicines', medicineRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Basic route
 app.get('/', (req, res) => {

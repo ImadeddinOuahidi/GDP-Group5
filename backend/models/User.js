@@ -189,6 +189,25 @@ const userSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
+// Add relationships - User can have multiple medicines prescribed and side effect reports
+userSchema.virtual('prescribedMedicines', {
+  ref: 'Medicine',
+  localField: '_id',
+  foreignField: 'createdBy'
+});
+
+userSchema.virtual('sideEffectReports', {
+  ref: 'ReportSideEffect',
+  localField: '_id',
+  foreignField: 'reportedBy'
+});
+
+userSchema.virtual('patientReports', {
+  ref: 'ReportSideEffect',
+  localField: '_id',
+  foreignField: 'patient'
+});
+
 // Virtual for full name
 userSchema.virtual('fullName').get(function() {
   return `${this.firstName} ${this.lastName}`;
