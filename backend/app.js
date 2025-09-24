@@ -29,6 +29,15 @@ app.get('/', (req, res) => {
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Server is healthy' });
 });
+app.get('/api/info', async (req, res) => {
+  const dbState = mongoose.connection.readyState === 1 ? 'connected' : 'not connected';
+  res.json({
+    appName: 'MyApp Backend',
+    version: '1.0.0',
+    serverTime: new Date().toISOString(),
+    database: dbState
+  });
+});
 
 // Start the server
 app.listen(port, () => {
