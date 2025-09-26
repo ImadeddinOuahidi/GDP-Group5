@@ -6,7 +6,8 @@ const app = express();
 const port = 3000;
 
 // MongoDB connection
-const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/myapp';
+// adding mongo connection string with which is hostedin mongodb atlas
+const mongoURI = process.env.MONGODB_URI || 'mongodb+srv://modugulaanjireddy18_db_user:r0H53qLCObKUZc9Z@cluster0.cncdtpb.mongodb.net/';
 
 mongoose.connect(mongoURI)
   .then(() => console.log('Connected to MongoDB'))
