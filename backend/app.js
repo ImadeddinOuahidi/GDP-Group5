@@ -49,6 +49,15 @@ app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
 
+// Server uptime route
+app.get('/uptime', (req, res) => {
+  res.json({
+    uptimeSeconds: process.uptime(),
+    startedAt: new Date(Date.now() - process.uptime() * 1000).toISOString()
+  });
+});
+
+
 // Extra diagnostics route (new addition only)
 app.get('/info', (req, res) => {
   res.json({
