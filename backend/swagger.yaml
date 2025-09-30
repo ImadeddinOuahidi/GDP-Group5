@@ -1,0 +1,501 @@
+openapi: 3.0.0
+info:
+  title: Healthcare Management API
+  description: |
+    A comprehensive healthcare management system API for managing medicines, users, and side effect reporting.
+    
+    ## Features
+    - User management with role-based access (Admin, Doctor, Patient)
+    - Medicine inventory management
+    - Side effect reporting and monitoring
+    - Regulatory compliance features
+    
+    ## Authentication
+    This API uses JWT Bearer tokens for authentication. Include the token in the Authorization header:
+    ```
+    Authorization: Bearer <your-jwt-token>
+    ```
+    
+    ## User Roles
+    - **Admin**: Full system access
+    - **Doctor**: Can manage medicines and review reports
+    - **Patient**: Can submit reports and view own data
+    
+  version: 1.0.0
+  contact:
+    name: Healthcare API Support
+    email: support@healthcare-api.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+  - url: https://api.healthcare-app.com/api
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Medicines
+    description: Medicine inventory management
+  - name: Reports
+    description: Side effect reporting and monitoring
+  - name: Users
+    description: User profile management
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from login endpoint
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Error message"
+        error:
+          type: string
+          example: "Detailed error information"
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+        firstName:
+          type: string
+          example: "John"
+        lastName:
+          type: string
+          example: "Doe"
+        email:
+          type: string
+          format: email
+          example: "john.doe@example.com"
+        phone:
+          type: string
+          example: "+1234567890"
+        dateOfBirth:
+          type: string
+          format: date
+          example: "1990-01-01"
+        gender:
+          type: string
+          enum: [male, female, other]
+          example: "male"
+        role:
+          type: string
+          enum: [admin, doctor, patient]
+          example: "patient"
+        isActive:
+          type: boolean
+          example: true
+        isEmailVerified:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UserSignup:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - email
+        - password
+        - phone
+        - dateOfBirth
+        - gender
+        - address
+      properties:
+        firstName:
+          type: string
+          minLength: 2
+          maxLength: 50
+          example: "John"
+        lastName:
+          type: string
+          minLength: 2
+          maxLength: 50
+          example: "Doe"
+        email:
+          type: string
+          format: email
+          example: "john.doe@example.com"
+        password:
+          type: string
+          minLength: 6
+          example: "SecurePass123"
+        phone:
+          type: string
+          example: "+1234567890"
+        dateOfBirth:
+          type: string
+          format: date
+          example: "1990-01-01"
+        gender:
+          type: string
+          enum: [male, female, other]
+          example: "male"
+        role:
+          type: string
+          enum: [admin, doctor, patient]
+          default: "patient"
+        address:
+          $ref: '#/components/schemas/Address'
+
+    UserSignin:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "john.doe@example.com"
+        password:
+          type: string
+          example: "SecurePass123"
+
+    Address:
+      type: object
+      required:
+        - street
+        - city
+        - state
+        - zipCode
+      properties:
+        street:
+          type: string
+          example: "123 Main St"
+        city:
+          type: string
+          example: "New York"
+        state:
+          type: string
+          example: "NY"
+        zipCode:
+          type: string
+          example: "10001"
+        country:
+          type: string
+          default: "USA"
+          example: "USA"
+
+    Medicine:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+        name:
+          type: string
+          example: "Aspirin"
+        genericName:
+          type: string
+          example: "Acetylsalicylic acid"
+        brandName:
+          type: string
+          example: "Bayer Aspirin"
+        category:
+          type: string
+          enum: [
+            "Antibiotic", "Analgesic", "Antiviral", "Antifungal", "Antihistamine",
+            "Cardiovascular", "Diabetes", "Respiratory", "Gastrointestinal",
+            "Neurological", "Psychiatric", "Dermatological", "Hormonal",
+            "Immunosuppressant", "Vaccine", "Vitamin", "Supplement", "Other"
+          ]
+          example: "Analgesic"
+        dosageForm:
+          type: string
+          enum: [
+            "Tablet", "Capsule", "Syrup", "Injection", "Cream", "Ointment",
+            "Drops", "Inhaler", "Patch", "Suppository", "Powder", "Gel"
+          ]
+          example: "Tablet"
+        strength:
+          $ref: '#/components/schemas/Strength'
+        prescriptionRequired:
+          type: boolean
+          example: false
+        manufacturer:
+          $ref: '#/components/schemas/Manufacturer'
+        pricing:
+          $ref: '#/components/schemas/Pricing'
+        availability:
+          $ref: '#/components/schemas/Availability'
+        isActive:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Strength:
+      type: object
+      required:
+        - value
+        - unit
+      properties:
+        value:
+          type: number
+          minimum: 0
+          example: 500
+        unit:
+          type: string
+          enum: ["mg", "g", "mcg", "ml", "L", "IU", "%"]
+          example: "mg"
+
+    Manufacturer:
+      type: object
+      required:
+        - name
+        - country
+        - licenseNumber
+      properties:
+        name:
+          type: string
+          example: "PharmaCorp Inc."
+        country:
+          type: string
+          example: "USA"
+        licenseNumber:
+          type: string
+          example: "LIC123456789"
+
+    Pricing:
+      type: object
+      properties:
+        wholesalePrice:
+          type: number
+          minimum: 0
+          example: 5.99
+        retailPrice:
+          type: number
+          minimum: 0
+          example: 9.99
+        currency:
+          type: string
+          default: "USD"
+          example: "USD"
+
+    Availability:
+      type: object
+      properties:
+        inStock:
+          type: boolean
+          default: true
+        quantity:
+          type: integer
+          minimum: 0
+          default: 0
+          example: 100
+        minimumStock:
+          type: integer
+          minimum: 0
+          default: 10
+          example: 10
+
+    ReportSideEffect:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+        reportedBy:
+          $ref: '#/components/schemas/User'
+        medicine:
+          $ref: '#/components/schemas/Medicine'
+        patient:
+          $ref: '#/components/schemas/User'
+        sideEffects:
+          type: array
+          items:
+            $ref: '#/components/schemas/SideEffect'
+        medicationUsage:
+          $ref: '#/components/schemas/MedicationUsage'
+        reportDetails:
+          $ref: '#/components/schemas/ReportDetails'
+        status:
+          type: string
+          enum: ["Draft", "Submitted", "Under Review", "Reviewed", "Closed", "Rejected"]
+          example: "Submitted"
+        priority:
+          type: string
+          enum: ["Low", "Medium", "High", "Critical"]
+          example: "Medium"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SideEffect:
+      type: object
+      required:
+        - effect
+        - severity
+        - onset
+      properties:
+        effect:
+          type: string
+          example: "Nausea"
+        severity:
+          type: string
+          enum: ["Mild", "Moderate", "Severe", "Life-threatening"]
+          example: "Mild"
+        onset:
+          type: string
+          enum: ["Immediate", "Within hours", "Within days", "Within weeks", "Unknown"]
+          example: "Within hours"
+        bodySystem:
+          type: string
+          enum: [
+            "Gastrointestinal", "Cardiovascular", "Respiratory", "Nervous System",
+            "Musculoskeletal", "Dermatological", "Genitourinary", "Endocrine",
+            "Hematological", "Psychiatric", "Ocular", "Otic", "Other"
+          ]
+          example: "Gastrointestinal"
+        description:
+          type: string
+          maxLength: 500
+          example: "Patient experienced mild nausea after taking medication"
+
+    MedicationUsage:
+      type: object
+      required:
+        - indication
+        - dosage
+        - startDate
+      properties:
+        indication:
+          type: string
+          example: "Pain relief"
+        dosage:
+          $ref: '#/components/schemas/Dosage'
+        startDate:
+          type: string
+          format: date
+          example: "2025-09-20"
+        endDate:
+          type: string
+          format: date
+          example: "2025-09-25"
+
+    Dosage:
+      type: object
+      required:
+        - amount
+        - frequency
+        - route
+      properties:
+        amount:
+          type: string
+          example: "500mg"
+        frequency:
+          type: string
+          example: "Twice daily"
+        route:
+          type: string
+          enum: [
+            "Oral", "Intravenous", "Intramuscular", "Subcutaneous", "Topical",
+            "Inhalation", "Rectal", "Vaginal", "Nasal", "Ophthalmic", "Otic"
+          ]
+          example: "Oral"
+
+    ReportDetails:
+      type: object
+      required:
+        - incidentDate
+        - seriousness
+        - outcome
+      properties:
+        incidentDate:
+          type: string
+          format: date
+          example: "2025-09-21"
+        reportDate:
+          type: string
+          format: date-time
+        seriousness:
+          type: string
+          enum: ["Serious", "Non-serious"]
+          example: "Non-serious"
+        outcome:
+          type: string
+          enum: [
+            "Recovered/Resolved", "Recovering", "Not recovered",
+            "Recovered with sequelae", "Fatal", "Unknown"
+          ]
+          example: "Recovered/Resolved"
+
+    AuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Login successful"
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/User'
+            token:
+              type: string
+              example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    Pagination:
+      type: object
+      properties:
+        currentPage:
+          type: integer
+          example: 1
+        totalPages:
+          type: integer
+          example: 5
+        totalMedicines:
+          type: integer
+          example: 50
+        hasNextPage:
+          type: boolean
+          example: true
+        hasPrevPage:
+          type: boolean
+          example: false
+
+security:
+  - bearerAuth: []
+
+paths: {}

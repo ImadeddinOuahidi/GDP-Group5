@@ -1,6 +1,10 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const swaggerUi = require('swagger-ui-express');
+const swaggerJsdoc = require('swagger-jsdoc');
+const YAML = require('yamljs');
+const path = require('path');
 const authRoutes = require('./routes/auth');
 const app = express();
 const port = 3000;
@@ -13,10 +17,36 @@ mongoose.connect(mongoURI)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
+// Swagger Configuration
+const swaggerDocument = YAML.load(path.join(__dirname, 'swagger.yaml'));
+
+const swaggerOptions = {
+  definition: swaggerDocument,
+  apis: ['./routes/*.js', './controllers/*.js', './models/*.js'], // paths to files containing OpenAPI definitions
+};
+
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+
 // Middleware
 app.use(cors()); // Enable CORS for all routes
 app.use(express.json({ limit: '10mb' })); // Parse JSON with size limit
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded data
+
+// Swagger UI
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  explorer: true,
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: "Healthcare API Documentation",
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true,
+    docExpansion: 'none',
+    filter: true,
+    showExtensions: true,
+    showCommonExtensions: true,
+    tryItOutEnabled: true
+  }
+}));
 
 // Routes
 const medicineRoutes = require('./routes/medicines');

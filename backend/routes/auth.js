@@ -5,6 +5,16 @@ const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * components:
+ *   securitySchemes:
+ *     bearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT
+ */
+
 // Validation rules for signup
 const signupValidation = [
   body('firstName')
@@ -129,13 +139,160 @@ const signinValidation = [
 
 // Routes
 
-// POST /api/auth/signup - Register a new user
+/**
+ * @swagger
+ * /auth/signup:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Register a new user
+ *     description: Create a new user account with role-based registration (patient, doctor, or admin)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UserSignup'
+ *           examples:
+ *             patient:
+ *               summary: Patient Registration
+ *               value:
+ *                 firstName: "John"
+ *                 lastName: "Doe"
+ *                 email: "john.doe@example.com"
+ *                 password: "SecurePass123"
+ *                 phone: "+1234567890"
+ *                 dateOfBirth: "1990-01-01"
+ *                 gender: "male"
+ *                 role: "patient"
+ *                 address:
+ *                   street: "123 Main St"
+ *                   city: "New York"
+ *                   state: "NY"
+ *                   zipCode: "10001"
+ *                   country: "USA"
+ *                 patientInfo:
+ *                   emergencyContact:
+ *                     name: "Jane Doe"
+ *                     relationship: "spouse"
+ *                     phone: "+1234567891"
+ *                   bloodGroup: "O+"
+ *             doctor:
+ *               summary: Doctor Registration
+ *               value:
+ *                 firstName: "Dr. Sarah"
+ *                 lastName: "Smith"
+ *                 email: "dr.smith@hospital.com"
+ *                 password: "SecurePass123"
+ *                 phone: "+1234567892"
+ *                 dateOfBirth: "1985-05-15"
+ *                 gender: "female"
+ *                 role: "doctor"
+ *                 address:
+ *                   street: "456 Medical Ave"
+ *                   city: "Boston"
+ *                   state: "MA"
+ *                   zipCode: "02101"
+ *                 doctorInfo:
+ *                   licenseNumber: "MD123456"
+ *                   specialization: "Cardiology"
+ *                   yearsOfExperience: 10
+ *                   consultationFee: 200
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
+ *       400:
+ *         description: Validation errors or user already exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.post('/signup', signupValidation, authController.signup);
 
-// POST /api/auth/signin - Login user
+/**
+ * @swagger
+ * /auth/signin:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Sign in user
+ *     description: Authenticate user and return JWT token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UserSignin'
+ *           example:
+ *             email: "john.doe@example.com"
+ *             password: "SecurePass123"
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
+ *       401:
+ *         description: Invalid credentials or inactive account
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       400:
+ *         description: Validation errors
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.post('/signin', signinValidation, authController.signin);
 
-// GET /api/auth/verify-email - Verify email address
+/**
+ * @swagger
+ * /auth/verify-email:
+ *   get:
+ *     tags: [Authentication]
+ *     summary: Verify email address
+ *     description: Verify user's email address using verification token
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Email verification token
+ *         example: "abc123def456ghi789"
+ *     responses:
+ *       200:
+ *         description: Email verified successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Email verified successfully"
+ *       400:
+ *         description: Invalid or expired token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get('/verify-email', authController.verifyEmail);
 
 // POST /api/auth/resend-verification - Resend verification email
@@ -146,10 +303,115 @@ router.post('/resend-verification', [
     .withMessage('Please provide a valid email')
 ], authController.resendVerificationEmail);
 
-// GET /api/auth/profile - Get current user profile (protected route)
+/**
+ * @swagger
+ * /auth/profile:
+ *   get:
+ *     tags: [Authentication]
+ *     summary: Get current user profile
+ *     description: Get the authenticated user's profile information
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get('/profile', protect, authController.getProfile);
 
-// PUT /api/auth/profile - Update user profile (protected route)
+/**
+ * @swagger
+ * /auth/profile:
+ *   put:
+ *     tags: [Authentication]
+ *     summary: Update user profile
+ *     description: Update the authenticated user's profile information
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
+ *               lastName:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
+ *               phone:
+ *                 type: string
+ *               address:
+ *                 $ref: '#/components/schemas/Address'
+ *           example:
+ *             firstName: "John"
+ *             lastName: "Smith"
+ *             phone: "+1234567890"
+ *             address:
+ *               street: "456 New St"
+ *               city: "Boston"
+ *               state: "MA"
+ *               zipCode: "02101"
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Profile updated successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *       400:
+ *         description: Validation errors
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.put('/profile', [
   protect,
   body('firstName')
