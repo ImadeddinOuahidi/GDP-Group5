@@ -1,7 +1,9 @@
 const express = require('express');
 const { body, query } = require('express-validator');
 const reportController = require('../controllers/reportController');
+const aiReportController = require('../controllers/aiReportController');
 const { protect, restrictTo, requirePermission } = require('../middleware/auth');
+const { uploadAIReportFiles, handleUploadErrors, validateUploadedFiles } = require('../middleware/fileUpload');
 
 const router = express.Router();
 
@@ -970,6 +972,325 @@ router.put('/:id/causality',
   restrictTo('admin', 'doctor'),
   causalityAssessmentValidation,
   reportController.updateCausalityAssessment
+);
+
+// AI-Powered Report Submission Routes
+
+/**
+ * @swagger
+ * /api/reports/aisubmit:
+ *   post:
+ *     summary: AI-powered side effect report submission
+ *     description: Submit multimodal input (text, images, audio) to automatically extract and structure side effect report data using AI
+ *     tags: [AI-Powered Reports]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               text:
+ *                 type: string
+ *                 maxLength: 5000
+ *                 example: "I took paracetamol 500mg twice daily for headache. After 2 days, I developed severe nausea and stomach pain. The pain started within a few hours of taking the medication."
+ *                 description: Text description of the side effect experience
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 maxItems: 5
+ *                 description: Images showing visible side effects (rashes, swelling, etc.)
+ *               audio:
+ *                 type: string
+ *                 format: binary
+ *                 description: Audio recording describing the side effect experience
+ *               autoSubmit:
+ *                 type: boolean
+ *                 default: false
+ *                 description: If true, automatically submit report when AI confidence is high
+ *           encoding:
+ *             images:
+ *               contentType: image/jpeg, image/png, image/gif, image/webp
+ *             audio:
+ *               contentType: audio/mpeg, audio/wav, audio/m4a, audio/ogg, audio/webm
+ *     responses:
+ *       200:
+ *         description: Multimodal input processed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: "Multimodal input processed successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     extractedData:
+ *                       type: object
+ *                       properties:
+ *                         medicine:
+ *                           type: object
+ *                           properties:
+ *                             name:
+ *                               type: string
+ *                               example: "Paracetamol"
+ *                             dosage:
+ *                               type: string
+ *                               example: "500mg"
+ *                         sideEffects:
+ *                           type: array
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               effect:
+ *                                 type: string
+ *                                 example: "Severe nausea and stomach pain"
+ *                               severity:
+ *                                 type: string
+ *                                 example: "Severe"
+ *                               onset:
+ *                                 type: string
+ *                                 example: "Within hours"
+ *                               bodySystem:
+ *                                 type: string
+ *                                 example: "Gastrointestinal"
+ *                         confidence:
+ *                           type: string
+ *                           enum: [High, Medium, Low]
+ *                           example: "High"
+ *                     suggestedMedicines:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                           genericName:
+ *                             type: string
+ *                     foundMedicine:
+ *                       $ref: '#/components/schemas/Medicine'
+ *                     autoSubmittedReport:
+ *                       $ref: '#/components/schemas/ReportSideEffect'
+ *       400:
+ *         description: Invalid input or file format
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "At least one input (text, image, or audio) is required."
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       429:
+ *         description: AI service rate limit reached
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "AI service rate limit reached. Please try again later."
+ *                 code:
+ *                   type: string
+ *                   example: "AI_RATE_LIMIT"
+ *       503:
+ *         description: AI service unavailable
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "AI service temporarily unavailable. Please try submitting a manual report."
+ *                 code:
+ *                   type: string
+ *                   example: "AI_SERVICE_UNAVAILABLE"
+ */
+// POST /api/reports/aisubmit - AI-powered report submission
+router.post('/aisubmit',
+  uploadAIReportFiles,
+  handleUploadErrors,
+  validateUploadedFiles,
+  aiReportController.submitAIReport
+);
+
+/**
+ * @swagger
+ * /api/reports/aipreview:
+ *   post:
+ *     summary: Preview AI-extracted report data
+ *     description: Process multimodal input and preview extracted data without submitting the report
+ *     tags: [AI-Powered Reports]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               text:
+ *                 type: string
+ *                 maxLength: 5000
+ *                 example: "I experienced dizziness after taking my blood pressure medication this morning."
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 maxItems: 5
+ *               audio:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Report data extracted successfully (preview mode)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: "Report data extracted successfully (preview mode)"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     extractedData:
+ *                       type: object
+ *                       description: "Structured data extracted from multimodal input"
+ *                     suggestedMedicines:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Medicine'
+ *                     isPreview:
+ *                       type: boolean
+ *                       example: true
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+// POST /api/reports/aipreview - Preview AI-extracted data
+router.post('/aipreview',
+  uploadAIReportFiles,
+  handleUploadErrors,
+  validateUploadedFiles,
+  aiReportController.previewAIReport
+);
+
+/**
+ * @swagger
+ * /api/reports/aiconfirm:
+ *   post:
+ *     summary: Submit confirmed AI-extracted report
+ *     description: Submit a report using AI-extracted data that has been reviewed and confirmed by the user
+ *     tags: [AI-Powered Reports]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - extractedData
+ *               - medicineId
+ *             properties:
+ *               extractedData:
+ *                 type: object
+ *                 description: "AI-extracted report data from previous preview"
+ *               medicineId:
+ *                 type: string
+ *                 example: "507f1f77bcf86cd799439011"
+ *                 description: "Selected medicine ID from suggested medicines"
+ *               modifications:
+ *                 type: object
+ *                 description: "User modifications to the extracted data"
+ *                 properties:
+ *                   sideEffects:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                   patientInfo:
+ *                     type: object
+ *                   reportDetails:
+ *                     type: object
+ *     responses:
+ *       201:
+ *         description: AI-assisted report submitted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: "AI-assisted report submitted successfully"
+ *                 data:
+ *                   $ref: '#/components/schemas/ReportSideEffect'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       404:
+ *         description: Medicine not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Medicine not found"
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+// POST /api/reports/aiconfirm - Submit confirmed AI report
+router.post('/aiconfirm',
+  [
+    body('extractedData').notEmpty().withMessage('Extracted data is required'),
+    body('medicineId').isMongoId().withMessage('Valid medicine ID is required'),
+    body('modifications').optional().isObject().withMessage('Modifications must be an object')
+  ],
+  aiReportController.submitConfirmedAIReport
 );
 
 module.exports = router;

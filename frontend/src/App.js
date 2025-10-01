@@ -1,4 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import DoctorHome from './DoctorHome';
+
 
 function Home() {
   return <h2>Home</h2>;
