@@ -83,6 +83,17 @@ app.get('/uptime', (req, res) => {
   });
 });
 
+// Environment info route
+app.get('/env', (req, res) => {
+  res.json({
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+// Simple ping route
+app.get('/ping', (req, res) => {
+  res.json({ message: 'pong', time: new Date().toISOString() });
+});
+
 
 // Start the server
 app.listen(port, () => {
