@@ -1,4 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import DoctorHome from "./DoctorHome";
+import Dashboard from "./Dashboard";
+
 
 function Home() {
   return <h2>Home</h2>;
@@ -14,8 +17,8 @@ export default function App() {
   return (
     <Router>
       <nav>
-        <Link to="/">Home</Link> | 
-        <Link to="/report">Report</Link> | 
+        <Link to="/">Home</Link> |
+        <Link to="/report">Report</Link> |
         <Link to="/settings">Settings</Link>
       </nav>
       <Routes>
@@ -23,6 +26,7 @@ export default function App() {
         <Route path="/report" element={<Report />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/doctor" element={<DoctorHome />} />
+        <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
     </Router>
   );
