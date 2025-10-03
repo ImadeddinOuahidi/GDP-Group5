@@ -1,0 +1,32 @@
+@startuml usecase6
+!theme plain
+title Use Case 6: Securely Store ADR Reports
+
+left to right direction
+
+actor "System" as System
+rectangle "ADR Reporting System" {
+    usecase "Securely Store Report" as UC6
+    usecase "Store in Encrypted Database" as UC6_1
+    usecase "Backup Data Automatically" as UC6_2
+    usecase "Generate Unique ID" as UC6_3
+    usecase "Add Timestamp" as UC6_4
+}
+
+System --> UC6 : Completed patient report\n(validated)
+
+UC6 .> UC6_1 : <<include>>
+UC6 .> UC6_2 : <<include>>
+UC6 .> UC6_3 : <<include>>
+UC6 .> UC6_4 : <<include>>
+
+note right of UC6
+  **Inputs:**
+  - Completed patient report (validated)
+  
+  **Outputs:**
+  - Report stored with unique ID
+  - Timestamp added
+end note
+
+@enduml

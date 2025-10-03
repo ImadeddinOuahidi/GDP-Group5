@@ -1,0 +1,34 @@
+@startuml usecase7
+!theme plain
+title Use Case 7: Healthcare Staff Login
+
+left to right direction
+
+actor "Healthcare Staff" as Staff
+rectangle "ADR Reporting System" {
+    usecase "Healthcare Staff Login" as UC7
+    usecase "Validate Credentials" as UC7_1
+    usecase "Check Against Database" as UC7_2
+    usecase "Restrict Unauthorized Access" as UC7_3
+    usecase "Grant Access to Dashboard" as UC7_4
+    usecase "Deny Access with Error" as UC7_5
+}
+
+Staff --> UC7 : Username and password
+
+UC7 .> UC7_1 : <<include>>
+UC7 .> UC7_2 : <<include>>
+UC7 .> UC7_3 : <<include>>
+UC7 .> UC7_4 : <<extend>>\n(if valid)
+UC7 .> UC7_5 : <<extend>>\n(if invalid)
+
+note right of UC7
+  **Inputs:**
+  - Username and password
+  
+  **Outputs:**
+  - Access granted to dashboard
+  - Access denied with error if invalid
+end note
+
+@enduml

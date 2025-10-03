@@ -1,0 +1,32 @@
+@startuml usecase10
+!theme plain
+title Use Case 10: Secure Upload of Reports
+
+left to right direction
+
+actor "Patient" as Patient
+rectangle "ADR Reporting System" {
+    usecase "Secure Upload Reports" as UC10
+    usecase "Encrypt During Upload" as UC10_1
+    usecase "Validate Format and Size" as UC10_2
+    usecase "Send Upload Confirmation" as UC10_3
+    usecase "Send Format/Size Error" as UC10_4
+}
+
+Patient --> UC10 : Text report, photo,\nor voice file
+
+UC10 .> UC10_1 : <<include>>
+UC10 .> UC10_2 : <<include>>
+UC10 .> UC10_3 : <<extend>>\n(if valid)
+UC10 .> UC10_4 : <<extend>>\n(if invalid)
+
+note right of UC10
+  **Inputs:**
+  - Text report, photo, or voice file
+  
+  **Outputs:**
+  - Confirmation of secure upload
+  - Error if format or size invalid
+end note
+
+@enduml

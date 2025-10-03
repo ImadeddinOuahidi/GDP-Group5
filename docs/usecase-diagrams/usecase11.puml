@@ -1,0 +1,32 @@
+@startuml usecase11
+!theme plain
+title Use Case 11: Role-Based Access
+
+left to right direction
+
+actor "Patient" as Patient
+actor "Doctor" as Doctor
+rectangle "ADR Reporting System" {
+    usecase "Role-Based Access" as UC11
+    usecase "Identify Role After Login" as UC11_1
+    usecase "Grant Patient Permissions" as UC11_2
+    usecase "Grant Doctor Permissions" as UC11_3
+}
+
+Patient --> UC11 : User credentials
+Doctor --> UC11 : User credentials
+
+UC11 .> UC11_1 : <<include>>
+UC11 .> UC11_2 : <<extend>>\n(if Patient)
+UC11 .> UC11_3 : <<extend>>\n(if Doctor)
+
+note right of UC11
+  **Inputs:**
+  - User credentials
+  
+  **Outputs:**
+  - Patient: Submit and view own reports
+  - Doctor: Review all reports
+end note
+
+@enduml
