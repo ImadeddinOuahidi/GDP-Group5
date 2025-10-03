@@ -1,3 +1,4 @@
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -94,6 +95,25 @@ app.get('/ping', (req, res) => {
   res.json({ message: 'pong', time: new Date().toISOString() });
 });
 
+app.get('/info', (req, res) => {
+  res.json({
+    appName: 'MyApp Backend',
+    version: '1.0.0',
+    serverTime: new Date().toISOString()
+  });
+});
+
+// ✅ Random quote route
+const quotes = [
+  'Keep moving forward.',
+  'Stay curious.',
+  'Code. Commit. Repeat.'
+];
+
+app.get('/quote', (req, res) => {
+  const random = quotes[Math.floor(Math.random() * quotes.length)];
+  res.json({ quote: random });
+});
 
 // Start the server
 app.listen(port, () => {
