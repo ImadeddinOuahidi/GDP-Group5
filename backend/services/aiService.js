@@ -2,6 +2,7 @@ const OpenAI = require('openai');
 const sharp = require('sharp');
 const fs = require('fs').promises;
 const path = require('path');
+const fuzzySearchService = require('./fuzzySearchService');
 
 class AIService {
   constructor() {
@@ -38,6 +39,28 @@ class AIService {
 
       // Use AI to structure the data
       const structuredData = await this.extractReportData(combinedContext);
+      
+      // Enhance medicine data with fuzzy matching
+      if (structuredData.medicine && structuredData.medicine.name) {
+        const medicineMatch = await this.findBestMedicineMatch(structuredData.medicine);
+        if (medicineMatch && medicineMatch.confidence >= 0.4) {
+          structuredData.medicine = {
+            ...structuredData.medicine,
+            matchedMedicine: medicineMatch.medicine,
+            matchConfidence: medicineMatch.confidence,
+            matchType: medicineMatch.matchType,
+            matchSource: medicineMatch.source,
+            // Keep original extracted data for reference
+            originalExtracted: { ...structuredData.medicine }
+          };
+        } else {
+          // If no good match found, get suggestions
+          const suggestions = await this.suggestMedicines(structuredData.medicine.name);
+          if (suggestions.length > 0) {
+            structuredData.medicine.suggestions = suggestions.slice(0, 5);
+          }
+        }
+      }
       
       return structuredData;
     } catch (error) {
@@ -275,18 +298,160 @@ Guidelines:
   }
 
   /**
-   * Get suggested medicines based on description
-   * @param {string} description - Medicine description
-   * @returns {Array} Array of suggested medicine IDs
+   * Get suggested medicines based on description using fuzzy matching
+   * @param {string} description - Medicine description or name
+   * @returns {Array} Array of suggested medicines with similarity scores
    */
   async suggestMedicines(description) {
     try {
-      // This would typically involve a medicine database search
-      // For now, we'll return a placeholder
-      return [];
+      if (!description || description.trim().length === 0) {
+        return [];
+      }
+
+      // Use fuzzy search to find matching medicines
+      const suggestions = await fuzzySearchService.fuzzySearch(description, {
+        maxResults: 10,
+        minScore: 0.2,  // Lower threshold for suggestions
+        includeExact: true,
+        includeFuzzy: true
+      });
+
+      // Format suggestions for AI processing
+      return suggestions.map(result => ({
+        id: result.medicine._id,
+        name: result.medicine.name,
+        genericName: result.medicine.genericName,
+        category: result.medicine.category,
+        dosageForm: result.medicine.dosageForm,
+        strength: result.medicine.strength,
+        score: result.combinedScore,
+        matchType: result.matchType,
+        manufacturer: result.medicine.manufacturer?.name
+      }));
+
     } catch (error) {
       console.error('Medicine suggestion error:', error);
       return [];
+    }
+  }
+
+  /**
+   * Enhanced medicine matching for AI-extracted data
+   * @param {Object} extractedMedicine - Medicine data extracted by AI
+   * @returns {Object} Best matching medicine with confidence score
+   */
+  async findBestMedicineMatch(extractedMedicine) {
+    try {
+      if (!extractedMedicine?.name) {
+        return null;
+      }
+
+      // Try exact match first
+      const exactMatches = await fuzzySearchService.findExactMatches(extractedMedicine.name);
+      if (exactMatches.length > 0) {
+        return {
+          medicine: exactMatches[0],
+          confidence: 1.0,
+          matchType: 'exact',
+          source: 'exact_name_match'
+        };
+      }
+
+      // Try fuzzy matching
+      const fuzzyResults = await fuzzySearchService.fuzzySearch(extractedMedicine.name, {
+        maxResults: 5,
+        minScore: 0.4,
+        includeExact: true,
+        includeFuzzy: true
+      });
+
+      if (fuzzyResults.length === 0) {
+        return null;
+      }
+
+      const bestMatch = fuzzyResults[0];
+      
+      // Additional validation based on extracted data
+      let confidenceBoost = 0;
+      
+      // Check if dosage form matches
+      if (extractedMedicine.dosageForm && bestMatch.medicine.dosageForm) {
+        const dosageFormMatch = extractedMedicine.dosageForm.toLowerCase() === 
+          bestMatch.medicine.dosageForm.toLowerCase();
+        if (dosageFormMatch) confidenceBoost += 0.1;
+      }
+
+      // Check if strength matches
+      if (extractedMedicine.strength && bestMatch.medicine.strength) {
+        const strengthMatch = this.compareStrengths(
+          extractedMedicine.strength, 
+          bestMatch.medicine.strength
+        );
+        if (strengthMatch) confidenceBoost += 0.1;
+      }
+
+      const finalConfidence = Math.min(1.0, bestMatch.combinedScore + confidenceBoost);
+
+      return {
+        medicine: bestMatch.medicine,
+        confidence: finalConfidence,
+        matchType: bestMatch.matchType,
+        source: 'fuzzy_match',
+        originalScore: bestMatch.combinedScore,
+        boost: confidenceBoost
+      };
+
+    } catch (error) {
+      console.error('Find best medicine match error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Compare medicine strengths for similarity
+   * @param {string|Object} strength1 - First strength value
+   * @param {Object} strength2 - Second strength value with value and unit
+   * @returns {boolean} Whether strengths are similar
+   */
+  compareStrengths(strength1, strength2) {
+    try {
+      // Extract numeric value from string if needed
+      let value1, unit1;
+      
+      if (typeof strength1 === 'string') {
+        const match = strength1.match(/(\d+(?:\.\d+)?)\s*([a-zA-Z%]+)/);
+        if (match) {
+          value1 = parseFloat(match[1]);
+          unit1 = match[2].toLowerCase();
+        }
+      } else if (typeof strength1 === 'object') {
+        value1 = strength1.value;
+        unit1 = strength1.unit?.toLowerCase();
+      }
+
+      const value2 = strength2.value;
+      const unit2 = strength2.unit?.toLowerCase();
+
+      // Compare units first
+      if (unit1 && unit2 && unit1 !== unit2) {
+        // Handle common unit conversions
+        if ((unit1 === 'g' && unit2 === 'mg' && value1 * 1000 === value2) ||
+            (unit1 === 'mg' && unit2 === 'g' && value1 === value2 * 1000)) {
+          return true;
+        }
+        return false;
+      }
+
+      // Compare values with some tolerance
+      if (value1 && value2) {
+        const tolerance = 0.01; // 1% tolerance
+        return Math.abs(value1 - value2) / Math.max(value1, value2) <= tolerance;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Compare strengths error:', error);
+      return false;
     }
   }
 }

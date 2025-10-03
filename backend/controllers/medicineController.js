@@ -1,5 +1,6 @@
 const { validationResult } = require('express-validator');
 const Medicine = require('../models/Medicine');
+const fuzzySearchService = require('../services/fuzzySearchService');
 
 // Get all medicines with filtering and pagination
 exports.getAllMedicines = async (req, res) => {
@@ -290,31 +291,80 @@ exports.getMedicinesByCategory = async (req, res) => {
   }
 };
 
-// Search medicines
+// Search medicines with fuzzy matching
 exports.searchMedicines = async (req, res) => {
   try {
-    const { query, page = 1, limit = 10 } = req.query;
+    const { 
+      query, 
+      page = 1, 
+      limit = 10, 
+      minScore = 0.3,
+      fuzzy = 'true' 
+    } = req.query;
 
-    if (!query) {
+    if (!query || query.trim().length === 0) {
       return res.status(400).json({
         success: false,
         message: 'Search query is required'
       });
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    let results = [];
+    let searchType = 'exact';
 
-    const medicines = await Medicine.searchByName(query)
+    if (fuzzy === 'true') {
+      // Use fuzzy search
+      const fuzzyResults = await fuzzySearchService.fuzzySearch(query, {
+        maxResults: parseInt(limit),
+        minScore: parseFloat(minScore),
+        includeExact: true,
+        includeFuzzy: true
+      });
+
+      results = fuzzyResults.map(result => ({
+        ...result.medicine,
+        searchScore: result.combinedScore,
+        matchType: result.matchType,
+        highlightedMatch: result.highlightedMatch
+      }));
+      
+      searchType = 'fuzzy';
+    } else {
+      // Fallback to exact search
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      const medicines = await Medicine.find({
+        $or: [
+          { name: { $regex: query, $options: 'i' } },
+          { genericName: { $regex: query, $options: 'i' } }
+        ],
+        isActive: true,
+        isDiscontinued: false
+      })
       .populate('createdBy', 'firstName lastName')
       .skip(skip)
       .limit(parseInt(limit));
 
+      results = medicines.map(medicine => ({
+        ...medicine.toObject(),
+        searchScore: 1.0,
+        matchType: 'regex',
+        highlightedMatch: medicine.name
+      }));
+    }
+
     res.status(200).json({
       success: true,
       data: {
-        medicines,
+        medicines: results,
         searchQuery: query,
-        resultsCount: medicines.length
+        resultsCount: results.length,
+        searchType,
+        searchMetadata: {
+          fuzzyEnabled: fuzzy === 'true',
+          minScore: parseFloat(minScore),
+          page: parseInt(page),
+          limit: parseInt(limit)
+        }
       }
     });
 
@@ -501,6 +551,230 @@ exports.getLowStockMedicines = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Advanced fuzzy search with detailed results
+exports.fuzzySearchMedicines = async (req, res) => {
+  try {
+    const { 
+      query, 
+      limit = 10,
+      minScore = 0.3,
+      includeScore = 'true',
+      includeMatches = 'false'
+    } = req.query;
+
+    if (!query || query.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Search query is required'
+      });
+    }
+
+    const searchResults = await fuzzySearchService.fuzzySearch(query, {
+      maxResults: parseInt(limit),
+      minScore: parseFloat(minScore),
+      includeExact: true,
+      includeFuzzy: true
+    });
+
+    // Format results for API response
+    const formattedResults = searchResults.map(result => {
+      const response = {
+        medicine: result.medicine,
+        matchType: result.matchType,
+        highlightedMatch: result.highlightedMatch
+      };
+
+      if (includeScore === 'true') {
+        response.scores = {
+          combined: result.combinedScore,
+          fuse: result.fuseScore,
+          name: result.nameScore,
+          generic: result.genericScore
+        };
+      }
+
+      if (includeMatches === 'true') {
+        response.matches = result.matches;
+      }
+
+      return response;
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        results: formattedResults,
+        searchQuery: query,
+        resultsCount: formattedResults.length,
+        searchMetadata: {
+          minScore: parseFloat(minScore),
+          algorithm: 'fuzzy',
+          includeScore: includeScore === 'true',
+          includeMatches: includeMatches === 'true'
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Fuzzy search medicines error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Get medicine suggestions (autocomplete)
+exports.getMedicineSuggestions = async (req, res) => {
+  try {
+    const { query, limit = 5 } = req.query;
+
+    if (!query || query.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Query must be at least 2 characters long'
+      });
+    }
+
+    const suggestions = await fuzzySearchService.getSuggestions(query, parseInt(limit));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        suggestions,
+        query,
+        count: suggestions.length
+      }
+    });
+
+  } catch (error) {
+    console.error('Get medicine suggestions error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Search medicines by category with fuzzy matching
+exports.fuzzySearchByCategory = async (req, res) => {
+  try {
+    const { category } = req.params;
+    const { query = '', limit = 10 } = req.query;
+
+    if (!category) {
+      return res.status(400).json({
+        success: false,
+        message: 'Category is required'
+      });
+    }
+
+    const results = await fuzzySearchService.searchByCategory(
+      category, 
+      query, 
+      parseInt(limit)
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        medicines: results,
+        category,
+        query,
+        resultsCount: results.length
+      }
+    });
+
+  } catch (error) {
+    console.error('Fuzzy search by category error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Find exact matches for validation
+exports.findExactMedicineMatches = async (req, res) => {
+  try {
+    const { query } = req.query;
+
+    if (!query || query.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Query is required'
+      });
+    }
+
+    const exactMatches = await fuzzySearchService.findExactMatches(query);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        matches: exactMatches,
+        query,
+        hasExactMatch: exactMatches.length > 0,
+        matchCount: exactMatches.length
+      }
+    });
+
+  } catch (error) {
+    console.error('Find exact matches error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Get search analytics
+exports.getSearchAnalytics = async (req, res) => {
+  try {
+    const analytics = fuzzySearchService.getSearchAnalytics();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        analytics,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('Get search analytics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Refresh search index
+exports.refreshSearchIndex = async (req, res) => {
+  try {
+    await fuzzySearchService.forceRefreshIndex();
+
+    res.status(200).json({
+      success: true,
+      message: 'Search index refreshed successfully',
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Refresh search index error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to refresh search index',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

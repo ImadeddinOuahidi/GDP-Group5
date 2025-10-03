@@ -933,4 +933,443 @@ router.delete('/:id',
   medicineController.deleteMedicine
 );
 
+// Fuzzy Search Routes
+
+/**
+ * @swagger
+ * /api/medicines/fuzzy-search:
+ *   get:
+ *     summary: Advanced fuzzy search for medicines
+ *     description: Perform intelligent fuzzy matching with detailed similarity scores and match information
+ *     tags: [Fuzzy Search]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: query
+ *         required: true
+ *         schema:
+ *           type: string
+ *           minLength: 2
+ *         description: Search query for medicine names
+ *         example: "paracetmol"
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 10
+ *         description: Maximum number of results
+ *       - in: query
+ *         name: minScore
+ *         schema:
+ *           type: number
+ *           minimum: 0
+ *           maximum: 1
+ *           default: 0.3
+ *         description: Minimum similarity score (0-1, higher = more similar)
+ *       - in: query
+ *         name: includeScore
+ *         schema:
+ *           type: boolean
+ *           default: true
+ *         description: Include similarity scores in response
+ *       - in: query
+ *         name: includeMatches
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *         description: Include detailed match information
+ *     responses:
+ *       200:
+ *         description: Fuzzy search results with similarity scores
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     results:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           medicine:
+ *                             $ref: '#/components/schemas/Medicine'
+ *                           matchType:
+ *                             type: string
+ *                             enum: [exact_name, exact_generic, contains_name, contains_generic, high_similarity_name, high_similarity_generic, fuzzy, prefix_exact_name, prefix_exact_generic]
+ *                             example: "high_similarity_name"
+ *                           highlightedMatch:
+ *                             type: string
+ *                             example: "**Paracetamol** 500mg Tablets"
+ *                           scores:
+ *                             type: object
+ *                             properties:
+ *                               combined:
+ *                                 type: number
+ *                                 example: 0.95
+ *                               fuse:
+ *                                 type: number
+ *                                 example: 0.88
+ *                               name:
+ *                                 type: number
+ *                                 example: 0.92
+ *                               generic:
+ *                                 type: number
+ *                                 example: 0.98
+ *                     searchQuery:
+ *                       type: string
+ *                       example: "paracetmol"
+ *                     resultsCount:
+ *                       type: integer
+ *                       example: 5
+ *                     searchMetadata:
+ *                       type: object
+ *                       properties:
+ *                         minScore:
+ *                           type: number
+ *                           example: 0.3
+ *                         algorithm:
+ *                           type: string
+ *                           example: "fuzzy"
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+// GET /api/medicines/fuzzy-search - Advanced fuzzy search
+router.get('/fuzzy-search', [
+  query('query').notEmpty().withMessage('Search query is required'),
+  query('limit').optional().isInt({ min: 1, max: 50 }),
+  query('minScore').optional().isFloat({ min: 0, max: 1 }),
+  query('includeScore').optional().isBoolean(),
+  query('includeMatches').optional().isBoolean()
+], medicineController.fuzzySearchMedicines);
+
+/**
+ * @swagger
+ * /api/medicines/suggestions:
+ *   get:
+ *     summary: Get medicine suggestions for autocomplete
+ *     description: Get intelligent suggestions for partial medicine names (ideal for autocomplete features)
+ *     tags: [Fuzzy Search]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: query
+ *         required: true
+ *         schema:
+ *           type: string
+ *           minLength: 2
+ *         description: Partial medicine name
+ *         example: "para"
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 20
+ *           default: 5
+ *         description: Maximum number of suggestions
+ *     responses:
+ *       200:
+ *         description: Medicine suggestions for autocomplete
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     suggestions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             example: "507f1f77bcf86cd799439011"
+ *                           name:
+ *                             type: string
+ *                             example: "Paracetamol 500mg Tablets"
+ *                           genericName:
+ *                             type: string
+ *                             example: "Paracetamol"
+ *                           score:
+ *                             type: number
+ *                             example: 0.95
+ *                           matchType:
+ *                             type: string
+ *                             example: "prefix_exact_name"
+ *                           highlightedName:
+ *                             type: string
+ *                             example: "**Para**cetamol 500mg Tablets"
+ *                     query:
+ *                       type: string
+ *                       example: "para"
+ *                     count:
+ *                       type: integer
+ *                       example: 5
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+// GET /api/medicines/suggestions - Autocomplete suggestions
+router.get('/suggestions', [
+  query('query').isLength({ min: 2 }).withMessage('Query must be at least 2 characters'),
+  query('limit').optional().isInt({ min: 1, max: 20 })
+], medicineController.getMedicineSuggestions);
+
+/**
+ * @swagger
+ * /api/medicines/fuzzy-search/category/{category}:
+ *   get:
+ *     summary: Fuzzy search within a specific category
+ *     description: Perform fuzzy search for medicines within a specific category
+ *     tags: [Fuzzy Search]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: category
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [Antibiotic, Analgesic, Antiviral, Antifungal, Antihistamine, Cardiovascular, Diabetes, Respiratory, Gastrointestinal, Neurological, Psychiatric, Dermatological, Hormonal, Immunosuppressant, Vaccine, Vitamin, Supplement, Other]
+ *         description: Medicine category to search within
+ *         example: "Analgesic"
+ *       - in: query
+ *         name: query
+ *         schema:
+ *           type: string
+ *         description: Search query (optional for all medicines in category)
+ *         example: "paracet"
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 10
+ *         description: Maximum number of results
+ *     responses:
+ *       200:
+ *         description: Category-specific fuzzy search results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     medicines:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Medicine'
+ *                     category:
+ *                       type: string
+ *                       example: "Analgesic"
+ *                     query:
+ *                       type: string
+ *                       example: "paracet"
+ *                     resultsCount:
+ *                       type: integer
+ *                       example: 8
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+// GET /api/medicines/fuzzy-search/category/:category - Category-specific fuzzy search
+router.get('/fuzzy-search/category/:category', [
+  query('query').optional().trim(),
+  query('limit').optional().isInt({ min: 1, max: 50 })
+], medicineController.fuzzySearchByCategory);
+
+/**
+ * @swagger
+ * /api/medicines/exact-matches:
+ *   get:
+ *     summary: Find exact medicine matches
+ *     description: Find exact matches for medicine names (useful for validation)
+ *     tags: [Fuzzy Search]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: query
+ *         required: true
+ *         schema:
+ *           type: string
+ *           minLength: 1
+ *         description: Exact medicine name to search for
+ *         example: "Paracetamol"
+ *     responses:
+ *       200:
+ *         description: Exact match results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     matches:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Medicine'
+ *                     query:
+ *                       type: string
+ *                       example: "Paracetamol"
+ *                     hasExactMatch:
+ *                       type: boolean
+ *                       example: true
+ *                     matchCount:
+ *                       type: integer
+ *                       example: 3
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+// GET /api/medicines/exact-matches - Find exact matches
+router.get('/exact-matches', [
+  query('query').notEmpty().withMessage('Query is required')
+], medicineController.findExactMedicineMatches);
+
+/**
+ * @swagger
+ * /api/medicines/search-analytics:
+ *   get:
+ *     summary: Get search analytics and performance metrics
+ *     description: Retrieve information about the search index and configuration (Admin/Doctor only)
+ *     tags: [Fuzzy Search]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Search analytics and metrics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     analytics:
+ *                       type: object
+ *                       properties:
+ *                         indexSize:
+ *                           type: integer
+ *                           example: 1250
+ *                         lastUpdate:
+ *                           type: string
+ *                           format: date-time
+ *                           example: "2023-12-07T10:30:00.000Z"
+ *                         cacheStatus:
+ *                           type: string
+ *                           enum: [fresh, stale]
+ *                           example: "fresh"
+ *                         configuration:
+ *                           type: object
+ *                           properties:
+ *                             threshold:
+ *                               type: number
+ *                               example: 0.6
+ *                             maxResults:
+ *                               type: string
+ *                               example: "configurable"
+ *                             minMatchLength:
+ *                               type: integer
+ *                               example: 2
+ *                     timestamp:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2023-12-07T15:45:00.000Z"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+// GET /api/medicines/search-analytics - Search analytics (Admin/Doctor only)
+router.get('/search-analytics', 
+  restrictTo('admin', 'doctor'),
+  medicineController.getSearchAnalytics
+);
+
+/**
+ * @swagger
+ * /api/medicines/refresh-index:
+ *   post:
+ *     summary: Refresh the search index
+ *     description: Force refresh of the fuzzy search index (Admin only)
+ *     tags: [Fuzzy Search]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Search index refreshed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Search index refreshed successfully"
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                   example: "2023-12-07T16:00:00.000Z"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+// POST /api/medicines/refresh-index - Refresh search index (Admin only)
+router.post('/refresh-index',
+  restrictTo('admin'),
+  medicineController.refreshSearchIndex
+);
+
 module.exports = router;
