@@ -224,19 +224,41 @@ components:
           example: "Bayer Aspirin"
         category:
           type: string
-          enum: [
-            "Antibiotic", "Analgesic", "Antiviral", "Antifungal", "Antihistamine",
-            "Cardiovascular", "Diabetes", "Respiratory", "Gastrointestinal",
-            "Neurological", "Psychiatric", "Dermatological", "Hormonal",
-            "Immunosuppressant", "Vaccine", "Vitamin", "Supplement", "Other"
-          ]
+          enum:
+            - "Antibiotic"
+            - "Analgesic"
+            - "Antiviral"
+            - "Antifungal"
+            - "Antihistamine"
+            - "Cardiovascular"
+            - "Diabetes"
+            - "Respiratory"
+            - "Gastrointestinal"
+            - "Neurological"
+            - "Psychiatric"
+            - "Dermatological"
+            - "Hormonal"
+            - "Immunosuppressant"
+            - "Vaccine"
+            - "Vitamin"
+            - "Supplement"
+            - "Other"
           example: "Analgesic"
         dosageForm:
           type: string
-          enum: [
-            "Tablet", "Capsule", "Syrup", "Injection", "Cream", "Ointment",
-            "Drops", "Inhaler", "Patch", "Suppository", "Powder", "Gel"
-          ]
+          enum:
+            - "Tablet"
+            - "Capsule"
+            - "Syrup"
+            - "Injection"
+            - "Cream"
+            - "Ointment"
+            - "Drops"
+            - "Inhaler"
+            - "Patch"
+            - "Suppository"
+            - "Powder"
+            - "Gel"
           example: "Tablet"
         strength:
           $ref: '#/components/schemas/Strength'
@@ -379,11 +401,20 @@ components:
           example: "Within hours"
         bodySystem:
           type: string
-          enum: [
-            "Gastrointestinal", "Cardiovascular", "Respiratory", "Nervous System",
-            "Musculoskeletal", "Dermatological", "Genitourinary", "Endocrine",
-            "Hematological", "Psychiatric", "Ocular", "Otic", "Other"
-          ]
+          enum:
+            - "Gastrointestinal"
+            - "Cardiovascular"
+            - "Respiratory"
+            - "Nervous System"
+            - "Musculoskeletal"
+            - "Dermatological"
+            - "Genitourinary"
+            - "Endocrine"
+            - "Hematological"
+            - "Psychiatric"
+            - "Ocular"
+            - "Otic"
+            - "Other"
           example: "Gastrointestinal"
         description:
           type: string
@@ -426,10 +457,18 @@ components:
           example: "Twice daily"
         route:
           type: string
-          enum: [
-            "Oral", "Intravenous", "Intramuscular", "Subcutaneous", "Topical",
-            "Inhalation", "Rectal", "Vaginal", "Nasal", "Ophthalmic", "Otic"
-          ]
+          enum:
+            - "Oral"
+            - "Intravenous"
+            - "Intramuscular"
+            - "Subcutaneous"
+            - "Topical"
+            - "Inhalation"
+            - "Rectal"
+            - "Vaginal"
+            - "Nasal"
+            - "Ophthalmic"
+            - "Otic"
           example: "Oral"
 
     ReportDetails:
@@ -452,10 +491,13 @@ components:
           example: "Non-serious"
         outcome:
           type: string
-          enum: [
-            "Recovered/Resolved", "Recovering", "Not recovered",
-            "Recovered with sequelae", "Fatal", "Unknown"
-          ]
+          enum:
+            - "Recovered/Resolved"
+            - "Recovering"
+            - "Not recovered"
+            - "Recovered with sequelae"
+            - "Fatal"
+            - "Unknown"
           example: "Recovered/Resolved"
 
     AuthResponse:
@@ -494,6 +536,108 @@ components:
         hasPrevPage:
           type: boolean
           example: false
+
+  responses:
+    ValidationError:
+      description: Validation Error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: "Validation errors"
+              errors:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    field:
+                      type: string
+                      example: "email"
+                    message:
+                      type: string
+                      example: "Valid email is required"
+                    value:
+                      type: string
+                      example: "invalid-email"
+    
+    UnauthorizedError:
+      description: Unauthorized - Authentication required
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: "Access denied. No token provided."
+    
+    ForbiddenError:
+      description: Forbidden - Insufficient permissions
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: "You do not have permission to perform this action."
+    
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: "Resource not found"
+    
+    ConflictError:
+      description: Conflict - Resource already exists
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: "Resource already exists"
+    
+    InternalServerError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: "Internal server error"
+              error:
+                type: string
+                example: "Detailed error message"
 
 security:
   - bearerAuth: []

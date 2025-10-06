@@ -52,10 +52,12 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 // Routes
 const medicineRoutes = require('./routes/medicines');
 const reportRoutes = require('./routes/reports');
+const symptomProgressionRoutes = require('./routes/symptomProgression');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/medicines', medicineRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/symptom-progression', symptomProgressionRoutes);
 
 // Basic route
 app.get('/', (req, res) => {

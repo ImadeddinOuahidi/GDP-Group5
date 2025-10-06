@@ -1,6 +1,7 @@
 const aiService = require('../services/aiService');
 const Medicine = require('../models/Medicine');
 const ReportSideEffect = require('../models/ReportSideEffect');
+const symptomProgressionService = require('../services/symptomProgressionService');
 
 /**
  * AI-powered side effect report submission
@@ -286,11 +287,92 @@ async function createReportFromExtractedData(extractedData, medicineId, userId) 
   });
 
   const report = new ReportSideEffect(reportData);
-  return await report.save();
+  const savedReport = await report.save();
+
+  // Auto-create symptom progression tracking for significant side effects
+  try {
+    await autoCreateProgressionTracking(savedReport, userId, extractedData);
+  } catch (progressionError) {
+    console.error('Auto-create progression tracking error:', progressionError);
+    // Don't fail the report creation if progression tracking fails
+  }
+
+  return savedReport;
+}
+
+/**
+ * Auto-create symptom progression tracking for significant side effects
+ */
+async function autoCreateProgressionTracking(report, userId, extractedData) {
+  try {
+    // Only create progression tracking for moderate to severe side effects
+    const significantSideEffects = report.sideEffects.filter(se => 
+      ['Moderate', 'Severe', 'Life-threatening'].includes(se.severity)
+    );
+
+    for (const sideEffect of significantSideEffects) {
+      try {
+        // Prepare progression data
+        const reportData = { reportId: report._id };
+        const symptomData = {
+          sideEffectId: sideEffect._id,
+          initialImpact: {
+            daily_activities: extractedData.functionalImpact?.daily_activities || 0,
+            work_performance: extractedData.functionalImpact?.work_performance || 0,
+            sleep_quality: extractedData.functionalImpact?.sleep_quality || 0,
+            social_activities: extractedData.functionalImpact?.social_activities || 0,
+            mood: extractedData.functionalImpact?.mood || 0
+          },
+          notes: `Auto-created from AI report: ${sideEffect.effect}. ${sideEffect.description || ''}`
+        };
+
+        // Determine patient ID
+        const patientId = report.patient || report.reportedBy;
+
+        // Create progression tracking
+        await symptomProgressionService.createProgressionFromReport(
+          reportData,
+          symptomData,
+          patientId
+        );
+
+        console.log(`Created progression tracking for side effect: ${sideEffect.effect}`);
+      } catch (singleProgressionError) {
+        console.error(`Failed to create progression for side effect ${sideEffect.effect}:`, singleProgressionError);
+        // Continue with other side effects
+      }
+    }
+  } catch (error) {
+    console.error('Auto-create progression tracking error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Check if symptom progression should be auto-suggested
+ */
+function shouldSuggestProgression(sideEffect, extractedData) {
+  const suggestCriteria = [
+    // Severity-based
+    ['Moderate', 'Severe', 'Life-threatening'].includes(sideEffect.severity),
+    
+    // Duration-based (if mentioned in extracted data)
+    extractedData.expectedDuration && extractedData.expectedDuration > 7,
+    
+    // Body system-based (chronic conditions)
+    ['Nervous System', 'Psychiatric', 'Musculoskeletal', 'Dermatological'].includes(sideEffect.bodySystem),
+    
+    // Pattern-based (recurring or ongoing)
+    sideEffect.frequency && ['Continuous', 'Intermittent'].includes(sideEffect.frequency)
+  ];
+
+  return suggestCriteria.some(criterion => criterion === true);
 }
 
 module.exports = {
   submitAIReport,
   previewAIReport,
-  submitConfirmedAIReport
+  submitConfirmedAIReport,
+  autoCreateProgressionTracking,
+  shouldSuggestProgression
 };
