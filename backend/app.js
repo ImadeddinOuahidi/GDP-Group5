@@ -115,26 +115,20 @@ app.get('/quote', (req, res) => {
   res.json({ quote: random });
 });
 
+// Version info route
+app.get('/version', (req, res) => {
+  res.json({
+    version: '1.0.0',
+    lastUpdated: new Date().toISOString(),
+    message: 'Backend version endpoint working successfully'
+  });
+});
+
 // Start the server
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
 
-// Server uptime route
-app.get('/uptime', (req, res) => {
-  res.json({
-    uptimeSeconds: process.uptime(),
-    startedAt: new Date(Date.now() - process.uptime() * 1000).toISOString()
-  });
-});
 
 
-// Extra diagnostics route (new addition only)
-app.get('/info', (req, res) => {
-  res.json({
-    appName: 'MyApp Backend',
-    version: '1.0.0',
-    serverTime: new Date().toISOString()
-  });
-});
 
