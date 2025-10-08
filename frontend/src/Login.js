@@ -25,7 +25,7 @@ import { ButtonLoading } from "./components/Loading";
 import AuthContainer from "./containers/AuthContainer";
 
 export default function Login() {
-  const [username, setUsername] = useState("");
+  const [emailOrUsername, setEmailOrUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const { login, loading, error, clearError } = AuthContainer.useContainer();
@@ -34,9 +34,10 @@ export default function Login() {
     e.preventDefault();
     clearError();
     
-    const result = await login(username, password);
+    const result = await login(emailOrUsername, password);
     if (result.success) {
       console.log("Login successful:", result.user);
+      // Redirect will be handled by the main App component
     }
   };
 
@@ -50,8 +51,8 @@ export default function Login() {
   };
 
   const demoCredentials = [
-    { role: "Patient", username: "patient1", password: "1234", color: "primary" },
-    { role: "Doctor", username: "doctor1", password: "abcd", color: "secondary" },
+    { role: "Patient", username: "patient1", email: "patient1@example.com", password: "1234", color: "primary" },
+    { role: "Doctor", username: "doctor1", email: "doctor1@example.com", password: "abcd", color: "secondary" },
   ];
 
   return (
@@ -120,17 +121,17 @@ export default function Login() {
 
             {/* Login Form */}
             <Box component="form" onSubmit={handleLogin} sx={{ mt: 1 }}>
-              <TextField
+                <TextField
                 margin="normal"
                 required
                 fullWidth
-                id="username"
-                label="Username"
-                name="username"
-                autoComplete="username"
+                id="emailOrUsername"
+                label="Email or Username"
+                name="emailOrUsername"
+                autoComplete="email"
                 autoFocus
-                value={username}
-                onChange={handleInputChange(setUsername)}
+                value={emailOrUsername}
+                onChange={handleInputChange(setEmailOrUsername)}
                 disabled={loading}
                 InputProps={{
                   startAdornment: (
@@ -139,9 +140,8 @@ export default function Login() {
                     </InputAdornment>
                   ),
                 }}
-              />
-              
-              <TextField
+                helperText="Enter your email address or username"
+              />              <TextField
                 margin="normal"
                 required
                 fullWidth
