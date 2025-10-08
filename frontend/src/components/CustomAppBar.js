@@ -31,6 +31,58 @@ const CustomAppBar = () => {
   
   const [anchorEl, setAnchorEl] = React.useState(null);
 
+  // Safe function to get user display name
+  const getUserDisplayName = () => {
+    if (!user) return 'Guest';
+    
+    // Handle both API user structure and demo user structure
+    if (user.name) {
+      return user.name;
+    }
+    
+    if (user.firstName && user.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    
+    if (user.firstName) {
+      return user.firstName;
+    }
+    
+    if (user.username) {
+      return user.username;
+    }
+    
+    if (user.email) {
+      return user.email.split('@')[0];
+    }
+    
+    return 'User';
+  };
+
+  // Safe function to get user initials
+  const getUserInitials = () => {
+    const displayName = getUserDisplayName();
+    
+    if (!displayName || displayName === 'Guest' || displayName === 'User') {
+      return 'U';
+    }
+    
+    // Split name and get first letter of each part
+    const nameParts = displayName.split(' ');
+    if (nameParts.length >= 2) {
+      return `${nameParts[0].charAt(0)}${nameParts[1].charAt(0)}`.toUpperCase();
+    }
+    
+    // Single name or username
+    return displayName.charAt(0).toUpperCase();
+  };
+
+  // Safe function to get user role
+  const getUserRole = () => {
+    if (!user || !user.role) return 'user';
+    return user.role;
+  };
+
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
   };
@@ -78,15 +130,15 @@ const CustomAppBar = () => {
         {user && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Chip
-              icon={<span>{getRoleIcon(user.role)}</span>}
-              label={user.role.toUpperCase()}
-              color={getRoleColor(user.role)}
+              icon={<span>{getRoleIcon(getUserRole())}</span>}
+              label={getUserRole().toUpperCase()}
+              color={getRoleColor(getUserRole())}
               size="small"
               variant="filled"
             />
             
             <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
-              Welcome, {user.name}
+              Welcome, {getUserDisplayName()}
             </Typography>
 
             <Tooltip title="Toggle theme">
@@ -106,7 +158,7 @@ const CustomAppBar = () => {
                 color="inherit"
               >
                 <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
-                  {user.name.charAt(0).toUpperCase()}
+                  {getUserInitials()}
                 </Avatar>
               </IconButton>
             </Tooltip>
@@ -134,7 +186,7 @@ const CustomAppBar = () => {
                   Signed in as
                 </Typography>
                 <Typography variant="body1" fontWeight="medium">
-                  {user.name}
+                  {getUserDisplayName()}
                 </Typography>
               </Box>
 

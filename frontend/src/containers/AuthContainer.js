@@ -4,8 +4,30 @@ import { authAPI } from "../services/api";
 
 // Mock user database for demo purposes (fallback)
 const MOCK_USERS = {
-  patient1: { email: "patient1@example.com", password: "1234", role: "patient", name: "John Doe" },
-  doctor1: { email: "doctor1@example.com", password: "abcd", role: "doctor", name: "Dr. Smith" },
+  patient1: { 
+    _id: "demo-patient1",
+    email: "patient1@example.com", 
+    username: "patient1",
+    password: "1234", 
+    role: "patient", 
+    name: "John Doe",
+    firstName: "John",
+    lastName: "Doe",
+    isActive: true,
+    isEmailVerified: true
+  },
+  doctor1: { 
+    _id: "demo-doctor1",
+    email: "doctor1@example.com", 
+    username: "doctor1",
+    password: "abcd", 
+    role: "doctor", 
+    name: "Dr. Smith",
+    firstName: "Dr. Jane",
+    lastName: "Smith",
+    isActive: true,
+    isEmailVerified: true
+  },
 };
 
 function useAuth(initialState = null) {
@@ -16,20 +38,35 @@ function useAuth(initialState = null) {
 
   // Initialize auth state from localStorage on mount
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const savedUser = localStorage.getItem("user");
-    
-    if (token && savedUser) {
+    const initializeAuth = () => {
       try {
-        const userData = JSON.parse(savedUser);
-        setUser(userData);
-        setIsAuthenticated(true);
+        const token = localStorage.getItem("token");
+        const savedUser = localStorage.getItem("user");
+        
+        if (savedUser) {
+          const userData = JSON.parse(savedUser);
+          
+          // Normalize user object to ensure required properties
+          const normalizedUser = {
+            ...userData,
+            name: userData.name || userData.username || `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'User',
+            firstName: userData.firstName || userData.name?.split(' ')[0] || userData.username || 'User',
+            lastName: userData.lastName || userData.name?.split(' ')[1] || '',
+            role: userData.role || 'patient'
+          };
+          
+          setUser(normalizedUser);
+          setIsAuthenticated(true);
+        }
       } catch (err) {
+        console.error('Error initializing auth:', err);
         // Clear invalid data
         localStorage.removeItem("token");
         localStorage.removeItem("user");
       }
-    }
+    };
+    
+    initializeAuth();
   }, []);
 
   const login = async (emailOrUsername, password) => {
@@ -52,16 +89,25 @@ function useAuth(initialState = null) {
         const response = await authAPI.signin(email, password);
         
         if (response.success) {
-          const { user: userData, token } = response.data;
+          const { user: apiUser, token } = response.data;
           
-          setUser(userData);
+          // Normalize API user object
+          const normalizedUser = {
+            ...apiUser,
+            name: apiUser.name || `${apiUser.firstName || ''} ${apiUser.lastName || ''}`.trim() || apiUser.username || apiUser.email,
+            firstName: apiUser.firstName || apiUser.name?.split(' ')[0] || apiUser.username || 'User',
+            lastName: apiUser.lastName || apiUser.name?.split(' ')[1] || '',
+            role: apiUser.role || 'patient'
+          };
+          
+          setUser(normalizedUser);
           setIsAuthenticated(true);
           
           // Save to localStorage
           localStorage.setItem("token", token);
-          localStorage.setItem("user", JSON.stringify(userData));
+          localStorage.setItem("user", JSON.stringify(normalizedUser));
           
-          return { success: true, user: userData };
+          return { success: true, user: normalizedUser };
         }
       } catch (apiError) {
         console.log("API login failed, trying demo credentials:", apiError);
@@ -72,24 +118,24 @@ function useAuth(initialState = null) {
           emailOrUsername;
           
         if (username && MOCK_USERS[username] && MOCK_USERS[username].password === password) {
-          const userData = {
-            _id: `demo-${username}`,
-            email: MOCK_USERS[username].email,
-            firstName: MOCK_USERS[username].name.split(' ')[0],
-            lastName: MOCK_USERS[username].name.split(' ')[1] || '',
-            role: MOCK_USERS[username].role,
-            isActive: true,
-            isEmailVerified: true
+          const mockUser = MOCK_USERS[username];
+          
+          // Use the complete mock user data with normalization
+          const normalizedUser = {
+            ...mockUser,
+            name: mockUser.name || mockUser.username,
+            firstName: mockUser.firstName || mockUser.name?.split(' ')[0] || mockUser.username,
+            lastName: mockUser.lastName || mockUser.name?.split(' ')[1] || '',
           };
           
-          setUser(userData);
+          setUser(normalizedUser);
           setIsAuthenticated(true);
           
           // Save to localStorage (demo token)
           localStorage.setItem("token", `demo-token-${username}`);
-          localStorage.setItem("user", JSON.stringify(userData));
+          localStorage.setItem("user", JSON.stringify(normalizedUser));
           
-          return { success: true, user: userData };
+          return { success: true, user: normalizedUser };
         }
         
         // If both API and demo fail
@@ -174,7 +220,12 @@ function useAuth(initialState = null) {
 
   const switchRole = (newRole) => {
     if (user) {
-      const updatedUser = { ...user, role: newRole };
+      const updatedUser = { 
+        ...user, 
+        role: newRole,
+        // Ensure name consistency
+        name: user.name || user.username || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User'
+      };
       setUser(updatedUser);
       localStorage.setItem("user", JSON.stringify(updatedUser));
     }
