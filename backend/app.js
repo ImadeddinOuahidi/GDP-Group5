@@ -126,6 +126,18 @@ app.get('/version', (req, res) => {
   });
 });
 
+// Server summary route
+app.get('/server-summary', (req, res) => {
+  const dbState = mongoose.connection.readyState === 1 ? 'connected' : 'not connected';
+  res.json({
+    status: 'running',
+    uptimeSeconds: process.uptime(),
+    environment: process.env.NODE_ENV || 'development',
+    database: dbState,
+    currentTime: new Date().toISOString()
+  });
+});
+
 // Start the server
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
