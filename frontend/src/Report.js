@@ -1,42 +1,351 @@
-import { useState } from "react";
+import React, { useState } from "react";
+import {
+  Container,
+  Paper,
+  Typography,
+  TextField,
+  Button,
+  Box,
+  Card,
+  CardContent,
+  Alert,
+  Stepper,
+  Step,
+  StepLabel,
+  Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Chip,
+  IconButton,
+  Snackbar,
+} from "@mui/material";
+import {
+  CloudUpload as UploadIcon,
+  Mic as MicIcon,
+  Send as SendIcon,
+  PhotoCamera as PhotoIcon,
+  Delete as DeleteIcon,
+} from "@mui/icons-material";
+import { ButtonLoading } from "./components/Loading";
+
+const steps = ['Basic Information', 'Describe Symptoms', 'Additional Details'];
+
+const severityLevels = [
+  { value: 'mild', label: 'Mild', color: 'success' },
+  { value: 'moderate', label: 'Moderate', color: 'warning' },
+  { value: 'severe', label: 'Severe', color: 'error' },
+];
 
 export default function Report() {
-  const [report, setReport] = useState("");
-  const [photo, setPhoto] = useState(null);
+  const [activeStep, setActiveStep] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  
+  // Form data
+  const [formData, setFormData] = useState({
+    medicationName: '',
+    dosage: '',
+    symptoms: '',
+    severity: '',
+    startDate: '',
+    photo: null,
+  });
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    alert(`Report: ${report}\nPhoto: ${photo ? photo.name : "No photo uploaded"}`);
+  const handleInputChange = (field) => (event) => {
+    setFormData({
+      ...formData,
+      [field]: event.target.value,
+    });
   };
 
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setFormData({
+        ...formData,
+        photo: file,
+      });
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setFormData({
+      ...formData,
+      photo: null,
+    });
+  };
+
+  const handleNext = () => {
+    setActiveStep((prevActiveStep) => prevActiveStep + 1);
+  };
+
+  const handleBack = () => {
+    setActiveStep((prevActiveStep) => prevActiveStep - 1);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    // Simulate API call
+    setTimeout(() => {
+      setLoading(false);
+      setSubmitted(true);
+      console.log('Report submitted:', formData);
+    }, 2000);
+  };
+
+  const handleVoiceInput = () => {
+    alert("Voice input feature coming soon! This will allow you to record your symptoms verbally.");
+  };
+
+  const isStepComplete = (step) => {
+    switch (step) {
+      case 0:
+        return formData.medicationName && formData.dosage;
+      case 1:
+        return formData.symptoms && formData.severity;
+      case 2:
+        return formData.startDate;
+      default:
+        return false;
+    }
+  };
+
+  const renderStepContent = (step) => {
+    switch (step) {
+      case 0:
+        return (
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <TextField
+                required
+                fullWidth
+                label="Medication Name"
+                value={formData.medicationName}
+                onChange={handleInputChange('medicationName')}
+                placeholder="e.g., Aspirin, Ibuprofen"
+                helperText="Enter the exact name of the medication"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                required
+                fullWidth
+                label="Dosage"
+                value={formData.dosage}
+                onChange={handleInputChange('dosage')}
+                placeholder="e.g., 200mg twice daily"
+                helperText="Include strength and frequency"
+              />
+            </Grid>
+          </Grid>
+        );
+
+      case 1:
+        return (
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <TextField
+                required
+                fullWidth
+                multiline
+                rows={4}
+                label="Describe your symptoms"
+                value={formData.symptoms}
+                onChange={handleInputChange('symptoms')}
+                placeholder="Please describe the side effects you're experiencing in detail..."
+                helperText="Be as specific as possible about your symptoms"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <FormControl fullWidth required>
+                <InputLabel>Severity Level</InputLabel>
+                <Select
+                  value={formData.severity}
+                  label="Severity Level"
+                  onChange={handleInputChange('severity')}
+                >
+                  {severityLevels.map((level) => (
+                    <MenuItem key={level.value} value={level.value}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Chip
+                          label={level.label}
+                          color={level.color}
+                          size="small"
+                        />
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <Button
+                variant="outlined"
+                startIcon={<MicIcon />}
+                onClick={handleVoiceInput}
+                sx={{ mr: 2 }}
+              >
+                Record Voice Description
+              </Button>
+            </Grid>
+          </Grid>
+        );
+
+      case 2:
+        return (
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <TextField
+                required
+                fullWidth
+                type="date"
+                label="When did symptoms start?"
+                value={formData.startDate}
+                onChange={handleInputChange('startDate')}
+                InputLabelProps={{ shrink: true }}
+                helperText="Select the date when you first noticed the symptoms"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <Card variant="outlined">
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Upload Photo (Optional)
+                  </Typography>
+                  {formData.photo ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <PhotoIcon color="primary" />
+                      <Typography>{formData.photo.name}</Typography>
+                      <IconButton onClick={handleRemovePhoto} color="error">
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
+                  ) : (
+                    <Button
+                      variant="outlined"
+                      component="label"
+                      startIcon={<UploadIcon />}
+                    >
+                      Upload Photo
+                      <input
+                        hidden
+                        accept="image/*"
+                        type="file"
+                        onChange={handleFileUpload}
+                      />
+                    </Button>
+                  )}
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    You can upload a photo of any visible symptoms or reactions
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  if (submitted) {
+    return (
+      <Container maxWidth="md">
+        <Box sx={{ py: 4, textAlign: 'center' }}>
+          <Alert severity="success" sx={{ mb: 3 }}>
+            <Typography variant="h6">Report Submitted Successfully!</Typography>
+            <Typography>
+              Thank you for reporting your side effect. A healthcare professional will review your report.
+            </Typography>
+          </Alert>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setSubmitted(false);
+              setActiveStep(0);
+              setFormData({
+                medicationName: '',
+                dosage: '',
+                symptoms: '',
+                severity: '',
+                startDate: '',
+                photo: null,
+              });
+            }}
+          >
+            Submit Another Report
+          </Button>
+        </Box>
+      </Container>
+    );
+  }
+
   return (
-    <form onSubmit={handleSubmit}>
-      <label>
-        Describe your side effect:
-        <textarea
-          value={report}
-          onChange={(e) => setReport(e.target.value)}
-          placeholder="Type your side effect..."
-        />
-      </label>
-      <br /><br />
-      <label>
-        Upload a photo:
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => setPhoto(e.target.files[0])}
-        />
-      </label>
-      <br /><br />
-      <button
-        type="button"
-        onClick={() => alert("Voice input coming soon!")}
-      >
-        🎤 Record Voice
-      </button>
-      <br /><br />
-      <button type="submit">Submit</button>
-    </form>
+    <Container maxWidth="md">
+      <Box sx={{ py: 4 }}>
+        <Paper elevation={3} sx={{ p: 4 }}>
+          <Typography variant="h4" gutterBottom align="center">
+            Report Side Effect
+          </Typography>
+          <Typography variant="body1" color="text.secondary" align="center" sx={{ mb: 4 }}>
+            Help us keep medications safe by reporting any adverse reactions
+          </Typography>
+
+          <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+            {steps.map((label, index) => (
+              <Step key={label} completed={isStepComplete(index)}>
+                <StepLabel>{label}</StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+
+          <form onSubmit={handleSubmit}>
+            {renderStepContent(activeStep)}
+
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
+              <Button
+                disabled={activeStep === 0}
+                onClick={handleBack}
+              >
+                Back
+              </Button>
+              
+              {activeStep === steps.length - 1 ? (
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={!isStepComplete(activeStep) || loading}
+                  startIcon={<SendIcon />}
+                >
+                  <ButtonLoading loading={loading} loadingText="Submitting...">
+                    Submit Report
+                  </ButtonLoading>
+                </Button>
+              ) : (
+                <Button
+                  variant="contained"
+                  onClick={handleNext}
+                  disabled={!isStepComplete(activeStep)}
+                >
+                  Next
+                </Button>
+              )}
+            </Box>
+          </form>
+
+          <Alert severity="warning" sx={{ mt: 3 }}>
+            <Typography variant="body2">
+              <strong>Emergency Notice:</strong> If you're experiencing severe or life-threatening symptoms, 
+              seek immediate medical attention or call emergency services.
+            </Typography>
+          </Alert>
+        </Paper>
+      </Box>
+    </Container>
   );
 }

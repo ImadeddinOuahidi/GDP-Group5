@@ -1,0 +1,196 @@
+import React from 'react';
+import {
+  Box,
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+  useTheme,
+  useMediaQuery,
+  Chip,
+} from '@mui/material';
+import {
+  Home as HomeIcon,
+  Report as ReportIcon,
+  Settings as SettingsIcon,
+  Dashboard as DashboardIcon,
+  MedicalServices as DoctorIcon,
+  Person as PatientIcon,
+} from '@mui/icons-material';
+import { useNavigate, useLocation } from 'react-router-dom';
+import AuthContainer from '../containers/AuthContainer';
+
+const drawerWidth = 240;
+
+const Navigation = ({ mobileOpen, handleDrawerToggle }) => {
+  const theme = useTheme();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { user, isPatient, isDoctor } = AuthContainer.useContainer();
+
+  const patientNavItems = [
+    { text: 'Home', icon: <HomeIcon />, path: '/' },
+    { text: 'Report Side Effect', icon: <ReportIcon />, path: '/report' },
+    { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
+  ];
+
+  const doctorNavItems = [
+    { text: 'Doctor Dashboard', icon: <DoctorIcon />, path: '/doctor' },
+    { text: 'Analytics', icon: <DashboardIcon />, path: '/dashboard' },
+    { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
+  ];
+
+  const navItems = isPatient ? patientNavItems : doctorNavItems;
+
+  const handleNavigation = (path) => {
+    navigate(path);
+    if (isMobile) {
+      handleDrawerToggle();
+    }
+  };
+
+  const isActive = (path) => {
+    return location.pathname === path;
+  };
+
+  const drawer = (
+    <Box>
+      <Box
+        sx={{
+          p: 2,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          borderBottom: 1,
+          borderColor: 'divider',
+        }}
+      >
+        {isPatient ? <PatientIcon color="primary" /> : <DoctorIcon color="secondary" />}
+        <Box>
+          <Box sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
+            {user?.name}
+          </Box>
+          <Chip
+            label={user?.role}
+            size="small"
+            color={isDoctor ? 'secondary' : 'primary'}
+            variant="outlined"
+          />
+        </Box>
+      </Box>
+
+      <List sx={{ pt: 1 }}>
+        {navItems.map((item) => (
+          <ListItem key={item.text} disablePadding>
+            <ListItemButton
+              onClick={() => handleNavigation(item.path)}
+              selected={isActive(item.path)}
+              sx={{
+                mx: 1,
+                borderRadius: 1,
+                '&.Mui-selected': {
+                  backgroundColor: theme.palette.primary.main + '20',
+                  '&:hover': {
+                    backgroundColor: theme.palette.primary.main + '30',
+                  },
+                },
+              }}
+            >
+              <ListItemIcon
+                sx={{
+                  color: isActive(item.path) 
+                    ? theme.palette.primary.main 
+                    : 'inherit',
+                }}
+              >
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText
+                primary={item.text}
+                sx={{
+                  '& .MuiListItemText-primary': {
+                    fontWeight: isActive(item.path) ? 500 : 400,
+                    color: isActive(item.path) 
+                      ? theme.palette.primary.main 
+                      : 'inherit',
+                  },
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+
+      <Divider sx={{ mt: 2 }} />
+      
+      <Box sx={{ p: 2, mt: 'auto' }}>
+        <Box
+          sx={{
+            p: 2,
+            bgcolor: 'primary.main',
+            color: 'primary.contrastText',
+            borderRadius: 2,
+            textAlign: 'center',
+            background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.light} 90%)`,
+          }}
+        >
+          <Box sx={{ fontSize: '0.75rem', opacity: 0.9 }}>
+            SafeMed ADR System
+          </Box>
+          <Box sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
+            Medication Safety First
+          </Box>
+        </Box>
+      </Box>
+    </Box>
+  );
+
+  return (
+    <Box
+      component="nav"
+      sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+    >
+      {/* Mobile drawer */}
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={handleDrawerToggle}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': {
+            boxSizing: 'border-box',
+            width: drawerWidth,
+          },
+        }}
+      >
+        {drawer}
+      </Drawer>
+
+      {/* Desktop drawer */}
+      <Drawer
+        variant="permanent"
+        sx={{
+          display: { xs: 'none', md: 'block' },
+          '& .MuiDrawer-paper': {
+            boxSizing: 'border-box',
+            width: drawerWidth,
+            position: 'relative',
+            height: '100vh',
+            borderRight: 1,
+            borderColor: 'divider',
+          },
+        }}
+        open
+      >
+        {drawer}
+      </Drawer>
+    </Box>
+  );
+};
+
+export default Navigation;
