@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { Box, IconButton, useMediaQuery, useTheme } from "@mui/material";
+import { Box, IconButton, useMediaQuery, useTheme, Alert, Snackbar } from "@mui/material";
 import { Menu as MenuIcon } from "@mui/icons-material";
 
 // Import components
@@ -10,6 +10,7 @@ import Settings from "./Settings";
 import DoctorHome from "./DoctorHome";
 import Dashboard from "./Dashboard";
 import Login from "./Login";
+import Registration from "./Registration";
 
 // Import custom components and providers
 import AuthContainer from "./containers/AuthContainer";
@@ -21,14 +22,59 @@ function AppContent() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showRegistration, setShowRegistration] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const { isAuthenticated, isPatient } = AuthContainer.useContainer();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
+  const handleShowRegistration = () => {
+    setShowRegistration(true);
+  };
+
+  const handleBackToLogin = () => {
+    setShowRegistration(false);
+  };
+
+  const handleRegistrationSuccess = (result) => {
+    setShowRegistration(false);
+    setSuccessMessage(result.message || 'Registration successful! Welcome to SafeMed ADR.');
+  };
+
+  const handleCloseSnackbar = () => {
+    setSuccessMessage('');
+  };
+
   if (!isAuthenticated) {
-    return <Login />;
+    if (showRegistration) {
+      return (
+        <Registration 
+          onSuccess={handleRegistrationSuccess}
+          onBackToLogin={handleBackToLogin}
+        />
+      );
+    }
+    return (
+      <>
+        <Login onShowRegistration={handleShowRegistration} />
+        <Snackbar
+          open={!!successMessage}
+          autoHideDuration={6000}
+          onClose={handleCloseSnackbar}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        >
+          <Alert 
+            onClose={handleCloseSnackbar} 
+            severity="success" 
+            sx={{ width: '100%' }}
+          >
+            {successMessage}
+          </Alert>
+        </Snackbar>
+      </>
+    );
   }
 
   return (

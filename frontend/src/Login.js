@@ -13,6 +13,7 @@ import {
   Divider,
   InputAdornment,
   IconButton,
+  Link,
 } from "@mui/material";
 import {
   Person as PersonIcon,
@@ -20,11 +21,12 @@ import {
   Visibility,
   VisibilityOff,
   MedicalServices as MedicalIcon,
+  PersonAdd as SignUpIcon,
 } from "@mui/icons-material";
 import { ButtonLoading } from "./components/Loading";
 import AuthContainer from "./containers/AuthContainer";
 
-export default function Login() {
+export default function Login({ onShowRegistration }) {
   const [emailOrUsername, setEmailOrUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -195,6 +197,26 @@ export default function Login() {
                 <ButtonLoading loading={loading} loadingText="Signing In...">
                   Sign In
                 </ButtonLoading>
+              </Button>
+
+              <Divider sx={{ my: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  New to SafeMed ADR?
+                </Typography>
+              </Divider>
+
+              <Button
+                fullWidth
+                variant="outlined"
+                onClick={onShowRegistration}
+                startIcon={<SignUpIcon />}
+                sx={{
+                  py: 1.5,
+                  fontSize: '1rem',
+                  fontWeight: 500,
+                }}
+              >
+                Create Account
               </Button>
             </Box>
           </CardContent>
