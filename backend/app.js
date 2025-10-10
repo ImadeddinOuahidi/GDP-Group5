@@ -138,6 +138,19 @@ app.get('/server-summary', (req, res) => {
   });
 });
 
+app.get('/metrics', (req, res) => {
+  const memoryUsage = process.memoryUsage();
+  res.json({
+    uptimeSeconds: process.uptime(),
+    memory: {
+      rss: `${(memoryUsage.rss / 1024 / 1024).toFixed(2)} MB`,
+      heapUsed: `${(memoryUsage.heapUsed / 1024 / 1024).toFixed(2)} MB`
+    },
+    cpuUsage: process.cpuUsage(),
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Start the server
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
