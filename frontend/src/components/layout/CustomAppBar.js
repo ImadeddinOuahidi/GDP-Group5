@@ -21,8 +21,8 @@ import {
   SwapHoriz,
   MedicalServices as MedicalServicesIcon,
 } from '@mui/icons-material';
-import { useThemeMode } from '../theme/ThemeProvider';
-import AuthContainer from '../containers/AuthContainer';
+import { useThemeMode } from '../../styles/theme/ThemeProvider';
+import AuthContainer from '../../store/containers/AuthContainer';
 
 const CustomAppBar = () => {
   const theme = useTheme();

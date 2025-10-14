@@ -21,7 +21,7 @@ import {
   Person as PatientIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
-import AuthContainer from '../containers/AuthContainer';
+import AuthContainer from '../../store/containers/AuthContainer';
 
 const drawerWidth = 240;
 

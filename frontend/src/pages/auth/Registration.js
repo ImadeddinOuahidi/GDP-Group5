@@ -39,8 +39,8 @@ import {
   ArrowForward as ForwardIcon,
   CheckCircle as CheckIcon,
 } from "@mui/icons-material";
-import { ButtonLoading } from "./components/Loading";
-import authService from "./services/authService";
+import { ButtonLoading } from "../../components/ui/Loading";
+import authService from "../../services/authService";
 
 const steps = ['Personal Info', 'Contact Details', 'Role Specific', 'Review & Submit'];
 

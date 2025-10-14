@@ -3,20 +3,21 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { Box, IconButton, useMediaQuery, useTheme, Alert, Snackbar } from "@mui/material";
 import { Menu as MenuIcon } from "@mui/icons-material";
 
-// Import components
-import Home from "./Home";
-import Report from "./Report";
-import Settings from "./Settings";
-import DoctorHome from "./DoctorHome";
-import Dashboard from "./Dashboard";
-import Login from "./Login";
-import Registration from "./Registration";
+// Import components from new structure
+import {
+  Home,
+  Report,
+  Settings,
+  DoctorHome,
+  Dashboard,
+  Login,
+  Registration
+} from "./pages";
 
 // Import custom components and providers
-import AuthContainer from "./containers/AuthContainer";
-import { CustomThemeProvider } from "./theme/ThemeProvider";
-import CustomAppBar from "./components/CustomAppBar";
-import Navigation from "./components/Navigation";
+import AuthContainer from "./store/containers/AuthContainer";
+import { CustomThemeProvider } from "./styles/theme/ThemeProvider";
+import { CustomAppBar, Navigation } from "./components";
 
 function AppContent() {
   const theme = useTheme();

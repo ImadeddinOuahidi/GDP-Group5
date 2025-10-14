@@ -23,8 +23,8 @@ import {
   MedicalServices as MedicalIcon,
   PersonAdd as SignUpIcon,
 } from "@mui/icons-material";
-import { ButtonLoading } from "./components/Loading";
-import AuthContainer from "./containers/AuthContainer";
+import { ButtonLoading } from "../../components/ui/Loading";
+import AuthContainer from "../../store/containers/AuthContainer";
 
 export default function Login({ onShowRegistration }) {
   const [emailOrUsername, setEmailOrUsername] = useState("");
