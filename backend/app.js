@@ -156,6 +156,14 @@ app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
 
+app.get('/time', (req, res) => {
+  const now = new Date();
+  res.json({
+    localTime: now.toString(),
+    utcTime: now.toISOString()
+  });
+});
+
 // Time route
 app.get('/time', (req, res) => {
   const now = new Date();
