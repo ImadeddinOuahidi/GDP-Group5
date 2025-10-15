@@ -20,6 +20,11 @@ export const ROUTES = {
   DOCTOR_HOME: '/doctor-home',
   SETTINGS: '/settings',
   
+  // Doctor Routes
+  MEDICINES: '/medicines',
+  ADD_MEDICINE: '/add-medicine',
+  EDIT_MEDICINE: '/edit-medicine',
+  
   // Patient Routes
   REPORT: '/report',
   
@@ -66,3 +71,29 @@ export const THEME_MODES = {
   DARK: 'dark',
   SYSTEM: 'system'
 };
+
+// Medicine Categories
+export const MEDICINE_CATEGORIES = [
+  'Antibiotic', 'Analgesic', 'Antiviral', 'Antifungal', 'Antihistamine',
+  'Cardiovascular', 'Diabetes', 'Respiratory', 'Gastrointestinal',
+  'Neurological', 'Psychiatric', 'Dermatological', 'Hormonal',
+  'Immunosuppressant', 'Vaccine', 'Vitamin', 'Supplement', 'Other'
+];
+
+// Dosage Forms
+export const DOSAGE_FORMS = [
+  'Tablet', 'Capsule', 'Syrup', 'Injection', 'Cream', 'Ointment',
+  'Drops', 'Inhaler', 'Patch', 'Suppository', 'Powder', 'Gel'
+];
+
+// Routes of Administration
+export const ADMINISTRATION_ROUTES = [
+  'Oral', 'Intravenous', 'Intramuscular', 'Subcutaneous', 'Topical',
+  'Inhalation', 'Rectal', 'Vaginal', 'Nasal', 'Ophthalmic', 'Otic'
+];
+
+// Strength Units
+export const STRENGTH_UNITS = ['mg', 'g', 'mcg', 'ml', 'L', 'IU', '%'];
+
+// Side Effect Severity Levels
+export const SEVERITY_LEVELS = ['Mild', 'Moderate', 'Severe', 'Life-threatening'];

@@ -48,6 +48,7 @@ import {
   Download as DownloadIcon,
   Refresh as RefreshIcon,
   Add as AddIcon,
+  LocalPharmacy as LocalPharmacyIcon,
 } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import AuthContainer from '../../store/containers/AuthContainer';
@@ -579,6 +580,36 @@ export default function DoctorHome() {
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Create comprehensive ADR reports
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} md={4}>
+          <Card 
+            sx={{ 
+              height: '100%',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              '&:hover': { 
+                transform: 'translateY(-4px)',
+                boxShadow: theme.shadows[8]
+              }
+            }}
+            component={Link}
+            to="/medicines"
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <LocalPharmacyIcon sx={{ fontSize: 48, mr: 2, color: 'info.main' }} />
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    Medicine Management
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Add and manage medicine database
                   </Typography>
                 </Box>
               </Box>

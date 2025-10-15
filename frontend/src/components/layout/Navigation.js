@@ -19,6 +19,7 @@ import {
   Dashboard as DashboardIcon,
   MedicalServices as DoctorIcon,
   Person as PatientIcon,
+  LocalPharmacy as MedicineIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AuthContainer from '../../store/containers/AuthContainer';
@@ -39,7 +40,8 @@ const Navigation = ({ mobileOpen, handleDrawerToggle }) => {
   ];
 
   const doctorNavItems = [
-    { text: 'Doctor Dashboard', icon: <DoctorIcon />, path: '/doctor' },
+    { text: 'Doctor Dashboard', icon: <DoctorIcon />, path: '/doctor-home' },
+    { text: 'Medicine Management', icon: <MedicineIcon />, path: '/medicines' },
     { text: 'Analytics', icon: <DashboardIcon />, path: '/dashboard' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];

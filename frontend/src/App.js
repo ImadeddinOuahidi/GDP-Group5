@@ -11,7 +11,9 @@ import {
   DoctorHome,
   Dashboard,
   Login,
-  Registration
+  Registration,
+  AddMedicine,
+  MedicineManagement
 } from "./pages";
 
 // Import custom components and providers
@@ -139,10 +141,15 @@ function AppContent() {
               </>
             ) : (
               <>
-                <Route path="/doctor" element={<DoctorHome />} />
+                <Route path="/doctor-home" element={<DoctorHome />} />
+                <Route path="/medicines" element={<MedicineManagement />} />
+                <Route path="/add-medicine" element={<AddMedicine />} />
+                <Route path="/edit-medicine/:id" element={<AddMedicine />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/settings" element={<Settings />} />
-                <Route path="*" element={<Navigate to="/doctor" replace />} />
+                <Route path="/doctor" element={<Navigate to="/doctor-home" replace />} />
+                <Route path="/" element={<Navigate to="/doctor-home" replace />} />
+                <Route path="*" element={<Navigate to="/doctor-home" replace />} />
               </>
             )}
           </Routes>

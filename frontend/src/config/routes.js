@@ -11,7 +11,9 @@ import {
   Dashboard,
   DoctorHome,
   Settings,
-  Report
+  Report,
+  AddMedicine,
+  MedicineManagement
 } from '../pages';
 
 // Layout Components
@@ -69,6 +71,21 @@ const AppRoutes = () => {
                 <Route path={ROUTES.DOCTOR_HOME} element={
                   <ProtectedRoute requiredRole="doctor">
                     <DoctorHome />
+                  </ProtectedRoute>
+                } />
+                <Route path="/medicines" element={
+                  <ProtectedRoute requiredRole="doctor">
+                    <MedicineManagement />
+                  </ProtectedRoute>
+                } />
+                <Route path="/add-medicine" element={
+                  <ProtectedRoute requiredRole="doctor">
+                    <AddMedicine />
+                  </ProtectedRoute>
+                } />
+                <Route path="/edit-medicine/:id" element={
+                  <ProtectedRoute requiredRole="doctor">
+                    <AddMedicine />
                   </ProtectedRoute>
                 } />
                 <Route path={ROUTES.SETTINGS} element={<Settings />} />
