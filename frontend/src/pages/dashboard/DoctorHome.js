@@ -50,7 +50,7 @@ import {
   Add as AddIcon,
 } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
-import AuthContainer from './containers/AuthContainer';
+import AuthContainer from '../../store/containers/AuthContainer';
 
 export default function DoctorHome() {
   const theme = useTheme();

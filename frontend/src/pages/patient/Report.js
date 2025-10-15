@@ -28,7 +28,7 @@ import {
   PhotoCamera as PhotoIcon,
   Delete as DeleteIcon,
 } from "@mui/icons-material";
-import { ButtonLoading } from "./components/Loading";
+import { ButtonLoading } from "../../components/ui/Loading";
 
 const steps = ['Basic Information', 'Describe Symptoms', 'Additional Details'];
 

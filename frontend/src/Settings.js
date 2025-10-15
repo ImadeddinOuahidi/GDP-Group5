@@ -58,8 +58,8 @@ import {
   CheckCircle as SuccessIcon,
   Warning as WarningIcon,
 } from '@mui/icons-material';
-import { useThemeMode } from '../../styles/theme/ThemeProvider';
-import AuthContainer from '../../store/containers/AuthContainer';
+import { useThemeMode } from './styles/theme/ThemeProvider';
+import AuthContainer from './containers/AuthContainer';
 
 export default function Settings() {
   const theme = useTheme();

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createContainer } from "unstated-next";
-import authService from "../services/authService";
+import { authAPI } from "../../services/api";
 
 // Mock user database for demo purposes (fallback)
 const MOCK_USERS = {
@@ -86,10 +86,10 @@ function useAuth(initialState = null) {
 
       // Try API call first
       try {
-        const response = await authService.signin({ email, password });
+        const response = await authAPI.signin(email, password);
         
         if (response.success) {
-          const apiUser = response.user;
+          const { user: apiUser, token } = response.data;
           
           // Normalize API user object
           const normalizedUser = {
@@ -102,6 +102,10 @@ function useAuth(initialState = null) {
           
           setUser(normalizedUser);
           setIsAuthenticated(true);
+          
+          // Save to localStorage
+          localStorage.setItem("token", token);
+          localStorage.setItem("user", JSON.stringify(normalizedUser));
           
           return { success: true, user: normalizedUser };
         }
@@ -164,15 +168,28 @@ function useAuth(initialState = null) {
     setError("");
     
     try {
-      const response = await authService.signup(userData);
+      const response = await authAPI.signup(userData);
       
       if (response.success) {
-        const newUser = response.user;
+        const { user: newUser, token } = response.data;
         
-        setUser(newUser);
+        // Normalize user object
+        const normalizedUser = {
+          ...newUser,
+          name: newUser.name || `${newUser.firstName || ''} ${newUser.lastName || ''}`.trim() || newUser.username,
+          firstName: newUser.firstName || newUser.name?.split(' ')[0] || 'User',
+          lastName: newUser.lastName || newUser.name?.split(' ')[1] || '',
+          role: newUser.role || 'patient'
+        };
+        
+        setUser(normalizedUser);
         setIsAuthenticated(true);
         
-        return { success: true, user: newUser, message: response.message };
+        // Save to localStorage
+        localStorage.setItem("token", token);
+        localStorage.setItem("user", JSON.stringify(normalizedUser));
+        
+        return { success: true, user: normalizedUser, message: response.message };
       }
       
       setError(response.message || "Signup failed");
@@ -191,13 +208,20 @@ function useAuth(initialState = null) {
     setError("");
     
     try {
-      const response = await authService.updateProfile(profileData);
+      const response = await authAPI.updateProfile(profileData);
       
       if (response.success) {
-        const updatedUser = response.user;
-        setUser(updatedUser);
+        const updatedUserData = response.data.user;
+        const normalizedUser = {
+          ...user,
+          ...updatedUserData,
+          name: updatedUserData.name || `${updatedUserData.firstName || ''} ${updatedUserData.lastName || ''}`.trim() || user.name,
+        };
         
-        return { success: true, user: updatedUser, message: response.message };
+        setUser(normalizedUser);
+        localStorage.setItem("user", JSON.stringify(normalizedUser));
+        
+        return { success: true, user: normalizedUser, message: response.message };
       }
       
       setError(response.message || "Profile update failed");
@@ -257,3 +281,4 @@ function useAuth(initialState = null) {
 const AuthContainer = createContainer(useAuth);
 
 export default AuthContainer;
+export { AuthContainer };

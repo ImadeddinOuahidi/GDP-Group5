@@ -22,7 +22,7 @@ import {
   Speed as SpeedIcon,
   MedicalServices as MedicalIcon,
 } from "@mui/icons-material";
-import AuthContainer from "./containers/AuthContainer";
+import AuthContainer from "../../store/containers/AuthContainer";
 
 export default function Home() {
   const theme = useTheme();
