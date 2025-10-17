@@ -156,6 +156,21 @@ app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
 
+app.get('/server-info', (req, res) => {
+  res.json({
+    hostname: os.hostname(),
+    platform: os.platform(),
+    architecture: os.arch(),
+    nodeVersion: process.version,
+    cpuCount: os.cpus().length,
+    totalMemoryMB: (os.totalmem() / 1024 / 1024).toFixed(2),
+    freeMemoryMB: (os.freemem() / 1024 / 1024).toFixed(2),
+    uptimeSeconds: os.uptime(),
+    currentTime: new Date().toISOString()
+  });
+});
+
+
 app.get('/time', (req, res) => {
   const now = new Date();
   res.json({
