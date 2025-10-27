@@ -1,12 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
   Card,
-  CardContent,
   Grid,
   Switch,
-  FormControlLabel,
   Button,
   TextField,
   Avatar,
@@ -29,11 +27,7 @@ import {
   MenuItem,
   Chip,
   IconButton,
-  Tooltip,
   Paper,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
   useTheme,
   alpha,
 } from '@mui/material';
@@ -52,7 +46,6 @@ import {
   LocationOn as LocationIcon,
   School as EducationIcon,
   Work as WorkIcon,
-  ExpandMore as ExpandMoreIcon,
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
   CheckCircle as SuccessIcon,

@@ -29,6 +29,8 @@ import {
   Card,
   CardContent,
   InputAdornment,
+  Skeleton,
+  Tooltip,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -38,6 +40,8 @@ import {
   MedicalServices as MedicineIcon,
   Inventory as StockIcon,
   LocalPharmacy as PharmacyIcon,
+  FileDownload as DownloadIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { medicineService } from '../../services';
@@ -165,6 +169,7 @@ const MedicineManagement = () => {
   useEffect(() => {
     loadMedicines();
     loadStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, rowsPerPage, categoryFilter, prescriptionFilter]);
 
   // Handle page change
@@ -178,6 +183,35 @@ const MedicineManagement = () => {
     setPage(0);
   };
 
+  // Export medicines to CSV
+  const handleExport = () => {
+    const csvHeaders = ['Name', 'Generic Name', 'Category', 'Manufacturer', 'Price', 'Stock', 'Prescription Required'];
+    const csvRows = medicines.map(med => [
+      med.name,
+      med.genericName || '',
+      med.category,
+      med.manufacturer,
+      med.price,
+      med.stock.quantity,
+      med.prescriptionRequired ? 'Yes' : 'No'
+    ]);
+
+    const csvContent = [
+      csvHeaders.join(','),
+      ...csvRows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `medicines_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       {/* Header */}
@@ -188,13 +222,30 @@ const MedicineManagement = () => {
             Medicine Management
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => navigate('/add-medicine')}
-        >
-          Add Medicine
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={() => { loadMedicines(); loadStats(); }}
+          >
+            Refresh
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={handleExport}
+            disabled={medicines.length === 0}
+          >
+            Export CSV
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => navigate('/add-medicine')}
+          >
+            Add Medicine
+          </Button>
+        </Box>
       </Box>
 
       {/* Alerts */}
@@ -212,24 +263,24 @@ const MedicineManagement = () => {
       {/* Statistics Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card elevation={2} sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
-                  <Typography color="textSecondary" gutterBottom>
+                  <Typography color="rgba(255,255,255,0.8)" gutterBottom variant="body2">
                     Total Medicines
                   </Typography>
-                  <Typography variant="h4">
+                  <Typography variant="h3" fontWeight="bold">
                     {stats.total}
                   </Typography>
                 </Box>
-                <MedicineIcon color="primary" sx={{ fontSize: 40 }} />
+                <MedicineIcon sx={{ fontSize: 50, opacity: 0.8 }} />
               </Box>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card elevation={2}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
@@ -239,6 +290,9 @@ const MedicineManagement = () => {
                   <Typography variant="h4">
                     {stats.prescriptionOnly}
                   </Typography>
+                  <Typography variant="caption" color="error.main">
+                    {stats.total > 0 ? `${Math.round((stats.prescriptionOnly / stats.total) * 100)}%` : '0%'} of total
+                  </Typography>
                 </Box>
                 <MedicineIcon color="error" sx={{ fontSize: 40 }} />
               </Box>
@@ -246,7 +300,7 @@ const MedicineManagement = () => {
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card elevation={2}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
@@ -255,6 +309,9 @@ const MedicineManagement = () => {
                   </Typography>
                   <Typography variant="h4">
                     {stats.otc}
+                  </Typography>
+                  <Typography variant="caption" color="success.main">
+                    {stats.total > 0 ? `${Math.round((stats.otc / stats.total) * 100)}%` : '0%'} of total
                   </Typography>
                 </Box>
                 <MedicineIcon color="success" sx={{ fontSize: 40 }} />
@@ -370,76 +427,129 @@ const MedicineManagement = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {medicines.map((medicine) => (
-                    <TableRow key={medicine._id}>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight="bold">
-                          {medicine.name}
+                  {loading ? (
+                    // Loading skeleton
+                    Array.from(new Array(rowsPerPage)).map((_, index) => (
+                      <TableRow key={index}>
+                        <TableCell><Skeleton /></TableCell>
+                        <TableCell><Skeleton /></TableCell>
+                        <TableCell><Skeleton /></TableCell>
+                        <TableCell><Skeleton /></TableCell>
+                        <TableCell><Skeleton /></TableCell>
+                        <TableCell><Skeleton /></TableCell>
+                        <TableCell><Skeleton /></TableCell>
+                        <TableCell><Skeleton /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : medicines.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} align="center">
+                        <Typography variant="body2" color="textSecondary" sx={{ py: 4 }}>
+                          No medicines found. Click "Add Medicine" to create one.
                         </Typography>
-                        {medicine.brandName && (
-                          <Typography variant="caption" color="textSecondary">
-                            Brand: {medicine.brandName}
-                          </Typography>
-                        )}
-                      </TableCell>
-                      <TableCell>{medicine.genericName}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={medicine.category}
-                          size="small"
-                          color="primary"
-                          variant="outlined"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {medicine.strength.value} {medicine.strength.unit}
-                      </TableCell>
-                      <TableCell>{medicine.dosageForm}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={medicine.prescriptionRequired ? 'Rx' : 'OTC'}
-                          size="small"
-                          color={medicine.prescriptionRequired ? 'error' : 'success'}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Box>
-                          <Typography variant="body2">
-                            {medicine.availability?.quantity || 'N/A'}
-                          </Typography>
-                          {medicine.availability?.inStock !== undefined && (
-                            <Chip
-                              label={medicine.availability.inStock ? 'In Stock' : 'Out of Stock'}
-                              size="small"
-                              color={medicine.availability.inStock ? 'success' : 'error'}
-                            />
-                          )}
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <IconButton
-                          size="small"
-                          onClick={() => navigate(`/edit-medicine/${medicine._id}`)}
-                          color="primary"
-                        >
-                          <EditIcon />
-                        </IconButton>
-                        {user?.role === 'admin' && (
-                          <IconButton
-                            size="small"
-                            onClick={() => setDeleteDialog({
-                              open: true,
-                              medicineId: medicine._id,
-                              medicineName: medicine.name,
-                            })}
-                            color="error"
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        )}
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    medicines.map((medicine) => (
+                      <TableRow key={medicine._id} hover>
+                        <TableCell>
+                          <Tooltip title={medicine.description || 'No description'}>
+                            <Box>
+                              <Typography variant="body2" fontWeight="bold">
+                                {medicine.name}
+                              </Typography>
+                              {medicine.brandName && (
+                                <Typography variant="caption" color="textSecondary">
+                                  Brand: {medicine.brandName}
+                                </Typography>
+                              )}
+                            </Box>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell>
+                          <Tooltip title={medicine.manufacturer || 'Unknown manufacturer'}>
+                            <Typography variant="body2">{medicine.genericName}</Typography>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={medicine.category}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight="medium">
+                            {medicine.strength?.value || 'N/A'} {medicine.strength?.unit || ''}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {medicine.dosageForm || 'N/A'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={medicine.prescriptionRequired ? 'Rx' : 'OTC'}
+                            size="small"
+                            color={medicine.prescriptionRequired ? 'error' : 'success'}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Box>
+                            <Typography 
+                              variant="body2" 
+                              fontWeight="bold"
+                              color={
+                                (medicine.availability?.quantity || 0) < 10 
+                                  ? 'error.main' 
+                                  : (medicine.availability?.quantity || 0) < 50 
+                                    ? 'warning.main' 
+                                    : 'success.main'
+                              }
+                            >
+                              {medicine.availability?.quantity || 0}
+                            </Typography>
+                            {medicine.availability?.inStock !== undefined && (
+                              <Chip
+                                label={medicine.availability.inStock ? 'In Stock' : 'Out of Stock'}
+                                size="small"
+                                color={medicine.availability.inStock ? 'success' : 'error'}
+                                sx={{ mt: 0.5 }}
+                              />
+                            )}
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Tooltip title="Edit medicine">
+                            <IconButton
+                              size="small"
+                              onClick={() => navigate(`/edit-medicine/${medicine._id}`)}
+                              color="primary"
+                            >
+                              <EditIcon />
+                            </IconButton>
+                          </Tooltip>
+                          {user?.role === 'admin' && (
+                            <Tooltip title="Delete medicine">
+                              <IconButton
+                                size="small"
+                                onClick={() => setDeleteDialog({
+                                  open: true,
+                                  medicineId: medicine._id,
+                                  medicineName: medicine.name,
+                                })}
+                                color="error"
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>
