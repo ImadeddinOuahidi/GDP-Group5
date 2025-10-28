@@ -46,7 +46,6 @@ const steps = ['Basic Information', 'Medical Details', 'Pricing & Stock', 'Revie
 
 const AddMedicine = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

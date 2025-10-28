@@ -22,7 +22,6 @@ import {
   TextField,
   MenuItem,
   Alert,
-  Divider,
   Avatar,
   Tooltip,
   LinearProgress,
@@ -176,10 +175,6 @@ export default function DoctorHome() {
     },
   ];
 
-  useEffect(() => {
-    loadReports();
-  }, []);
-
   const loadReports = async () => {
     setLoading(true);
     // Simulate API call
@@ -188,6 +183,11 @@ export default function DoctorHome() {
       setLoading(false);
     }, 1000);
   };
+
+  useEffect(() => {
+    loadReports();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);

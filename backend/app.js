@@ -151,6 +151,25 @@ app.get('/metrics', (req, res) => {
   });
 });
 
+// System health route
+app.get('/system-health', (req, res) => {
+  const dbState = mongoose.connection.readyState === 1 ? 'connected' : 'not connected';
+  const memoryUsage = process.memoryUsage();
+
+  res.json({
+    status: 'OK',
+    database: dbState,
+    uptimeSeconds: process.uptime(),
+    memory: {
+      rssMB: (memoryUsage.rss / 1024 / 1024).toFixed(2),
+      heapUsedMB: (memoryUsage.heapUsed / 1024 / 1024).toFixed(2),
+    },
+    cpuLoad: os.loadavg(),
+    timestamp: new Date().toISOString()
+  });
+});
+
+
 // Start the server
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
