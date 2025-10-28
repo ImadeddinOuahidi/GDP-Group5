@@ -28,6 +28,7 @@ import {
   LinearProgress,
   Badge,
   Fab,
+  Skeleton,
   useTheme,
   alpha,
 } from '@mui/material';
@@ -48,13 +49,16 @@ import {
   Download as DownloadIcon,
   Refresh as RefreshIcon,
   Add as AddIcon,
-  LocalPharmacy as LocalPharmacyIcon,
+  DarkMode as DarkModeIcon,
+  LightMode as LightModeIcon,
 } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import AuthContainer from '../../store/containers/AuthContainer';
+import { useThemeMode } from '../../theme/ThemeProvider';
 
 export default function DoctorHome() {
   const theme = useTheme();
+  const { isDarkMode, toggleTheme } = useThemeMode();
   const { user } = AuthContainer.useContainer();
   const [reports, setReports] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
@@ -307,6 +311,20 @@ export default function DoctorHome() {
           </Box>
           
           <Box sx={{ display: 'flex', gap: 1 }}>
+            <Tooltip title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}>
+              <IconButton 
+                color="primary" 
+                onClick={toggleTheme}
+                sx={{ 
+                  bgcolor: alpha(theme.palette.primary.main, 0.1),
+                  '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) },
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                {isDarkMode ? <LightModeIcon /> : <DarkModeIcon />}
+              </IconButton>
+            </Tooltip>
+            
             <Tooltip title="Refresh Data">
               <IconButton 
                 color="primary" 
@@ -586,36 +604,6 @@ export default function DoctorHome() {
             </CardContent>
           </Card>
         </Grid>
-
-        <Grid item xs={12} md={4}>
-          <Card 
-            sx={{ 
-              height: '100%',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              '&:hover': { 
-                transform: 'translateY(-4px)',
-                boxShadow: theme.shadows[8]
-              }
-            }}
-            component={Link}
-            to="/medicines"
-          >
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <LocalPharmacyIcon sx={{ fontSize: 48, mr: 2, color: 'info.main' }} />
-                <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    Medicine Management
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Add and manage medicine database
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
       </Grid>
 
       {/* Enhanced Search and Filter Section */}
@@ -711,14 +699,43 @@ export default function DoctorHome() {
               </TableHead>
               <TableBody>
                 {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                        <LinearProgress sx={{ width: 200 }} />
-                        <Typography color="text.secondary">Loading reports...</Typography>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
+                  // Enhanced skeleton loading rows
+                  Array.from({ length: 4 }).map((_, index) => (
+                    <TableRow key={`skeleton-${index}`}>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Skeleton variant="circular" width={40} height={40} sx={{ mr: 2 }} />
+                          <Box>
+                            <Skeleton variant="text" width={120} height={20} />
+                            <Skeleton variant="text" width={80} height={16} />
+                          </Box>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton variant="text" width={100} height={20} />
+                        <Skeleton variant="text" width={60} height={16} />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton variant="text" width={150} height={20} />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton variant="rounded" width={70} height={24} />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton variant="rounded" width={60} height={24} />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton variant="rounded" width={80} height={24} />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton variant="text" width={80} height={20} />
+                        <Skeleton variant="text" width={60} height={16} />
+                      </TableCell>
+                      <TableCell align="center">
+                        <Skeleton variant="circular" width={32} height={32} />
+                      </TableCell>
+                    </TableRow>
+                  ))
                 ) : filteredReports.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
@@ -1102,19 +1119,33 @@ export default function DoctorHome() {
         )}
       </Dialog>
 
-      {/* Floating Action Button */}
-      <Fab
-        color="primary"
-        aria-label="add"
-        sx={{
-          position: 'fixed',
-          bottom: 24,
-          right: 24,
-          zIndex: 1000,
-        }}
-      >
-        <AddIcon />
-      </Fab>
+      {/* Enhanced Floating Action Button */}
+      <Tooltip title="Create New ADR Report" arrow placement="left">
+        <Fab
+          color="primary"
+          aria-label="create new report"
+          variant="extended"
+          sx={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            zIndex: 1000,
+            boxShadow: theme.shadows[8],
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            '&:hover': {
+              transform: 'scale(1.05)',
+              boxShadow: theme.shadows[12],
+            },
+            '&:active': {
+              transform: 'scale(0.98)',
+            },
+            background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+          }}
+        >
+          <AddIcon sx={{ mr: 1 }} />
+          New Report
+        </Fab>
+      </Tooltip>
 
       {/* Global styles for animations */}
       <style>
