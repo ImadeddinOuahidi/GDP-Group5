@@ -42,6 +42,51 @@ export const ROUTES = {
   }
 };
 
+// Report Status
+export const REPORT_STATUS = [
+  'Draft', 'Submitted', 'Under Review', 'Reviewed', 'Closed', 'Rejected'
+];
+
+// Report Priority Levels
+export const PRIORITY_LEVELS = ['Low', 'Medium', 'High', 'Critical'];
+
+// Report Seriousness
+export const SERIOUSNESS_LEVELS = ['Serious', 'Non-serious'];
+
+// Side Effect Onset Times
+export const ONSET_TIMES = [
+  'Immediate', 'Within hours', 'Within days', 'Within weeks', 'Unknown'
+];
+
+// Body Systems
+export const BODY_SYSTEMS = [
+  'Gastrointestinal', 'Cardiovascular', 'Respiratory', 'Nervous System',
+  'Musculoskeletal', 'Dermatological', 'Genitourinary', 'Endocrine',
+  'Hematological', 'Psychiatric', 'Ocular', 'Otic', 'Other'
+];
+
+// Report Outcomes
+export const REPORT_OUTCOMES = [
+  'Recovered/Resolved', 'Recovering', 'Not recovered',
+  'Recovered with sequelae', 'Fatal', 'Unknown'
+];
+
+// Causality Assessment Algorithms
+export const CAUSALITY_ALGORITHMS = [
+  'WHO-UMC', 'Naranjo', 'CIOMS/RUCAM', 'Other', 'Not assessed'
+];
+
+// Causality Categories
+export const CAUSALITY_CATEGORIES = [
+  'Certain', 'Probable', 'Possible', 'Unlikely',
+  'Conditional', 'Unassessable', 'Unclassifiable'
+];
+
+// Follow-up Information Types
+export const FOLLOWUP_TYPES = [
+  'Additional information', 'Correction', 'Follow-up report'
+];
+
 // User Roles
 export const USER_ROLES = {
   PATIENT: 'patient',

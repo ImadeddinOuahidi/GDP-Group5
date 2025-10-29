@@ -54,12 +54,14 @@ import {
 import { Link } from 'react-router-dom';
 import AuthContainer from '../../store/containers/AuthContainer';
 import { useThemeMode } from '../../theme/ThemeProvider';
+import { reportService } from '../../services';
 
 export default function DoctorHome() {
   const theme = useTheme();
   const { isDarkMode, toggleTheme } = useThemeMode();
   const { user } = AuthContainer.useContainer();
   const [reports, setReports] = useState([]);
+  const [dashboardStats, setDashboardStats] = useState(null);
   const [selectedReport, setSelectedReport] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
@@ -177,24 +179,89 @@ export default function DoctorHome() {
 
   const loadReports = async () => {
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Fetch real reports from API
+      const response = await reportService.getAllReports({
+        page: 1,
+        limit: 50,
+        sortBy: 'reportDetails.reportDate',
+        sortOrder: 'desc'
+      });
+      
+      if (response.status === 'success' && response.data) {
+        // Transform API data to match the component's expected format
+        const transformedReports = response.data.map(report => ({
+          _id: report._id,
+          patientName: report.patient?.firstName && report.patient?.lastName 
+            ? `${report.patient.firstName} ${report.patient.lastName}`
+            : 'Anonymous',
+          patientEmail: report.patient?.email || 'N/A',
+          patientAge: report.patientInfo?.age || 'N/A',
+          patientGender: report.patientInfo?.gender || 'N/A',
+          medicationName: report.medicine?.name || 'Unknown',
+          dosage: report.medicationUsage?.dosage?.amount || 'N/A',
+          administrationRoute: report.medicationUsage?.dosage?.route || 'N/A',
+          indicationsForUse: report.medicationUsage?.indication || 'N/A',
+          adverseReaction: report.sideEffects?.map(se => se.effect).join(', ') || 'N/A',
+          reactionSeverity: report.sideEffects?.[0]?.severity || 'Unknown',
+          onsetTime: report.sideEffects?.[0]?.onset || 'Unknown',
+          reactionDuration: 'N/A',
+          actionTaken: report.reportDetails?.description || 'N/A',
+          outcome: report.reportDetails?.outcome || 'Unknown',
+          concomitantMeds: 'N/A',
+          medicalHistory: 'N/A',
+          allergies: 'None recorded',
+          additionalInfo: report.reportDetails?.description || '',
+          reportDate: report.reportDetails?.reportDate || report.createdAt,
+          status: report.status.toLowerCase(),
+          doctorNotes: report.workflow?.comments || '',
+          priority: report.priority?.toLowerCase() || 'medium',
+          followUpRequired: report.followUp?.length > 0,
+          ...report // Include all original fields
+        }));
+        
+        setReports(transformedReports);
+      } else {
+        // Fallback to mock data if API fails
+        console.warn('Using mock data as fallback');
+        setReports(mockReports);
+      }
+    } catch (error) {
+      console.error('Error loading reports:', error);
+      // Use mock data as fallback
       setReports(mockReports);
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
+  };
+
+  const loadDashboardStats = async () => {
+    try {
+      const response = await reportService.getDashboardStats();
+      if (response.status === 'success' && response.data) {
+        setDashboardStats(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading dashboard stats:', error);
+      // Stats will fallback to local calculation
+    }
   };
 
   useEffect(() => {
     loadReports();
+    if (user?.role === 'doctor' || user?.role === 'admin') {
+      loadDashboardStats();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    setTimeout(() => {
-      loadReports();
-      setRefreshing(false);
-    }, 800);
+    await Promise.all([
+      loadReports(),
+      (user?.role === 'doctor' || user?.role === 'admin') && loadDashboardStats()
+    ]);
+    setRefreshing(false);
   };
 
   // Filter and search reports
@@ -237,6 +304,22 @@ export default function DoctorHome() {
 
   const handleStatusUpdate = async (reportId, newStatus, doctorNotes = '') => {
     try {
+      // Map local status to API status
+      const statusMap = {
+        'pending': 'Submitted',
+        'approved': 'Reviewed',
+        'rejected': 'Rejected'
+      };
+      
+      const apiStatus = statusMap[newStatus] || newStatus;
+      
+      // Update via API
+      await reportService.updateReportStatus(reportId, {
+        status: apiStatus,
+        comments: doctorNotes
+      });
+      
+      // Update local state
       setReports(prevReports => 
         prevReports.map(report => 
           report._id === reportId 
