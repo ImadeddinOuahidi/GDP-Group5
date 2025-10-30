@@ -7,6 +7,7 @@ import { Menu as MenuIcon } from "@mui/icons-material";
 import {
   Home,
   Report,
+  Reports,
   Settings,
   DoctorHome,
   Dashboard,
@@ -136,6 +137,7 @@ function AppContent() {
               <>
                 <Route path="/" element={<Home />} />
                 <Route path="/report" element={<Report />} />
+                <Route path="/reports" element={<Reports />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </>

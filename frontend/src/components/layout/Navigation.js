@@ -15,6 +15,7 @@ import {
 import {
   Home as HomeIcon,
   Report as ReportIcon,
+  History as HistoryIcon,
   Settings as SettingsIcon,
   Dashboard as DashboardIcon,
   MedicalServices as DoctorIcon,
@@ -36,6 +37,7 @@ const Navigation = ({ mobileOpen, handleDrawerToggle }) => {
   const patientNavItems = [
     { text: 'Home', icon: <HomeIcon />, path: '/' },
     { text: 'Report Side Effect', icon: <ReportIcon />, path: '/report' },
+    { text: 'My Reports', icon: <HistoryIcon />, path: '/reports' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];
 

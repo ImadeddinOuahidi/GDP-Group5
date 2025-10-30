@@ -12,6 +12,7 @@ import {
   DoctorHome,
   Settings,
   Report,
+  Reports,
   AddMedicine,
   MedicineManagement
 } from '../pages';
@@ -66,9 +67,9 @@ const AppRoutes = () => {
           <ProtectedRoute>
             <MainLayout>
               <Routes>
-                <Route path={ROUTES.HOME} element={<Home />} />
-                <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
-                <Route path={ROUTES.DOCTOR_HOME} element={
+                <Route path="/" element={<Home />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/doctor-home" element={
                   <ProtectedRoute requiredRole="doctor">
                     <DoctorHome />
                   </ProtectedRoute>
@@ -88,9 +89,10 @@ const AppRoutes = () => {
                     <AddMedicine />
                   </ProtectedRoute>
                 } />
-                <Route path={ROUTES.SETTINGS} element={<Settings />} />
-                <Route path={ROUTES.REPORT} element={<Report />} />
-                <Route path="*" element={<Navigate to={ROUTES.HOME} replace />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/report" element={<Report />} />
+                <Route path="/reports" element={<Reports />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </MainLayout>
           </ProtectedRoute>

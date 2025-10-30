@@ -14,3 +14,4 @@ export { default as MedicineManagement } from './doctor/MedicineManagement';
 
 // Patient Pages
 export { default as Report } from './patient/Report';
+export { default as Reports } from './patient/Reports';

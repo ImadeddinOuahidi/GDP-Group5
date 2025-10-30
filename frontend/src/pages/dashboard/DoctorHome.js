@@ -53,7 +53,7 @@ import {
 } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import AuthContainer from '../../store/containers/AuthContainer';
-import { useThemeMode } from '../../theme/ThemeProvider';
+import { useThemeMode } from '../../styles/theme/ThemeProvider';
 import { reportService } from '../../services';
 
 export default function DoctorHome() {

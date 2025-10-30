@@ -27,6 +27,7 @@ export const ROUTES = {
   
   // Patient Routes
   REPORT: '/report',
+  REPORTS: '/reports',
   
   // API Routes
   API: {
