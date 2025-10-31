@@ -11,10 +11,7 @@ const mongoURI = process.env.MONGODB_URI || 'mongodb+srv://modugulaanjireddy18_d
 const seedDatabase = async () => {
   try {
     // 1. Connect to MongoDB
-    await mongoose.connect(mongoURI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    await mongoose.connect(mongoURI);
     console.log('Successfully connected to MongoDB for seeding.');
 
     // 2. Clear existing data

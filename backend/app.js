@@ -1,37 +1,55 @@
-
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 const YAML = require('yamljs');
 const path = require('path');
-const authRoutes = require('./routes/auth');
+const os = require('os');
+const morgan = require('morgan');
+
+// Import configuration and utilities
+const config = require('./config/config');
+const database = require('./config/database');
+const logger = require('./utils/logger');
+const { errorHandler, notFound } = require('./middleware/errorHandler');
+const { 
+  generalLimiter, 
+  authLimiter, 
+  configureHelmet, 
+  sanitizeData 
+} = require('./middleware/security');
+
+// Initialize Express app
 const app = express();
-const port = 3000;
 
-// MongoDB connection
-// adding mongo connection string with which is hostedin mongodb atlas
-const mongoURI = process.env.MONGODB_URI || 'mongodb+srv://modugulaanjireddy18_db_user:r0H53qLCObKUZc9Z@cluster0.cncdtpb.mongodb.net/';
+// Security middleware
+app.use(configureHelmet());
+app.use(sanitizeData());
 
-mongoose.connect(mongoURI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('MongoDB connection error:', err));
+// CORS configuration
+app.use(cors(config.cors));
+
+// Request logging
+if (config.server.isDevelopment) {
+  app.use(morgan('dev'));
+} else {
+  app.use(morgan('combined', { stream: logger.stream }));
+}
+
+// Body parser middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Apply general rate limiting to all routes
+app.use(generalLimiter);
 
 // Swagger Configuration
 const swaggerDocument = YAML.load(path.join(__dirname, 'swagger.yaml'));
-
 const swaggerOptions = {
   definition: swaggerDocument,
-  apis: ['./routes/*.js', './controllers/*.js', './models/*.js'], // paths to files containing OpenAPI definitions
+  apis: ['./routes/*.js', './controllers/*.js', './models/*.js'],
 };
-
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
-
-// Middleware
-app.use(cors()); // Enable CORS for all routes
-app.use(express.json({ limit: '10mb' })); // Parse JSON with size limit
-app.use(express.urlencoded({ extended: true })); // Parse URL-encoded data
 
 // Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
@@ -49,164 +67,131 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   }
 }));
 
-// Routes
+// Import routes
+const authRoutes = require('./routes/auth');
 const medicineRoutes = require('./routes/medicines');
 const reportRoutes = require('./routes/reports');
 const symptomProgressionRoutes = require('./routes/symptomProgression');
 
+// Apply strict rate limiting to auth routes
+app.use('/api/auth', authLimiter);
+
+// Mount API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/medicines', medicineRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/symptom-progression', symptomProgressionRoutes);
 
-// Basic route
+// Health and utility routes
 app.get('/', (req, res) => {
-  res.send('Hello, World!');
+  res.json({
+    success: true,
+    message: 'Healthcare Management API',
+    version: '1.0.0',
+    documentation: '/api-docs'
+  });
 });
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', message: 'Server is healthy' });
-});
-app.get('/api/info', async (req, res) => {
-  const dbState = mongoose.connection.readyState === 1 ? 'connected' : 'not connected';
-  res.json({
-    appName: 'MyApp Backend',
-    version: '1.0.0',
-    serverTime: new Date().toISOString(),
-    database: dbState
+  const dbStatus = database.getStatus();
+  res.status(200).json({
+    success: true,
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    database: dbStatus,
+    uptime: process.uptime()
   });
 });
 
-// Server uptime route
-app.get('/uptime', (req, res) => {
-  res.json({
-    uptimeSeconds: process.uptime(),
-    startedAt: new Date(Date.now() - process.uptime() * 1000).toISOString()
-  });
-});
-
-// Environment info route
-app.get('/env', (req, res) => {
-  res.json({
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
-// Simple ping route
-app.get('/ping', (req, res) => {
-  res.json({ message: 'pong', time: new Date().toISOString() });
-});
-
-app.get('/info', (req, res) => {
-  res.json({
-    appName: 'MyApp Backend',
-    version: '1.0.0',
-    serverTime: new Date().toISOString()
-  });
-});
-
-// ✅ Random quote route
-const quotes = [
-  'Keep moving forward.',
-  'Stay curious.',
-  'Code. Commit. Repeat.'
-];
-
-app.get('/quote', (req, res) => {
-  const random = quotes[Math.floor(Math.random() * quotes.length)];
-  res.json({ quote: random });
-});
-
-// Version info route
-app.get('/version', (req, res) => {
-  res.json({
-    version: '1.0.0',
-    lastUpdated: new Date().toISOString(),
-    message: 'Backend version endpoint working successfully'
-  });
-});
-
-// Server summary route
-app.get('/server-summary', (req, res) => {
-  const dbState = mongoose.connection.readyState === 1 ? 'connected' : 'not connected';
-  res.json({
-    status: 'running',
-    uptimeSeconds: process.uptime(),
-    environment: process.env.NODE_ENV || 'development',
-    database: dbState,
-    currentTime: new Date().toISOString()
-  });
-});
-
+// System metrics endpoint
 app.get('/metrics', (req, res) => {
   const memoryUsage = process.memoryUsage();
+  const dbStatus = database.getStatus();
+  
   res.json({
-    uptimeSeconds: process.uptime(),
-    memory: {
-      rss: `${(memoryUsage.rss / 1024 / 1024).toFixed(2)} MB`,
-      heapUsed: `${(memoryUsage.heapUsed / 1024 / 1024).toFixed(2)} MB`
-    },
-    cpuUsage: process.cpuUsage(),
-    timestamp: new Date().toISOString()
+    success: true,
+    data: {
+      uptime: process.uptime(),
+      memory: {
+        rss: `${(memoryUsage.rss / 1024 / 1024).toFixed(2)} MB`,
+        heapUsed: `${(memoryUsage.heapUsed / 1024 / 1024).toFixed(2)} MB`,
+        heapTotal: `${(memoryUsage.heapTotal / 1024 / 1024).toFixed(2)} MB`
+      },
+      cpu: process.cpuUsage(),
+      database: dbStatus,
+      platform: {
+        hostname: os.hostname(),
+        platform: os.platform(),
+        arch: os.arch(),
+        nodeVersion: process.version,
+        cpuCount: os.cpus().length
+      },
+      timestamp: new Date().toISOString()
+    }
   });
 });
 
-// System health route
-app.get('/system-health', (req, res) => {
-  const dbState = mongoose.connection.readyState === 1 ? 'connected' : 'not connected';
-  const memoryUsage = process.memoryUsage();
-
-  res.json({
-    status: 'OK',
-    database: dbState,
-    uptimeSeconds: process.uptime(),
-    memory: {
-      rssMB: (memoryUsage.rss / 1024 / 1024).toFixed(2),
-      heapUsedMB: (memoryUsage.heapUsed / 1024 / 1024).toFixed(2),
-    },
-    cpuLoad: os.loadavg(),
-    timestamp: new Date().toISOString()
+// Simple ping endpoint
+app.get('/ping', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'pong', 
+    timestamp: new Date().toISOString() 
   });
 });
 
+// Handle 404 - Must be after all other routes
+app.all('*', notFound);
 
-// Start the server
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
-});
+// Global error handler - Must be last
+app.use(errorHandler);
 
-app.get('/server-info', (req, res) => {
-  res.json({
-    hostname: os.hostname(),
-    platform: os.platform(),
-    architecture: os.arch(),
-    nodeVersion: process.version,
-    cpuCount: os.cpus().length,
-    totalMemoryMB: (os.totalmem() / 1024 / 1024).toFixed(2),
-    freeMemoryMB: (os.freemem() / 1024 / 1024).toFixed(2),
-    uptimeSeconds: os.uptime(),
-    currentTime: new Date().toISOString()
-  });
-});
+// Initialize server
+const startServer = async () => {
+  try {
+    // Connect to database
+    await database.connect();
+    
+    // Start server
+    const server = app.listen(config.server.port, () => {
+      logger.info(`🚀 Server running in ${config.server.env} mode on port ${config.server.port}`);
+      logger.info(`📚 API Documentation: http://localhost:${config.server.port}/api-docs`);
+    });
 
+    // Graceful shutdown
+    const gracefulShutdown = async (signal) => {
+      logger.info(`\n${signal} received. Starting graceful shutdown...`);
+      
+      server.close(async () => {
+        logger.info('HTTP server closed');
+        await database.disconnect();
+        logger.info('Graceful shutdown completed');
+        process.exit(0);
+      });
 
-app.get('/time', (req, res) => {
-  const now = new Date();
-  res.json({
-    localTime: now.toString(),
-    utcTime: now.toISOString()
-  });
-});
+      // Force shutdown after 10 seconds
+      setTimeout(() => {
+        logger.error('Forced shutdown after timeout');
+        process.exit(1);
+      }, 10000);
+    };
 
-// Time route
-app.get('/time', (req, res) => {
-  const now = new Date();
-  res.json({
-    serverTime: now.toISOString(),
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    unixTimestamp: Math.floor(now.getTime() / 1000)
-  });
-});
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+  } catch (error) {
+    logger.error('Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+// Start the application
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = app;
 
 
 
