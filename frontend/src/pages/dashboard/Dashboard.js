@@ -30,7 +30,14 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel
+  InputLabel,
+  CircularProgress,
+  Backdrop,
+  Snackbar,
+  Alert,
+  Menu,
+  ListItemIcon,
+  ListItemText
 } from '@mui/material';
 import {
   Assessment,
@@ -44,7 +51,11 @@ import {
   FilterList,
   Refresh,
   Analytics,
-  CalendarToday
+  CalendarToday,
+  FileDownload,
+  PictureAsPdf,
+  TableChart,
+  AutorenewRounded
 } from '@mui/icons-material';
 
 export default function Dashboard() {
@@ -54,6 +65,10 @@ export default function Dashboard() {
   const [rowsPerPage, setRowsPerPage] = React.useState(5);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [severityFilter, setSeverityFilter] = React.useState('');
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [lastUpdated, setLastUpdated] = React.useState(new Date());
+  const [snackbar, setSnackbar] = React.useState({ open: false, message: '', severity: 'success' });
+  const [exportMenuAnchor, setExportMenuAnchor] = React.useState(null);
 
   // Dummy data for now
   const reports = [
@@ -166,9 +181,85 @@ export default function Dashboard() {
     setPage(0);
   };
 
-  const handleRefresh = () => {
-    // Placeholder for refresh functionality
-    console.log('Refreshing data...');
+  const handleRefresh = async () => {
+    setIsLoading(true);
+    try {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setLastUpdated(new Date());
+      setSnackbar({
+        open: true,
+        message: 'Dashboard data refreshed successfully!',
+        severity: 'success'
+      });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Failed to refresh data. Please try again.',
+        severity: 'error'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleExportClick = (event) => {
+    setExportMenuAnchor(event.currentTarget);
+  };
+
+  const handleExportClose = () => {
+    setExportMenuAnchor(null);
+  };
+
+  const handleExport = (format) => {
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `adr-reports-${timestamp}`;
+    
+    if (format === 'csv') {
+      exportToCSV(filename);
+    } else if (format === 'pdf') {
+      exportToPDF(filename);
+    }
+    
+    setSnackbar({
+      open: true,
+      message: `Report exported as ${format.toUpperCase()} successfully!`,
+      severity: 'success'
+    });
+    
+    handleExportClose();
+  };
+
+  const exportToCSV = (filename) => {
+    const headers = ['Report ID', 'Patient', 'Drug', 'Symptom', 'Severity', 'Status', 'Date'];
+    const csvContent = [
+      headers.join(','),
+      ...filteredReports.map(report => [
+        `#${report.id.toString().padStart(3, '0')}`,
+        `"${report.patient}"`,
+        `"${report.drug}"`,
+        `"${report.symptom}"`,
+        report.severity,
+        `"${report.status}"`,
+        report.date
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${filename}.csv`;
+    link.click();
+  };
+
+  const exportToPDF = (filename) => {
+    // Placeholder for PDF export - would integrate with a PDF library like jsPDF
+    console.log(`Exporting to PDF: ${filename}.pdf`);
+    // In real implementation, you'd use jsPDF or similar library
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbar({ ...snackbar, open: false });
   };
 
   return (
@@ -199,17 +290,19 @@ export default function Dashboard() {
           <Stack direction="row" spacing={2}>
             <Button
               variant="outlined"
-              startIcon={<Analytics />}
+              startIcon={<FileDownload />}
+              onClick={handleExportClick}
               sx={{ display: { xs: 'none', sm: 'flex' } }}
             >
-              Generate Report
+              Export Data
             </Button>
             <Button
               variant="contained"
-              startIcon={<Refresh />}
+              startIcon={isLoading ? <AutorenewRounded sx={{ animation: 'spin 1s linear infinite', '@keyframes spin': { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } } }} /> : <Refresh />}
               onClick={handleRefresh}
+              disabled={isLoading}
             >
-              Refresh
+              {isLoading ? 'Refreshing...' : 'Refresh'}
             </Button>
           </Stack>
         </Stack>
@@ -287,8 +380,11 @@ export default function Dashboard() {
               <Typography variant="h6" component="h2" fontWeight="bold" gutterBottom>
                 Recent ADR Reports
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                 Comprehensive list of adverse drug reactions sorted by severity and date
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
+                Last updated: {lastUpdated.toLocaleTimeString()} • {filteredReports.length} of {reports.length} reports shown
               </Typography>
             </Box>
             
@@ -499,6 +595,63 @@ export default function Dashboard() {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* Loading Backdrop */}
+      <Backdrop
+        sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
+        open={isLoading}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <CircularProgress color="inherit" size={60} />
+          <Typography variant="h6" sx={{ mt: 2 }}>
+            Refreshing Dashboard Data...
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1, opacity: 0.8 }}>
+            Please wait while we fetch the latest reports
+          </Typography>
+        </Box>
+      </Backdrop>
+
+      {/* Export Menu */}
+      <Menu
+        anchorEl={exportMenuAnchor}
+        open={Boolean(exportMenuAnchor)}
+        onClose={handleExportClose}
+        PaperProps={{
+          elevation: 3,
+          sx: { minWidth: 200 }
+        }}
+      >
+        <MenuItem onClick={() => handleExport('csv')}>
+          <ListItemIcon>
+            <TableChart fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Export as CSV</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => handleExport('pdf')}>
+          <ListItemIcon>
+            <PictureAsPdf fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Export as PDF</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      {/* Success/Error Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={handleSnackbarClose} 
+          severity={snackbar.severity} 
+          sx={{ width: '100%' }}
+          variant="filled"
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 }
