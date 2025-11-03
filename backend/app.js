@@ -108,6 +108,19 @@ app.get('/health', (req, res) => {
 app.get('/metrics', (req, res) => {
   const memoryUsage = process.memoryUsage();
   const dbStatus = database.getStatus();
+
+  res.json({
+    success: true,
+    stats: {
+      uptimeSeconds: process.uptime(),
+      dbStatus: dbStatus,
+      loadAverage: os.loadavg(),
+      totalMemoryMB: (os.totalmem() / 1024 / 1024).toFixed(2),
+      freeMemoryMB: (os.freemem() / 1024 / 1024).toFixed(2),
+      activeConnections: mongoose.connections.length,
+      timestamp: new Date().toISOString()
+    }
+  });
   
   res.json({
     success: true,
