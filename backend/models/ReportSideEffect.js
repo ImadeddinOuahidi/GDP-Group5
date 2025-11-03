@@ -327,6 +327,45 @@ const reportSideEffectSchema = new mongoose.Schema({
     }
   },
   
+  // AI Analysis Metadata
+  metadata: {
+    aiProcessed: {
+      type: Boolean,
+      default: false
+    },
+    aiProcessedAt: Date,
+    aiProcessingAttempts: {
+      type: Number,
+      default: 0
+    },
+    aiProcessingError: String,
+    aiAnalysis: {
+      overallSeverity: {
+        type: String,
+        enum: ['Mild', 'Moderate', 'Severe', 'Life-threatening']
+      },
+      priorityLevel: {
+        type: String,
+        enum: ['Low', 'Medium', 'High', 'Critical']
+      },
+      seriousnessClassification: {
+        type: String,
+        enum: ['Serious', 'Non-serious']
+      },
+      confidenceScore: {
+        type: Number,
+        min: 0,
+        max: 100
+      },
+      reasoning: String,
+      recommendedActions: [String],
+      riskFactors: [String],
+      requiresImmediateAttention: Boolean,
+      analyzedAt: Date,
+      model: String
+    }
+  },
+  
   // System fields
   isActive: {
     type: Boolean,

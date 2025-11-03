@@ -2,6 +2,7 @@ const { validationResult } = require('express-validator');
 const ReportSideEffect = require('../models/ReportSideEffect');
 const Medicine = require('../models/Medicine');
 const User = require('../models/User');
+const SeverityAnalysisJob = require('../jobs/severityAnalysisJob');
 
 // Submit a new side effect report
 exports.submitReport = async (req, res) => {
@@ -58,10 +59,25 @@ exports.submitReport = async (req, res) => {
       { path: 'patient', select: 'firstName lastName' }
     ]);
 
+    // Trigger AI severity analysis job asynchronously
+    // Don't wait for completion - process in background
+    setImmediate(async () => {
+      try {
+        console.log(`[Report Controller] Triggering severity analysis for report: ${report._id}`);
+        await SeverityAnalysisJob.processReport(report._id.toString());
+      } catch (jobError) {
+        console.error('[Report Controller] Background job error:', jobError);
+        // Job errors are logged but don't affect the response
+      }
+    });
+
     res.status(201).json({
       success: true,
       message: 'Side effect report submitted successfully',
-      data: { report }
+      data: { 
+        report,
+        aiAnalysisStatus: 'processing' // Indicate that AI analysis is in progress
+      }
     });
 
   } catch (error) {

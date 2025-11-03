@@ -2,6 +2,7 @@ const express = require('express');
 const { body, query } = require('express-validator');
 const reportController = require('../controllers/reportController');
 const aiReportController = require('../controllers/aiReportController');
+const severityAnalysisController = require('../controllers/severityAnalysisController');
 const { protect, restrictTo, requirePermission } = require('../middleware/auth');
 const { uploadAIReportFiles, handleUploadErrors, validateUploadedFiles } = require('../middleware/fileUpload');
 
@@ -1292,5 +1293,11 @@ router.post('/aiconfirm',
   ],
   aiReportController.submitConfirmedAIReport
 );
+
+// Severity Analysis Routes
+router.post('/:id/analyze-severity', severityAnalysisController.analyzeSeverity);
+router.get('/:id/severity-status', severityAnalysisController.getSeverityStatus);
+router.post('/batch-analyze', severityAnalysisController.batchAnalyzeSeverity);
+router.get('/analysis-stats', severityAnalysisController.getAnalysisStats);
 
 module.exports = router;
