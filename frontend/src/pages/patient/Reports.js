@@ -24,15 +24,12 @@ import {
   ListItemText,
   Paper,
   Skeleton,
-  Alert,
   useTheme,
   Fade,
   Pagination,
 } from '@mui/material';
 import {
   Search as SearchIcon,
-  FilterList as FilterIcon,
-  Sort as SortIcon,
   MoreVert as MoreVertIcon,
   Visibility as ViewIcon,
   Edit as EditIcon,
@@ -45,7 +42,6 @@ import {
   Error as ErrorIcon,
   History as HistoryIcon,
   CalendarToday as CalendarIcon,
-  LocalHospital as MedicineIcon,
   Assessment as SeverityIcon,
 } from '@mui/icons-material';
 import AuthContainer from '../../store/containers/AuthContainer';
@@ -81,24 +77,8 @@ const severityConfig = {
   'life-threatening': { color: 'error', label: 'Life-threatening' }
 };
 
-export default function Reports() {
-  const theme = useTheme();
-  const navigate = useNavigate();
-  const { user } = AuthContainer.useContainer();
-  
-  const [reports, setReports] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [severityFilter, setSeverityFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('date_desc');
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [selectedReport, setSelectedReport] = useState(null);
-
-  // Mock reports data - in real app, fetch from API
-  const mockReports = [
+// Mock reports data - in real app, fetch from API
+const mockReports = [
     {
       id: 1,
       medicine: 'Aspirin',
@@ -175,6 +155,21 @@ export default function Reports() {
       reportId: 'ADR-2025-005',
     },
   ];
+
+export default function Reports() {
+  const theme = useTheme();
+  const navigate = useNavigate();
+  
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [severityFilter, setSeverityFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('date_desc');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedReport, setSelectedReport] = useState(null);
 
   useEffect(() => {
     const loadReports = async () => {

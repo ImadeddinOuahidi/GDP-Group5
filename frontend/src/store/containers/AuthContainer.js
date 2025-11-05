@@ -40,7 +40,6 @@ function useAuth(initialState = null) {
   useEffect(() => {
     const initializeAuth = () => {
       try {
-        const token = localStorage.getItem("token");
         const savedUser = localStorage.getItem("user");
         
         if (savedUser) {
