@@ -49,6 +49,7 @@ import {
   Assessment as SeverityIcon,
 } from '@mui/icons-material';
 import AuthContainer from '../../store/containers/AuthContainer';
+import { reportService } from '../../services';
 
 const statusConfig = {
   'pending': {
@@ -179,19 +180,34 @@ export default function Reports() {
     const loadReports = async () => {
       setLoading(true);
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setReports(mockReports);
-        setTotalPages(Math.ceil(mockReports.length / 5));
+        const response = await reportService.getAllReports({
+          page: page,
+          limit: 10,
+          sortBy: 'reportDetails.reportDate',
+          sortOrder: 'desc'
+        });
+        
+        if (response.status === 'success' && response.data) {
+          setReports(response.data);
+          setTotalPages(Math.ceil((response.total || response.data.length) / 10));
+        } else {
+          // Fallback to mock data if API fails
+          console.warn('API failed, using mock data');
+          setReports(mockReports);
+          setTotalPages(Math.ceil(mockReports.length / 5));
+        }
       } catch (error) {
         console.error('Error loading reports:', error);
+        // Fallback to mock data on error
+        setReports(mockReports);
+        setTotalPages(Math.ceil(mockReports.length / 5));
       } finally {
         setLoading(false);
       }
     };
 
     loadReports();
-  }, []);
+  }, [page]);
 
   const handleMenuOpen = (event, report) => {
     setAnchorEl(event.currentTarget);

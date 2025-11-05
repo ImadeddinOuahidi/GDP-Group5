@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createContainer } from "unstated-next";
-import { authAPI } from "../../services/api";
+import { api } from "../../services/apiClient";
 
 // Mock user database for demo purposes (fallback)
 const MOCK_USERS = {
@@ -86,10 +86,10 @@ function useAuth(initialState = null) {
 
       // Try API call first
       try {
-        const response = await authAPI.signin(email, password);
+        const response = await api.auth.signin({ email, password });
         
-        if (response.success) {
-          const { user: apiUser, token } = response.data;
+        if (response.data.success) {
+          const { user: apiUser, token } = response.data.data;
           
           // Normalize API user object
           const normalizedUser = {
@@ -168,10 +168,10 @@ function useAuth(initialState = null) {
     setError("");
     
     try {
-      const response = await authAPI.signup(userData);
+      const response = await api.auth.signup(userData);
       
-      if (response.success) {
-        const { user: newUser, token } = response.data;
+      if (response.data.success) {
+        const { user: newUser, token } = response.data.data;
         
         // Normalize user object
         const normalizedUser = {
@@ -189,11 +189,11 @@ function useAuth(initialState = null) {
         localStorage.setItem("token", token);
         localStorage.setItem("user", JSON.stringify(normalizedUser));
         
-        return { success: true, user: normalizedUser, message: response.message };
+        return { success: true, user: normalizedUser, message: response.data.message };
       }
       
-      setError(response.message || "Signup failed");
-      return { success: false, error: response.message || "Signup failed" };
+      setError(response.data.message || "Signup failed");
+      return { success: false, error: response.data.message || "Signup failed" };
     } catch (err) {
       const errorMessage = err.message || "Signup failed. Please try again.";
       setError(errorMessage);
@@ -208,10 +208,10 @@ function useAuth(initialState = null) {
     setError("");
     
     try {
-      const response = await authAPI.updateProfile(profileData);
+      const response = await api.auth.updateProfile(profileData);
       
-      if (response.success) {
-        const updatedUserData = response.data.user;
+      if (response.data.success) {
+        const updatedUserData = response.data.data.user;
         const normalizedUser = {
           ...user,
           ...updatedUserData,
@@ -221,11 +221,11 @@ function useAuth(initialState = null) {
         setUser(normalizedUser);
         localStorage.setItem("user", JSON.stringify(normalizedUser));
         
-        return { success: true, user: normalizedUser, message: response.message };
+        return { success: true, user: normalizedUser, message: response.data.message };
       }
       
-      setError(response.message || "Profile update failed");
-      return { success: false, error: response.message || "Profile update failed" };
+      setError(response.data.message || "Profile update failed");
+      return { success: false, error: response.data.message || "Profile update failed" };
     } catch (err) {
       const errorMessage = err.message || "Profile update failed. Please try again.";
       setError(errorMessage);

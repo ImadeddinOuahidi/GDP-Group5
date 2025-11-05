@@ -29,6 +29,7 @@ import {
   Delete as DeleteIcon,
 } from "@mui/icons-material";
 import { ButtonLoading } from "../../components/ui/Loading";
+import { reportService } from "../../services";
 
 const steps = ['Basic Information', 'Describe Symptoms', 'Additional Details'];
 
@@ -89,12 +90,58 @@ export default function Report() {
     e.preventDefault();
     setLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Prepare report data for API submission
+      const reportData = {
+        medicine: {
+          name: formData.medicationName,
+          dosage: formData.dosage,
+          administrationRoute: formData.route || 'Oral',
+          indication: formData.indication || 'Not specified'
+        },
+        sideEffects: [{
+          effect: formData.symptoms,
+          severity: formData.severity,
+          onset: formData.onsetTime || 'Not specified',
+          duration: formData.duration || 'Ongoing'
+        }],
+        patientInfo: {
+          age: formData.age || null,
+          gender: formData.gender || 'Not specified',
+          weight: formData.weight || null,
+          height: formData.height || null
+        },
+        medicationUsage: {
+          startDate: formData.startDate || new Date().toISOString().split('T')[0],
+          dosage: {
+            amount: formData.dosage,
+            frequency: formData.frequency || 'As needed',
+            route: formData.route || 'Oral'
+          },
+          indication: formData.indication || 'Not specified'
+        },
+        reportDetails: {
+          description: formData.additionalInfo || formData.symptoms,
+          reportDate: new Date().toISOString(),
+          outcome: 'Ongoing'
+        }
+      };
+
+      const response = await reportService.submitReport(reportData);
+      
+      if (response.status === 'success' || response.success) {
+        setSubmitted(true);
+        console.log('Report submitted successfully:', response);
+      } else {
+        throw new Error(response.message || 'Failed to submit report');
+      }
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      // You could set an error state here if you have one
+      alert('Failed to submit report. Please try again.');
+    } finally {
       setLoading(false);
-      setSubmitted(true);
-      console.log('Report submitted:', formData);
-    }, 2000);
+    }
   };
 
   const handleVoiceInput = () => {
