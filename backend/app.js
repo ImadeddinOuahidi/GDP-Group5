@@ -145,6 +145,22 @@ app.get('/metrics', (req, res) => {
   });
 });
 
+// Build and version info route
+const packageJson = require('./package.json');
+
+app.get('/build-info', (req, res) => {
+  res.json({
+    appName: packageJson.name || 'Healthcare Management API',
+    version: packageJson.version,
+    nodeVersion: process.version,
+    environment: process.env.NODE_ENV || 'development',
+    startTime: new Date(Date.now() - process.uptime() * 1000).toISOString(),
+    uptimeSeconds: process.uptime(),
+    dependencies: Object.keys(packageJson.dependencies || {}),
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Simple ping endpoint
 app.get('/ping', (req, res) => {
   res.json({ 
