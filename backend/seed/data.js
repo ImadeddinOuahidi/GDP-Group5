@@ -35,7 +35,7 @@ for (let i = 0; i < NUM_USERS.patients; i++) {
     lastName: faker.person.lastName(),
     email: faker.internet.email(),
     password: 'password123', // Plain text, will be hashed by Mongoose pre-save hook
-    phone: faker.phone.number(),
+    phone: faker.helpers.fromRegExp(/[0-9]{3}-[0-9]{3}-[0-9]{4}/),
     dateOfBirth: faker.date.birthdate({ min: 18, max: 80, mode: 'age' }),
     gender: faker.helpers.arrayElement(['male', 'female', 'other']),
     address: {
@@ -50,7 +50,7 @@ for (let i = 0; i < NUM_USERS.patients; i++) {
       emergencyContact: {
         name: faker.person.fullName(),
         relationship: faker.helpers.arrayElement(['Spouse', 'Parent', 'Sibling', 'Friend']),
-        phone: faker.phone.number(),
+        phone: faker.helpers.fromRegExp(/[0-9]{3}-[0-9]{3}-[0-9]{4}/),
       },
       bloodGroup: faker.helpers.arrayElement(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']),
       allergies: getRandomSubset(
@@ -77,7 +77,7 @@ for (let i = 0; i < NUM_USERS.doctors; i++) {
     lastName: faker.person.lastName(),
     email: faker.internet.email(),
     password: 'password123',
-    phone: faker.phone.number(),
+    phone: faker.helpers.fromRegExp(/[0-9]{3}-[0-9]{3}-[0-9]{4}/),
     dateOfBirth: faker.date.birthdate({ min: 30, max: 65, mode: 'age' }),
     gender: faker.helpers.arrayElement(['male', 'female']),
     address: {
@@ -110,7 +110,7 @@ for (let i = 0; i < NUM_USERS.admins; i++) {
     lastName: faker.person.lastName(),
     email: faker.internet.email(),
     password: 'password123',
-    phone: faker.phone.number(),
+    phone: faker.helpers.fromRegExp(/[0-9]{3}-[0-9]{3}-[0-9]{4}/),
     dateOfBirth: faker.date.birthdate({ min: 25, max: 60, mode: 'age' }),
     gender: faker.helpers.arrayElement(['male', 'female']),
     address: {
@@ -248,7 +248,7 @@ for (const report of reports) {
   let lastSeverity = faker.number.int({ min: 4, max: 8 });
   for (let i = 0; i < NUM_PROGRESSIONS_PER_REPORT; i++) {
     const entryDate = faker.date.soon({ days: 2, refDate: progression.timeline.startDate });
-    lastSeverity = Math.max(0, lastSeverity + faker.number.int({ min: -2, max: 1 }));
+    lastSeverity = Math.max(0, Math.min(10, lastSeverity + faker.number.int({ min: -2, max: 1 })));
 
     progression.progressionEntries.push({
       entryDate,
