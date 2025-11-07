@@ -3,6 +3,10 @@ const ReportSideEffect = require('../models/ReportSideEffect');
 const Medicine = require('../models/Medicine');
 const User = require('../models/User');
 const SeverityAnalysisJob = require('../jobs/severityAnalysisJob');
+const { sendSuccess, sendCreated, sendNotFound, sendForbidden, sendValidationError } = require('../utils/responseHelper');
+const { validateObjectId } = require('../utils/validationHelper');
+const { USER_ROLES, SUCCESS_MESSAGES, ERROR_MESSAGES } = require('../utils/constants');
+const AppError = require('../utils/appError');
 
 // Submit a new side effect report
 exports.submitReport = async (req, res) => {
@@ -10,30 +14,20 @@ exports.submitReport = async (req, res) => {
     // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation errors',
-        errors: errors.array()
-      });
+      return sendValidationError(res, errors.array());
     }
 
     // Verify medicine exists
     const medicine = await Medicine.findById(req.body.medicine);
     if (!medicine) {
-      return res.status(404).json({
-        success: false,
-        message: 'Medicine not found'
-      });
+      return sendNotFound(res, ERROR_MESSAGES.MEDICINE_NOT_FOUND);
     }
 
     // If patient is specified, verify they exist and are a patient
     if (req.body.patient) {
       const patient = await User.findById(req.body.patient);
-      if (!patient || patient.role !== 'patient') {
-        return res.status(404).json({
-          success: false,
-          message: 'Patient not found or invalid patient role'
-        });
+      if (!patient || patient.role !== USER_ROLES.PATIENT) {
+        return sendNotFound(res, 'Patient not found or invalid patient role');
       }
     }
 
@@ -45,7 +39,7 @@ exports.submitReport = async (req, res) => {
     };
 
     // If no patient specified and reporter is patient, set patient to reporter
-    if (!reportData.patient && req.user.role === 'patient') {
+    if (!reportData.patient && req.user.role === USER_ROLES.PATIENT) {
       reportData.patient = req.user._id;
     }
 
@@ -60,42 +54,32 @@ exports.submitReport = async (req, res) => {
     ]);
 
     // Trigger AI severity analysis job asynchronously
-    // Don't wait for completion - process in background
     setImmediate(async () => {
       try {
         console.log(`[Report Controller] Triggering severity analysis for report: ${report._id}`);
         await SeverityAnalysisJob.processReport(report._id.toString());
       } catch (jobError) {
         console.error('[Report Controller] Background job error:', jobError);
-        // Job errors are logged but don't affect the response
       }
     });
 
-    res.status(201).json({
-      success: true,
-      message: 'Side effect report submitted successfully',
-      data: { 
-        report,
-        aiAnalysisStatus: 'processing' // Indicate that AI analysis is in progress
-      }
-    });
+    sendCreated(res, { 
+      report,
+      aiAnalysisStatus: 'processing'
+    }, 'Side effect report submitted successfully');
 
   } catch (error) {
     console.error('Submit report error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    throw error;
   }
 };
 
 // Get all reports with filtering
 exports.getAllReports = async (req, res) => {
   try {
+    const { validatePagination } = require('../utils/validationHelper');
+    
     const {
-      page = 1,
-      limit = 10,
       status,
       priority,
       seriousness,
@@ -107,6 +91,9 @@ exports.getAllReports = async (req, res) => {
       sortBy = 'reportDetails.reportDate',
       sortOrder = 'desc'
     } = req.query;
+
+    // Validate and parse pagination
+    const { page, limit, skip } = validatePagination(req.query);
 
     // Build filter object
     const filter = { isActive: true, isDeleted: false };
@@ -143,9 +130,6 @@ exports.getAllReports = async (req, res) => {
     }
     // Admins can see all reports (no additional filter)
 
-    // Pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    
     // Sort options
     const sortOptions = {};
     sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
@@ -160,33 +144,23 @@ exports.getAllReports = async (req, res) => {
       ])
       .sort(sortOptions)
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(limit);
 
     // Get total count
-    const totalReports = await ReportSideEffect.countDocuments(filter);
-    const totalPages = Math.ceil(totalReports / parseInt(limit));
+    const total = await ReportSideEffect.countDocuments(filter);
+    const totalPages = Math.ceil(total / limit);
 
-    res.status(200).json({
-      success: true,
-      data: {
-        reports,
-        pagination: {
-          currentPage: parseInt(page),
-          totalPages,
-          totalReports,
-          hasNextPage: page < totalPages,
-          hasPrevPage: page > 1
-        }
-      }
+    const { sendPaginated } = require('../utils/responseHelper');
+    sendPaginated(res, reports, {
+      page,
+      limit,
+      total,
+      totalPages
     });
 
   } catch (error) {
     console.error('Get all reports error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    throw error;
   }
 };
 
@@ -194,6 +168,7 @@ exports.getAllReports = async (req, res) => {
 exports.getReportById = async (req, res) => {
   try {
     const { id } = req.params;
+    validateObjectId(id, 'Report ID');
 
     const report = await ReportSideEffect.findById(id)
       .populate([
@@ -206,32 +181,19 @@ exports.getReportById = async (req, res) => {
       ]);
 
     if (!report || !report.isActive || report.isDeleted) {
-      return res.status(404).json({
-        success: false,
-        message: 'Report not found'
-      });
+      return sendNotFound(res, ERROR_MESSAGES.REPORT_NOT_FOUND);
     }
 
     // Check access permissions
     if (!canAccessReport(req.user, report)) {
-      return res.status(403).json({
-        success: false,
-        message: 'You do not have permission to view this report'
-      });
+      return sendForbidden(res, ERROR_MESSAGES.FORBIDDEN);
     }
 
-    res.status(200).json({
-      success: true,
-      data: { report }
-    });
+    sendSuccess(res, { report });
 
   } catch (error) {
     console.error('Get report by ID error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    throw error;
   }
 };
 
@@ -240,21 +202,17 @@ exports.updateReportStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, assignedTo, comments } = req.body;
+    
+    validateObjectId(id, 'Report ID');
 
     const report = await ReportSideEffect.findById(id);
     if (!report) {
-      return res.status(404).json({
-        success: false,
-        message: 'Report not found'
-      });
+      return sendNotFound(res, ERROR_MESSAGES.REPORT_NOT_FOUND);
     }
 
     // Check permissions
     if (!canModifyReport(req.user, report)) {
-      return res.status(403).json({
-        success: false,
-        message: 'You do not have permission to modify this report'
-      });
+      return sendForbidden(res, ERROR_MESSAGES.FORBIDDEN);
     }
 
     // Update report
@@ -278,19 +236,12 @@ exports.updateReportStatus = async (req, res) => {
       { path: 'lastModifiedBy', select: 'firstName lastName role' }
     ]);
 
-    res.status(200).json({
-      success: true,
-      message: 'Report status updated successfully',
-      data: { report }
-    });
+    const { sendUpdated } = require('../utils/responseHelper');
+    sendUpdated(res, { report }, 'Report status updated successfully');
 
   } catch (error) {
     console.error('Update report status error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    throw error;
   }
 };
 
@@ -299,21 +250,17 @@ exports.addFollowUp = async (req, res) => {
   try {
     const { id } = req.params;
     const { informationType, description } = req.body;
+    
+    validateObjectId(id, 'Report ID');
 
     const report = await ReportSideEffect.findById(id);
     if (!report) {
-      return res.status(404).json({
-        success: false,
-        message: 'Report not found'
-      });
+      return sendNotFound(res, ERROR_MESSAGES.REPORT_NOT_FOUND);
     }
 
     // Check permissions
     if (!canAccessReport(req.user, report)) {
-      return res.status(403).json({
-        success: false,
-        message: 'You do not have permission to add follow-up to this report'
-      });
+      return sendForbidden(res, ERROR_MESSAGES.FORBIDDEN);
     }
 
     await report.addFollowUp({
@@ -324,21 +271,13 @@ exports.addFollowUp = async (req, res) => {
 
     await report.populate('followUp.reportedBy', 'firstName lastName role');
 
-    res.status(200).json({
-      success: true,
-      message: 'Follow-up added successfully',
-      data: { 
-        followUp: report.followUp[report.followUp.length - 1]
-      }
-    });
+    sendSuccess(res, { 
+      followUp: report.followUp[report.followUp.length - 1]
+    }, 'Follow-up added successfully');
 
   } catch (error) {
     console.error('Add follow-up error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    throw error;
   }
 };
 
@@ -348,12 +287,11 @@ exports.updateCausalityAssessment = async (req, res) => {
     const { id } = req.params;
     const { algorithm, score, category, comments } = req.body;
 
+    validateObjectId(id, 'Report ID');
+
     // Only doctors and admins can perform causality assessment
-    if (req.user.role === 'patient') {
-      return res.status(403).json({
-        success: false,
-        message: 'You do not have permission to perform causality assessment'
-      });
+    if (req.user.role === USER_ROLES.PATIENT) {
+      return sendForbidden(res, 'You do not have permission to perform causality assessment');
     }
 
     const report = await ReportSideEffect.findByIdAndUpdate(
@@ -372,27 +310,16 @@ exports.updateCausalityAssessment = async (req, res) => {
     ).populate('causalityAssessment.assessedBy', 'firstName lastName role');
 
     if (!report) {
-      return res.status(404).json({
-        success: false,
-        message: 'Report not found'
-      });
+      return sendNotFound(res, ERROR_MESSAGES.REPORT_NOT_FOUND);
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Causality assessment updated successfully',
-      data: { 
-        causalityAssessment: report.causalityAssessment
-      }
-    });
+    sendSuccess(res, { 
+      causalityAssessment: report.causalityAssessment
+    }, 'Causality assessment updated successfully');
 
   } catch (error) {
     console.error('Update causality assessment error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    throw error;
   }
 };
 
@@ -400,14 +327,17 @@ exports.updateCausalityAssessment = async (req, res) => {
 exports.getReportsByMedicine = async (req, res) => {
   try {
     const { medicineId } = req.params;
-    const { page = 1, limit = 10, severity, seriousness } = req.query;
+    const { severity, seriousness } = req.query;
+    const { validatePagination } = require('../utils/validationHelper');
+    
+    validateObjectId(medicineId, 'Medicine ID');
+    
+    const { page, limit, skip } = validatePagination(req.query);
 
     // Build filter
     const filter = { medicine: medicineId, isActive: true, isDeleted: false };
     if (severity) filter['sideEffects.severity'] = severity;
     if (seriousness) filter['reportDetails.seriousness'] = seriousness;
-
-    const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const reports = await ReportSideEffect.find(filter)
       .populate([
@@ -416,71 +346,54 @@ exports.getReportsByMedicine = async (req, res) => {
       ])
       .sort({ 'reportDetails.reportDate': -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(limit);
 
     // Get medicine info
     const medicine = await Medicine.findById(medicineId, 'name genericName category');
+    const total = await ReportSideEffect.countDocuments(filter);
 
-    const totalReports = await ReportSideEffect.countDocuments(filter);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        medicine,
-        reports,
-        pagination: {
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(totalReports / parseInt(limit)),
-          totalReports
-        }
-      }
+    const { sendPaginated } = require('../utils/responseHelper');
+    sendPaginated(res, reports, {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      meta: { medicine }
     });
 
   } catch (error) {
     console.error('Get reports by medicine error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    throw error;
   }
 };
 
 // Get serious reports
 exports.getSeriousReports = async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const { validatePagination } = require('../utils/validationHelper');
+    const { page, limit, skip } = validatePagination(req.query);
 
     const reports = await ReportSideEffect.findSeriousReports()
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(limit);
 
-    const totalReports = await ReportSideEffect.countDocuments({ 
+    const total = await ReportSideEffect.countDocuments({ 
       'reportDetails.seriousness': 'Serious',
       isActive: true,
       isDeleted: false
     });
 
-    res.status(200).json({
-      success: true,
-      data: {
-        reports,
-        pagination: {
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(totalReports / parseInt(limit)),
-          totalReports
-        }
-      }
+    const { sendPaginated } = require('../utils/responseHelper');
+    sendPaginated(res, reports, {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit)
     });
 
   } catch (error) {
     console.error('Get serious reports error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    throw error;
   }
 };
 
@@ -535,24 +448,17 @@ exports.getDashboardStats = async (req, res) => {
       ])
     ]);
 
-    res.status(200).json({
-      success: true,
-      data: {
-        totalReports: stats[0],
-        seriousReports: stats[1],
-        reportsByStatus: stats[2],
-        reportsByPriority: stats[3],
-        mostReportedMedicines: stats[4]
-      }
+    sendSuccess(res, {
+      totalReports: stats[0],
+      seriousReports: stats[1],
+      reportsByStatus: stats[2],
+      reportsByPriority: stats[3],
+      mostReportedMedicines: stats[4]
     });
 
   } catch (error) {
     console.error('Get dashboard stats error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    throw error;
   }
 };
 

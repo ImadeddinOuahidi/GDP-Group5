@@ -5,7 +5,9 @@ const swaggerJsdoc = require('swagger-jsdoc');
 const YAML = require('yamljs');
 const path = require('path');
 const os = require('os');
+const fs = require('fs');
 const morgan = require('morgan');
+const mongoose = require('mongoose');
 
 // Import configuration and utilities
 const config = require('./config/config');
@@ -113,19 +115,6 @@ app.get('/metrics', (req, res) => {
 
   res.json({
     success: true,
-    stats: {
-      uptimeSeconds: process.uptime(),
-      dbStatus: dbStatus,
-      loadAverage: os.loadavg(),
-      totalMemoryMB: (os.totalmem() / 1024 / 1024).toFixed(2),
-      freeMemoryMB: (os.freemem() / 1024 / 1024).toFixed(2),
-      activeConnections: mongoose.connections.length,
-      timestamp: new Date().toISOString()
-    }
-  });
-  
-  res.json({
-    success: true,
     data: {
       uptime: process.uptime(),
       memory: {
@@ -140,54 +129,69 @@ app.get('/metrics', (req, res) => {
         platform: os.platform(),
         arch: os.arch(),
         nodeVersion: process.version,
-        cpuCount: os.cpus().length
+        cpuCount: os.cpus().length,
+        loadAverage: os.loadavg(),
+        totalMemoryMB: (os.totalmem() / 1024 / 1024).toFixed(2),
+        freeMemoryMB: (os.freemem() / 1024 / 1024).toFixed(2)
       },
+      activeConnections: mongoose.connections.length,
       timestamp: new Date().toISOString()
     }
   });
 });
 
 // Build and version info route
-const packageJson = require('./package.json');
-
 app.get('/build-info', (req, res) => {
+  const packageJson = require('./package.json');
+  
   res.json({
-    appName: packageJson.name || 'Healthcare Management API',
-    version: packageJson.version,
-    nodeVersion: process.version,
-    environment: process.env.NODE_ENV || 'development',
-    startTime: new Date(Date.now() - process.uptime() * 1000).toISOString(),
-    uptimeSeconds: process.uptime(),
-    dependencies: Object.keys(packageJson.dependencies || {}),
-    timestamp: new Date().toISOString()
+    success: true,
+    data: {
+      appName: packageJson.name || 'Healthcare Management API',
+      version: packageJson.version,
+      nodeVersion: process.version,
+      environment: process.env.NODE_ENV || 'development',
+      startTime: new Date(Date.now() - process.uptime() * 1000).toISOString(),
+      uptimeSeconds: process.uptime(),
+      dependencies: Object.keys(packageJson.dependencies || {}),
+      timestamp: new Date().toISOString()
+    }
   });
 });
 
 // Logs route - fetch recent log entries
-const fs = require('fs');
-
 app.get('/logs', (req, res) => {
   try {
-    const logFilePath = path.join(__dirname, 'logs', 'app.log'); // assuming logs are stored in ./logs/app.log
-    if (fs.existsSync(logFilePath)) {
-      const logs = fs.readFileSync(logFilePath, 'utf-8').split('\n').slice(-50); // last 50 lines
-      res.json({
-        success: true,
-        recentLogs: logs.filter(line => line.trim() !== ''),
-        count: logs.length,
-        timestamp: new Date().toISOString()
-      });
-    } else {
-      res.status(404).json({
+    const { lines = 50 } = req.query;
+    const logFilePath = path.join(__dirname, 'logs', 'app.log');
+    
+    if (!fs.existsSync(logFilePath)) {
+      return res.status(404).json({
         success: false,
         message: 'Log file not found'
       });
     }
+
+    const logs = fs.readFileSync(logFilePath, 'utf-8')
+      .split('\n')
+      .slice(-Math.min(parseInt(lines), 1000)) // Max 1000 lines for safety
+      .filter(line => line.trim() !== '');
+
+    res.json({
+      success: true,
+      data: {
+        recentLogs: logs,
+        count: logs.length,
+        requestedLines: parseInt(lines),
+        timestamp: new Date().toISOString()
+      }
+    });
   } catch (error) {
+    logger.error('Error reading logs:', error);
     res.status(500).json({
       success: false,
       message: 'Error reading logs',
-      error: error.message
+      error: config.server.isDevelopment ? error.message : 'Internal server error'
     });
   }
 });

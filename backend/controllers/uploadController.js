@@ -1,5 +1,7 @@
 const S3Service = require('../services/s3Service');
 const AppError = require('../utils/appError');
+const { sendSuccess, sendCreated, sendNotFound } = require('../utils/responseHelper');
+const { formatFileData, formatFilesData, createUploadSummary } = require('../utils/fileHelper');
 
 /**
  * Upload Controller for handling file uploads to S3
@@ -15,23 +17,9 @@ class UploadController {
         return next(new AppError('No file provided', 400));
       }
 
-      const fileData = {
-        url: req.file.location,
-        key: req.file.key,
-        bucket: req.file.bucket,
-        size: req.file.size,
-        originalName: req.file.originalname,
-        mimetype: req.file.mimetype,
-        category: S3Service.getFileCategory(req.file.mimetype),
-        uploadedBy: req.user.id,
-        uploadedAt: new Date()
-      };
+      const fileData = formatFileData(req.file, req.user.id);
 
-      res.status(201).json({
-        success: true,
-        message: 'File uploaded successfully',
-        data: fileData
-      });
+      return sendCreated(res, fileData, 'File uploaded successfully');
     } catch (error) {
       next(new AppError(`Upload failed: ${error.message}`, 500));
     }
@@ -47,27 +35,13 @@ class UploadController {
         return next(new AppError('No files provided', 400));
       }
 
-      const filesData = req.files.map(file => ({
-        url: file.location,
-        key: file.key,
-        bucket: file.bucket,
-        size: file.size,
-        originalName: file.originalname,
-        mimetype: file.mimetype,
-        category: S3Service.getFileCategory(file.mimetype),
-        uploadedBy: req.user.id,
-        uploadedAt: new Date()
-      }));
+      const filesData = formatFilesData(req.files, req.user.id);
+      const summary = createUploadSummary(filesData);
 
-      res.status(201).json({
-        success: true,
-        message: `${filesData.length} files uploaded successfully`,
-        data: {
-          files: filesData,
-          totalFiles: filesData.length,
-          totalSize: filesData.reduce((sum, file) => sum + file.size, 0)
-        }
-      });
+      return sendCreated(res, {
+        files: filesData,
+        ...summary
+      }, `${filesData.length} files uploaded successfully`);
     } catch (error) {
       next(new AppError(`Upload failed: ${error.message}`, 500));
     }
@@ -83,27 +57,15 @@ class UploadController {
         return next(new AppError('No image files provided', 400));
       }
 
-      const imagesData = req.files.map(file => ({
-        url: file.location,
-        key: file.key,
-        bucket: file.bucket,
-        size: file.size,
-        originalName: file.originalname,
-        mimetype: file.mimetype,
-        category: 'image',
-        uploadedBy: req.user.id,
-        uploadedAt: new Date()
-      }));
+      const imagesData = formatFilesData(req.files, req.user.id);
+      const summary = createUploadSummary(imagesData);
 
-      res.status(201).json({
-        success: true,
-        message: `${imagesData.length} images uploaded successfully`,
-        data: {
-          images: imagesData,
-          totalImages: imagesData.length,
-          totalSize: imagesData.reduce((sum, file) => sum + file.size, 0)
-        }
-      });
+      return sendCreated(res, {
+        images: imagesData,
+        totalImages: imagesData.length,
+        totalSize: summary.totalSize,
+        totalSizeFormatted: summary.totalSizeFormatted
+      }, `${imagesData.length} images uploaded successfully`);
     } catch (error) {
       next(new AppError(`Image upload failed: ${error.message}`, 500));
     }
@@ -119,27 +81,15 @@ class UploadController {
         return next(new AppError('No video files provided', 400));
       }
 
-      const videosData = req.files.map(file => ({
-        url: file.location,
-        key: file.key,
-        bucket: file.bucket,
-        size: file.size,
-        originalName: file.originalname,
-        mimetype: file.mimetype,
-        category: 'video',
-        uploadedBy: req.user.id,
-        uploadedAt: new Date()
-      }));
+      const videosData = formatFilesData(req.files, req.user.id);
+      const summary = createUploadSummary(videosData);
 
-      res.status(201).json({
-        success: true,
-        message: `${videosData.length} videos uploaded successfully`,
-        data: {
-          videos: videosData,
-          totalVideos: videosData.length,
-          totalSize: videosData.reduce((sum, file) => sum + file.size, 0)
-        }
-      });
+      return sendCreated(res, {
+        videos: videosData,
+        totalVideos: videosData.length,
+        totalSize: summary.totalSize,
+        totalSizeFormatted: summary.totalSizeFormatted
+      }, `${videosData.length} videos uploaded successfully`);
     } catch (error) {
       next(new AppError(`Video upload failed: ${error.message}`, 500));
     }
@@ -155,27 +105,15 @@ class UploadController {
         return next(new AppError('No document files provided', 400));
       }
 
-      const documentsData = req.files.map(file => ({
-        url: file.location,
-        key: file.key,
-        bucket: file.bucket,
-        size: file.size,
-        originalName: file.originalname,
-        mimetype: file.mimetype,
-        category: 'document',
-        uploadedBy: req.user.id,
-        uploadedAt: new Date()
-      }));
+      const documentsData = formatFilesData(req.files, req.user.id);
+      const summary = createUploadSummary(documentsData);
 
-      res.status(201).json({
-        success: true,
-        message: `${documentsData.length} documents uploaded successfully`,
-        data: {
-          documents: documentsData,
-          totalDocuments: documentsData.length,
-          totalSize: documentsData.reduce((sum, file) => sum + file.size, 0)
-        }
-      });
+      return sendCreated(res, {
+        documents: documentsData,
+        totalDocuments: documentsData.length,
+        totalSize: summary.totalSize,
+        totalSizeFormatted: summary.totalSizeFormatted
+      }, `${documentsData.length} documents uploaded successfully`);
     } catch (error) {
       next(new AppError(`Document upload failed: ${error.message}`, 500));
     }
@@ -193,18 +131,15 @@ class UploadController {
         return next(new AppError('File key is required', 400));
       }
 
-      // Decode the key in case it's URL encoded
       const decodedKey = decodeURIComponent(key);
-      
-      const result = await S3Service.deleteFile(decodedKey);
+      await S3Service.deleteFile(decodedKey);
 
-      res.status(200).json({
-        success: true,
-        message: 'File deleted successfully',
+      return sendSuccess(res, {
         data: {
           key: decodedKey,
           deletedAt: new Date()
-        }
+        },
+        message: 'File deleted successfully'
       });
     } catch (error) {
       next(new AppError(`Delete failed: ${error.message}`, 500));
@@ -227,13 +162,12 @@ class UploadController {
       const result = await S3Service.getFileInfo(decodedKey);
 
       if (!result.success) {
-        return next(new AppError(result.message, 404));
+        return sendNotFound(res, result.message);
       }
 
-      res.status(200).json({
-        success: true,
-        message: 'File info retrieved successfully',
-        data: result.data
+      return sendSuccess(res, {
+        data: result.data,
+        message: 'File info retrieved successfully'
       });
     } catch (error) {
       next(new AppError(`Failed to get file info: ${error.message}`, 500));
@@ -247,7 +181,7 @@ class UploadController {
   static async generatePresignedUrl(req, res, next) {
     try {
       const { key } = req.params;
-      const { expires = 3600 } = req.query; // Default 1 hour
+      const { expires = 3600 } = req.query;
       
       if (!key) {
         return next(new AppError('File key is required', 400));
@@ -258,10 +192,9 @@ class UploadController {
       
       const result = await S3Service.generatePresignedUrl(decodedKey, expiresIn);
 
-      res.status(200).json({
-        success: true,
-        message: 'Presigned URL generated successfully',
-        data: result.data
+      return sendSuccess(res, {
+        data: result.data,
+        message: 'Presigned URL generated successfully'
       });
     } catch (error) {
       next(new AppError(`Failed to generate presigned URL: ${error.message}`, 500));
@@ -284,14 +217,13 @@ class UploadController {
 
       const result = await S3Service.listFiles(searchFolder, parseInt(maxKeys));
 
-      res.status(200).json({
-        success: true,
-        message: 'Files listed successfully',
+      return sendSuccess(res, {
         data: {
           ...result.data,
           folder: searchFolder,
           category: category || 'all'
-        }
+        },
+        message: 'Files listed successfully'
       });
     } catch (error) {
       next(new AppError(`Failed to list files: ${error.message}`, 500));
@@ -318,10 +250,9 @@ class UploadController {
       const decodedSourceKey = decodeURIComponent(key);
       const result = await S3Service.copyFile(decodedSourceKey, destinationKey);
 
-      res.status(200).json({
-        success: true,
-        message: 'File copied successfully',
-        data: result.data
+      return sendSuccess(res, {
+        data: result.data,
+        message: 'File copied successfully'
       });
     } catch (error) {
       next(new AppError(`Copy failed: ${error.message}`, 500));
@@ -336,10 +267,9 @@ class UploadController {
     try {
       const result = await S3Service.getBucketInfo();
 
-      res.status(200).json({
-        success: true,
-        message: 'Upload statistics retrieved successfully',
-        data: result.data
+      return sendSuccess(res, {
+        data: result.data,
+        message: 'Upload statistics retrieved successfully'
       });
     } catch (error) {
       next(new AppError(`Failed to get upload stats: ${error.message}`, 500));
@@ -352,17 +282,16 @@ class UploadController {
    */
   static async healthCheck(req, res, next) {
     try {
-      const result = await S3Service.ensureBucketExists();
+      await S3Service.ensureBucketExists();
 
-      res.status(200).json({
-        success: true,
-        message: 'S3 service is healthy',
+      return sendSuccess(res, {
         data: {
           bucketName: process.env.S3_BUCKET_NAME || 'healthcare-app-uploads',
           region: process.env.AWS_REGION || 'us-east-1',
           status: 'connected',
           timestamp: new Date()
-        }
+        },
+        message: 'S3 service is healthy'
       });
     } catch (error) {
       next(new AppError(`S3 health check failed: ${error.message}`, 500));
