@@ -163,6 +163,36 @@ app.get('/build-info', (req, res) => {
   });
 });
 
+// Logs route - fetch recent log entries
+const fs = require('fs');
+
+app.get('/logs', (req, res) => {
+  try {
+    const logFilePath = path.join(__dirname, 'logs', 'app.log'); // assuming logs are stored in ./logs/app.log
+    if (fs.existsSync(logFilePath)) {
+      const logs = fs.readFileSync(logFilePath, 'utf-8').split('\n').slice(-50); // last 50 lines
+      res.json({
+        success: true,
+        recentLogs: logs.filter(line => line.trim() !== ''),
+        count: logs.length,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: 'Log file not found'
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error reading logs',
+      error: error.message
+    });
+  }
+});
+
+
 // Simple ping endpoint
 app.get('/ping', (req, res) => {
   res.json({ 
