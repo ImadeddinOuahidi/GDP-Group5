@@ -74,7 +74,8 @@ const authRoutes = require('./routes/auth');
 const medicineRoutes = require('./routes/medicines');
 const reportRoutes = require('./routes/reports');
 const symptomProgressionRoutes = require('./routes/symptomProgression');
-const uploadRoutes = require('./routes/uploads');
+// Temporarily disabled due to AWS SDK dependency issues
+// const uploadRoutes = require('./routes/uploads');
 
 // Apply strict rate limiting to auth routes
 app.use('/api/auth', authLimiter);
@@ -84,7 +85,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/medicines', medicineRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/symptom-progression', symptomProgressionRoutes);
-app.use('/api/uploads', uploadRoutes);
+// Temporarily disabled due to AWS SDK dependency issues
+// app.use('/api/uploads', uploadRoutes);
 
 // Health and utility routes
 app.get('/', (req, res) => {
