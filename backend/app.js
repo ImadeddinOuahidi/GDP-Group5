@@ -206,6 +206,36 @@ app.get('/ping', (req, res) => {
   });
 });
 
+// Uptime summary route - consolidated server health overview
+app.get('/uptime-summary', (req, res) => {
+  const dbStatus = database.getStatus();
+  const memoryUsage = process.memoryUsage();
+
+  res.json({
+    success: true,
+    summary: {
+      status: 'running',
+      environment: process.env.NODE_ENV || 'development',
+      version: packageJson.version,
+      uptimeSeconds: process.uptime(),
+      startedAt: new Date(Date.now() - process.uptime() * 1000).toISOString(),
+      memoryUsage: {
+        rssMB: (memoryUsage.rss / 1024 / 1024).toFixed(2),
+        heapUsedMB: (memoryUsage.heapUsed / 1024 / 1024).toFixed(2),
+      },
+      system: {
+        hostname: os.hostname(),
+        platform: os.platform(),
+        cpuCount: os.cpus().length,
+        totalMemoryMB: (os.totalmem() / 1024 / 1024).toFixed(2),
+      },
+      database: dbStatus,
+      timestamp: new Date().toISOString()
+    }
+  });
+});
+
+
 // Handle 404 - Must be after all other routes
 app.all('*', notFound);
 
