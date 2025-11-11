@@ -31,6 +31,7 @@ import {
   CheckCircle as CheckCircleIcon,
 } from "@mui/icons-material";
 import AuthContainer from "../../store/containers/AuthContainer";
+import Strings from '../../Strings';
 
 export default function Home() {
   const theme = useTheme();
@@ -93,20 +94,20 @@ export default function Home() {
 
   const features = [
     {
-      title: "Quick Reporting",
-      description: "Report side effects in minutes with our intuitive interface",
+      title: Strings.quickReportingTitle,
+      description: Strings.quickReportingDesc,
       icon: <SpeedIcon color="primary" sx={{ fontSize: 40 }} />,
       color: "primary",
     },
     {
-      title: "Secure & Private",
-      description: "Your medical data is encrypted and protected",
+      title: Strings.securePrivateTitle,
+      description: Strings.securePrivateDesc,
       icon: <SecurityIcon color="secondary" sx={{ fontSize: 40 }} />,
       color: "secondary",
     },
     {
-      title: "Real-time Analysis",
-      description: "Doctors get instant alerts for urgent cases",
+      title: Strings.realtimeAnalysisTitle,
+      description: Strings.realtimeAnalysisDesc,
       icon: <TimelineIcon color="success" sx={{ fontSize: 40 }} />,
       color: "success",
     },
@@ -114,7 +115,7 @@ export default function Home() {
 
   const quickActions = [
     {
-      title: "Report Side Effect",
+      title: Strings.reportSideEffect,
       description: "Quickly report any adverse drug reactions you're experiencing",
       icon: <ReportIcon />,
       action: () => navigate("/report"),
@@ -123,7 +124,7 @@ export default function Home() {
       priority: true,
     },
     {
-      title: "View My Reports",
+      title: Strings.viewMyReports,
       description: "Review your submitted reports and their status",
       icon: <HistoryIcon />,
       action: () => navigate("/reports"),
@@ -132,7 +133,7 @@ export default function Home() {
       badge: userStats.totalReports > 0 ? userStats.totalReports.toString() : null,
     },
     {
-      title: "Settings",
+      title: Strings.settings,
       description: "Manage your profile and notification preferences",
       icon: <SettingsIcon />,
       action: () => navigate("/settings"),
@@ -181,10 +182,10 @@ export default function Home() {
                   </Avatar>
                   <Box>
                     <Typography variant="h4" component="h1" fontWeight="700">
-                      Welcome back, {user?.name || 'Patient'}!
+                      {Strings.welcomeBack(user?.name || 'Patient')}
                     </Typography>
                     <Chip 
-                      label="Patient Portal" 
+                      label={Strings.patientPortalTag} 
                       color="primary" 
                       size="small"
                       sx={{ mt: 0.5 }} 
@@ -192,7 +193,7 @@ export default function Home() {
                   </Box>
                 </Stack>
                 <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
-                  SafeMed ADR - Adverse Drug Reaction Reporting System
+                  {`${Strings.appName} - ${Strings.subtitle}`}
                 </Typography>
                 <Typography variant="body1" sx={{ maxWidth: 600 }}>
                   Report medicine side effects quickly and securely. 
@@ -204,7 +205,7 @@ export default function Home() {
               <Card sx={{ bgcolor: 'background.paper', boxShadow: 2 }}>
                 <CardContent sx={{ textAlign: 'center', py: 2 }}>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Profile Completion
+                    {Strings.profileCompletion}
                   </Typography>
                   <Box sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center', mb: 1 }}>
                     <Typography variant="h4" component="div" color="primary.main" fontWeight="bold">
@@ -224,7 +225,7 @@ export default function Home() {
                     }}
                   />
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                    Complete your profile for better reporting
+                    {Strings.completeProfileHint}
                   </Typography>
                 </CardContent>
               </Card>
@@ -234,7 +235,7 @@ export default function Home() {
 
         {/* Quick Actions */}
         <Typography variant="h4" gutterBottom sx={{ mb: 3 }}>
-          Quick Actions
+          {Strings.quickActionsTitle}
         </Typography>
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {quickActions.map((action, index) => (
@@ -337,7 +338,7 @@ export default function Home() {
         {userStats.recentReports.length > 0 && (
           <>
             <Typography variant="h4" gutterBottom sx={{ mb: 3 }}>
-              Recent Activity
+              {Strings.recentActivityTitle}
             </Typography>
             <Card sx={{ mb: 4 }}>
               <CardContent>
@@ -369,7 +370,7 @@ export default function Home() {
                           </Box>
                         </Stack>
                         <Chip
-                          label={report.status === 'reviewed' ? 'Reviewed' : 'Pending'}
+                          label={report.status === 'reviewed' ? Strings.reviewed : Strings.pending}
                           color={report.status === 'reviewed' ? 'success' : 'warning'}
                           size="small"
                           variant="outlined"

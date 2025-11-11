@@ -53,6 +53,7 @@ import {
 } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import AuthContainer from '../../store/containers/AuthContainer';
+import Strings from '../../Strings';
 import { useThemeMode } from '../../styles/theme/ThemeProvider';
 import { reportService } from '../../services';
 
@@ -383,13 +384,13 @@ export default function DoctorHome() {
                 mb: 1
               }}
             >
-              Doctor Portal
+              {Strings.doctorPortalTitle}
             </Typography>
             <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
-              Welcome back, Dr. {user?.firstName || user?.name || 'Doctor'}
+              {Strings.doctorWelcome(user?.firstName || user?.name || 'Doctor')}
             </Typography>
             <Typography variant="body1" color="text.secondary">
-              Monitor adverse drug reactions and ensure patient safety
+              {Strings.monitorADRText}
             </Typography>
           </Box>
           
@@ -1203,7 +1204,7 @@ export default function DoctorHome() {
       </Dialog>
 
       {/* Enhanced Floating Action Button */}
-      <Tooltip title="Create New ADR Report" arrow placement="left">
+      <Tooltip title={Strings.createNewADRTooltip} arrow placement="left">
         <Fab
           color="primary"
           aria-label="create new report"
@@ -1226,7 +1227,7 @@ export default function DoctorHome() {
           }}
         >
           <AddIcon sx={{ mr: 1 }} />
-          New Report
+          {Strings.newReportLabel}
         </Fab>
       </Tooltip>
 

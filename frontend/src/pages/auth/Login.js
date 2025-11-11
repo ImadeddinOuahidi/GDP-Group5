@@ -25,6 +25,7 @@ import {
 } from "@mui/icons-material";
 import { ButtonLoading } from "../../components/ui/Loading";
 import AuthContainer from "../../store/containers/AuthContainer";
+import Strings from '../../Strings';
 
 export default function Login({ onShowRegistration }) {
   const [emailOrUsername, setEmailOrUsername] = useState("");
@@ -92,10 +93,10 @@ export default function Login({ onShowRegistration }) {
           >
             <MedicalIcon sx={{ fontSize: 48, mb: 2 }} />
             <Typography variant="h4" component="h1" gutterBottom fontWeight="600">
-              SafeMed ADR
+              {Strings.appName}
             </Typography>
             <Typography variant="body1" sx={{ opacity: 0.9 }}>
-              Adverse Drug Reaction Reporting System
+              {Strings.subtitle}
             </Typography>
           </Box>
 
@@ -103,7 +104,7 @@ export default function Login({ onShowRegistration }) {
             {/* Demo Credentials */}
             <Box sx={{ mb: 3 }}>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                Demo Credentials:
+                {Strings.demoCredentialsTitle}
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                 {demoCredentials.map((cred) => (
@@ -128,7 +129,7 @@ export default function Login({ onShowRegistration }) {
                 required
                 fullWidth
                 id="emailOrUsername"
-                label="Email or Username"
+                label={Strings.emailOrUsername}
                 name="emailOrUsername"
                 autoComplete="email"
                 autoFocus
@@ -142,13 +143,13 @@ export default function Login({ onShowRegistration }) {
                     </InputAdornment>
                   ),
                 }}
-                helperText="Enter your email address or username"
+                helperText={Strings.emailOrUsernameHelper}
               />              <TextField
                 margin="normal"
                 required
                 fullWidth
                 name="password"
-                label="Password"
+                label={Strings.password}
                 type={showPassword ? 'text' : 'password'}
                 id="password"
                 autoComplete="current-password"
@@ -164,7 +165,7 @@ export default function Login({ onShowRegistration }) {
                   endAdornment: (
                     <InputAdornment position="end">
                       <IconButton
-                        aria-label="toggle password visibility"
+                        aria-label={Strings.togglePasswordVisibilityAria}
                         onClick={togglePasswordVisibility}
                         edge="end"
                       >
@@ -194,14 +195,14 @@ export default function Login({ onShowRegistration }) {
                   fontWeight: 500,
                 }}
               >
-                <ButtonLoading loading={loading} loadingText="Signing In...">
-                  Sign In
+                <ButtonLoading loading={loading} loadingText={Strings.signingIn}>
+                  {Strings.signIn}
                 </ButtonLoading>
               </Button>
 
               <Divider sx={{ my: 2 }}>
                 <Typography variant="body2" color="text.secondary">
-                  New to SafeMed ADR?
+                  {Strings.newToApp}
                 </Typography>
               </Divider>
 
@@ -216,7 +217,7 @@ export default function Login({ onShowRegistration }) {
                   fontWeight: 500,
                 }}
               >
-                Create Account
+                {Strings.createAccount}
               </Button>
             </Box>
           </CardContent>
@@ -228,7 +229,7 @@ export default function Login({ onShowRegistration }) {
           align="center"
           sx={{ mt: 2 }}
         >
-          SafeMed ADR © 2025 - Secure Medical Reporting
+          {Strings.footerCopyright}
         </Typography>
       </Box>
     </Container>
