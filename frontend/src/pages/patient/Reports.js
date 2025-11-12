@@ -53,20 +53,30 @@ const statusConfig = {
     icon: <PendingIcon />,
     label: 'Pending Review'
   },
-  'reviewed': {
-    color: 'success',
-    icon: <CheckCircleIcon />,
-    label: 'Reviewed'
-  },
   'under_review': {
     color: 'info',
     icon: <WarningIcon />,
     label: 'Under Review'
   },
+  'reviewed': {
+    color: 'success',
+    icon: <CheckCircleIcon />,
+    label: 'Reviewed'
+  },
+  'confirmed': {
+    color: 'success',
+    icon: <CheckCircleIcon />,
+    label: 'Confirmed'
+  },
   'rejected': {
     color: 'error',
     icon: <ErrorIcon />,
     label: 'Rejected'
+  },
+  'archived': {
+    color: 'default',
+    icon: <HistoryIcon />,
+    label: 'Archived'
   }
 };
 
@@ -182,9 +192,31 @@ export default function Reports() {
           sortOrder: 'desc'
         });
         
+        console.log('API Response:', response); // Debug log
+        
         if (response.status === 'success' && response.data) {
-          setReports(response.data);
-          setTotalPages(Math.ceil((response.total || response.data.length) / 10));
+          // Transform the API data to match the expected format
+          const transformedReports = response.data.map(report => ({
+            id: report._id,
+            medicine: report.medicine?.name || 'Unknown Medicine',
+            brandName: report.medicine?.genericName || report.medicine?.name || 'Unknown Brand',
+            dosage: report.medicationUsage?.dosage?.amount || 'Unknown Dosage',
+            sideEffect: report.sideEffects?.[0]?.effect || 'Unknown Side Effect',
+            severity: report.sideEffects?.[0]?.severity?.toLowerCase() || 'mild',
+            status: report.status || 'pending',
+            dateSubmitted: report.reportDetails?.reportDate || report.createdAt,
+            dateReviewed: report.reviewDetails?.reviewDate || null,
+            reviewedBy: report.reviewedBy?.firstName && report.reviewedBy?.lastName 
+              ? `${report.reviewedBy.firstName} ${report.reviewedBy.lastName}` 
+              : null,
+            description: report.sideEffects?.[0]?.description || report.description || 'No description provided',
+            outcome: report.reportDetails?.outcome || 'Under investigation',
+            reportId: `ADR-${report._id?.slice(-8)?.toUpperCase()}` || `ADR-${Date.now()}`,
+          }));
+          
+          setReports(transformedReports);
+          setTotalPages(Math.ceil((response.total || transformedReports.length) / 10));
+          console.log('Transformed reports:', transformedReports); // Debug log
         } else {
           // Fallback to mock data if API fails
           console.warn('API failed, using mock data');
@@ -386,7 +418,9 @@ export default function Reports() {
                   <MenuItem value="pending">Pending</MenuItem>
                   <MenuItem value="under_review">Under Review</MenuItem>
                   <MenuItem value="reviewed">Reviewed</MenuItem>
+                  <MenuItem value="confirmed">Confirmed</MenuItem>
                   <MenuItem value="rejected">Rejected</MenuItem>
+                  <MenuItem value="archived">Archived</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
