@@ -237,6 +237,21 @@ app.get('/uptime-summary', (req, res) => {
   });
 });
 
+// Debug info route - inspect request details during testing
+app.get('/debug-info', (req, res) => {
+  res.json({
+    success: true,
+    method: req.method,
+    originalUrl: req.originalUrl,
+    ip: req.ip,
+    headers: req.headers,
+    query: req.query,
+    body: req.body,
+    environment: process.env.NODE_ENV || 'development',
+    serverTime: new Date().toISOString()
+  });
+});
+
 
 // Handle 404 - Must be after all other routes
 app.all('*', notFound);
