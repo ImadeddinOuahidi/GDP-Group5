@@ -14,17 +14,25 @@ const apiClient = axios.create({
 
 // Token management utilities
 export const tokenManager = {
-  getToken: () => localStorage.getItem('authToken'),
-  setToken: (token) => localStorage.setItem('authToken', token),
-  removeToken: () => localStorage.removeItem('authToken'),
+  getToken: () => localStorage.getItem('token') || localStorage.getItem('authToken'), // Check both keys
+  setToken: (token) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('authToken', token); // Set both for compatibility
+  },
+  removeToken: () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('authToken');
+  },
   getRefreshToken: () => localStorage.getItem('refreshToken'),
   setRefreshToken: (token) => localStorage.setItem('refreshToken', token),
   removeRefreshToken: () => localStorage.removeItem('refreshToken'),
   clearAll: () => {
+    localStorage.removeItem('token');
     localStorage.removeItem('authToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('userRole');
     localStorage.removeItem('username');
+    localStorage.removeItem('user');
     localStorage.removeItem('userProfile');
   }
 };
@@ -33,7 +41,8 @@ export const tokenManager = {
 export const userManager = {
   getUser: () => {
     try {
-      const userProfile = localStorage.getItem('userProfile');
+      // Check both 'user' and 'userProfile' for compatibility
+      const userProfile = localStorage.getItem('user') || localStorage.getItem('userProfile');
       return userProfile ? JSON.parse(userProfile) : null;
     } catch (error) {
       console.error('Error parsing user profile:', error);
@@ -41,11 +50,13 @@ export const userManager = {
     }
   },
   setUser: (user) => {
-    localStorage.setItem('userProfile', JSON.stringify(user));
+    localStorage.setItem('user', JSON.stringify(user));
+    localStorage.setItem('userProfile', JSON.stringify(user)); // Set both for compatibility
     localStorage.setItem('userRole', user.role);
     localStorage.setItem('username', user.email);
   },
   removeUser: () => {
+    localStorage.removeItem('user');
     localStorage.removeItem('userProfile');
     localStorage.removeItem('userRole');
     localStorage.removeItem('username');
@@ -57,8 +68,12 @@ apiClient.interceptors.request.use(
   (config) => {
     const token = tokenManager.getToken();
     
-    if (token) {
+    if (token && !token.startsWith('demo-token')) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else if (token && token.startsWith('demo-token')) {
+      // For demo tokens, we need to handle this differently
+      // Since the backend doesn't recognize demo tokens, we'll skip auth for demo mode
+      console.log('Using demo mode - API calls may require actual authentication');
     }
 
     // Add request timestamp for debugging

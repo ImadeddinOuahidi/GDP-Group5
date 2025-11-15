@@ -125,12 +125,11 @@ const signupValidation = [
     .withMessage('Employee ID is required for admins')
 ];
 
-// Validation rules for signin
+// Temporary simplified validation for signin
 const signinValidation = [
   body('email')
-    .isEmail()
-    .normalizeEmail()
-    .withMessage('Please provide a valid email'),
+    .notEmpty()
+    .withMessage('Email is required'),
   
   body('password')
     .notEmpty()

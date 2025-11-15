@@ -5,6 +5,29 @@ class ReportService {
   // Get all reports with filters and pagination
   async getAllReports(params = {}) {
     try {
+      // Check if we're in demo mode
+      const token = localStorage.getItem('token');
+      if (token && token.startsWith('demo-token')) {
+        // Return demo reports for demo mode
+        return {
+          status: 'success',
+          data: [
+            {
+              _id: 'demo-report-1',
+              medicine: { name: 'Paracetamol', genericName: 'Acetaminophen' },
+              sideEffects: [{ effect: 'Mild headache after taking medication', severity: 'Mild' }],
+              medicationUsage: { dosage: { amount: '500mg' } },
+              status: 'pending',
+              createdAt: new Date().toISOString(),
+              reportDetails: { reportDate: new Date().toISOString() }
+            }
+          ],
+          total: 1,
+          page: 1,
+          totalPages: 1
+        };
+      }
+
       const response = await apiClient.get(ROUTES.API.REPORTS, { params });
       return response.data;
     } catch (error) {
@@ -55,6 +78,22 @@ class ReportService {
   // Submit new side effect report
   async submitReport(reportData) {
     try {
+      // Check if we're in demo mode
+      const token = localStorage.getItem('token');
+      if (token && token.startsWith('demo-token')) {
+        // Simulate successful submission for demo mode
+        return {
+          status: 'success',
+          message: 'Report submitted successfully (Demo Mode)',
+          data: {
+            _id: `demo-report-${Date.now()}`,
+            ...reportData,
+            status: 'pending',
+            createdAt: new Date().toISOString()
+          }
+        };
+      }
+
       const response = await apiClient.post(ROUTES.API.REPORTS, reportData);
       return response.data;
     } catch (error) {

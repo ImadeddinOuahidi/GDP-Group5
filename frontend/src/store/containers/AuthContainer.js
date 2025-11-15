@@ -41,8 +41,10 @@ function useAuth(initialState = null) {
     const initializeAuth = () => {
       try {
         const savedUser = localStorage.getItem("user");
+        const savedToken = localStorage.getItem("token");
         
-        if (savedUser) {
+        // Only auto-login if we have both user and a valid token
+        if (savedUser && savedToken && !savedToken.startsWith('demo-token')) {
           const userData = JSON.parse(savedUser);
           
           // Normalize user object to ensure required properties
@@ -56,6 +58,10 @@ function useAuth(initialState = null) {
           
           setUser(normalizedUser);
           setIsAuthenticated(true);
+        } else {
+          // Clear any invalid or demo tokens
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
         }
       } catch (err) {
         console.error('Error initializing auth:', err);
@@ -109,36 +115,40 @@ function useAuth(initialState = null) {
           return { success: true, user: normalizedUser };
         }
       } catch (apiError) {
-        console.log("API login failed, trying demo credentials:", apiError);
+        console.log("API login failed:", apiError.message);
         
-        // Fallback to demo credentials for development
-        const username = emailOrUsername.includes('@') ? 
-          Object.keys(MOCK_USERS).find(key => MOCK_USERS[key].email === emailOrUsername) :
-          emailOrUsername;
+        // Only fallback to demo credentials if API is completely unavailable
+        if (apiError.code === 'ECONNREFUSED' || apiError.message.includes('Network Error')) {
+          console.log("API unavailable, trying demo credentials...");
           
-        if (username && MOCK_USERS[username] && MOCK_USERS[username].password === password) {
-          const mockUser = MOCK_USERS[username];
-          
-          // Use the complete mock user data with normalization
-          const normalizedUser = {
-            ...mockUser,
-            name: mockUser.name || mockUser.username,
-            firstName: mockUser.firstName || mockUser.name?.split(' ')[0] || mockUser.username,
-            lastName: mockUser.lastName || mockUser.name?.split(' ')[1] || '',
-          };
-          
-          setUser(normalizedUser);
-          setIsAuthenticated(true);
-          
-          // Save to localStorage (demo token)
-          localStorage.setItem("token", `demo-token-${username}`);
-          localStorage.setItem("user", JSON.stringify(normalizedUser));
-          
-          return { success: true, user: normalizedUser };
+          const username = emailOrUsername.includes('@') ? 
+            Object.keys(MOCK_USERS).find(key => MOCK_USERS[key].email === emailOrUsername) :
+            emailOrUsername;
+            
+          if (username && MOCK_USERS[username] && MOCK_USERS[username].password === password) {
+            const mockUser = MOCK_USERS[username];
+            
+            // Use the complete mock user data with normalization
+            const normalizedUser = {
+              ...mockUser,
+              name: mockUser.name || mockUser.username,
+              firstName: mockUser.firstName || mockUser.name?.split(' ')[0] || mockUser.username,
+              lastName: mockUser.lastName || mockUser.name?.split(' ')[1] || '',
+            };
+            
+            setUser(normalizedUser);
+            setIsAuthenticated(true);
+            
+            // Save to localStorage (demo token)
+            localStorage.setItem("token", `demo-token-${username}`);
+            localStorage.setItem("user", JSON.stringify(normalizedUser));
+            
+            return { success: true, user: normalizedUser };
+          }
         }
         
-        // If both API and demo fail
-        const errorMessage = apiError.message || "Invalid email/username or password";
+        // If API rejects login, show the actual error
+        const errorMessage = apiError.response?.data?.message || "Invalid email or password";
         setError(errorMessage);
         return { success: false, error: errorMessage };
       }
@@ -157,9 +167,13 @@ function useAuth(initialState = null) {
     setIsAuthenticated(false);
     setError("");
     
-    // Clear localStorage
+    // Clear all localStorage data
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("userProfile");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("username");
   };
 
   const signup = async (userData) => {

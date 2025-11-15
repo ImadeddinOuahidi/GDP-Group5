@@ -87,84 +87,7 @@ const severityConfig = {
   'life-threatening': { color: 'error', label: 'Life-threatening' }
 };
 
-// Mock reports data - in real app, fetch from API
-const mockReports = [
-    {
-      id: 1,
-      medicine: 'Aspirin',
-      brandName: 'Bayer Aspirin',
-      dosage: '325mg',
-      sideEffect: 'Stomach irritation and nausea',
-      severity: 'moderate',
-      status: 'reviewed',
-      dateSubmitted: '2025-10-28',
-      dateReviewed: '2025-10-29',
-      reviewedBy: 'Dr. Sarah Johnson',
-      description: 'Experienced stomach pain and nausea about 30 minutes after taking the medication on an empty stomach.',
-      outcome: 'Recovered after discontinuing medication',
-      reportId: 'ADR-2025-001',
-    },
-    {
-      id: 2,
-      medicine: 'Ibuprofen',
-      brandName: 'Advil',
-      dosage: '400mg',
-      sideEffect: 'Dizziness and headache',
-      severity: 'mild',
-      status: 'pending',
-      dateSubmitted: '2025-10-25',
-      dateReviewed: null,
-      reviewedBy: null,
-      description: 'Mild dizziness occurred within 2 hours of taking the medication. Headache persisted for several hours.',
-      outcome: 'Ongoing monitoring',
-      reportId: 'ADR-2025-002',
-    },
-    {
-      id: 3,
-      medicine: 'Amoxicillin',
-      brandName: 'Amoxil',
-      dosage: '500mg',
-      sideEffect: 'Skin rash and itching',
-      severity: 'severe',
-      status: 'under_review',
-      dateSubmitted: '2025-10-20',
-      dateReviewed: null,
-      reviewedBy: null,
-      description: 'Developed red, itchy rash on arms and chest after 3 days of treatment. Rash spread to other areas.',
-      outcome: 'Medication discontinued, consulting dermatologist',
-      reportId: 'ADR-2025-003',
-    },
-    {
-      id: 4,
-      medicine: 'Lisinopril',
-      brandName: 'Prinivil',
-      dosage: '10mg',
-      sideEffect: 'Persistent dry cough',
-      severity: 'mild',
-      status: 'reviewed',
-      dateSubmitted: '2025-10-15',
-      dateReviewed: '2025-10-18',
-      reviewedBy: 'Dr. Michael Chen',
-      description: 'Developed a persistent dry cough about 2 weeks after starting the medication.',
-      outcome: 'Switched to alternative medication',
-      reportId: 'ADR-2025-004',
-    },
-    {
-      id: 5,
-      medicine: 'Metformin',
-      brandName: 'Glucophage',
-      dosage: '500mg',
-      sideEffect: 'Gastrointestinal upset',
-      severity: 'moderate',
-      status: 'pending',
-      dateSubmitted: '2025-10-22',
-      dateReviewed: null,
-      reviewedBy: null,
-      description: 'Experiencing nausea, diarrhea, and abdominal discomfort, especially after meals.',
-      outcome: 'Continuing medication with dietary adjustments',
-      reportId: 'ADR-2025-005',
-    },
-  ];
+// Real reports data will be loaded from the API
 
 export default function Reports() {
   const theme = useTheme();
@@ -216,18 +139,18 @@ export default function Reports() {
           
           setReports(transformedReports);
           setTotalPages(Math.ceil((response.total || transformedReports.length) / 10));
-          console.log('Transformed reports:', transformedReports); // Debug log
+          console.log('Transformed reports:', transformedReports);
         } else {
-          // Fallback to mock data if API fails
-          console.warn('API failed, using mock data');
-          setReports(mockReports);
-          setTotalPages(Math.ceil(mockReports.length / 5));
+          // No data returned from API
+          console.warn('No data returned from API');
+          setReports([]);
+          setTotalPages(1);
         }
       } catch (error) {
         console.error('Error loading reports:', error);
-        // Fallback to mock data on error
-        setReports(mockReports);
-        setTotalPages(Math.ceil(mockReports.length / 5));
+        // Set empty array on error - no fallback to mock data
+        setReports([]);
+        setTotalPages(1);
       } finally {
         setLoading(false);
       }

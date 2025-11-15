@@ -80,6 +80,17 @@ const symptomProgressionRoutes = require('./routes/symptomProgression');
 // Apply strict rate limiting to auth routes
 app.use('/api/auth', authLimiter);
 
+// Debug middleware for auth routes
+app.use('/api/auth', (req, res, next) => {
+  console.log('=== AUTH REQUEST DEBUG ===');
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('Body:', JSON.stringify(req.body, null, 2));
+  console.log('========================');
+  next();
+});
+
 // Mount API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/medicines', medicineRoutes);

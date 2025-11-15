@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SafeMed API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        button { margin: 5px; padding: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>SafeMed API Test</h1>
+    
+    <div>
+        <h3>Step 1: Login with Demo Credentials</h3>
+        <button onclick="testLogin()">Login as patient1</button>
+        <div id="loginResult" class="result"></div>
+    </div>
+    
+    <div>
+        <h3>Step 2: Search Medicines</h3>
+        <input type="text" id="medicineQuery" placeholder="Enter medicine name" value="paracetamol">
+        <button onclick="searchMedicines()">Search Medicines</button>
+        <div id="searchResult" class="result"></div>
+    </div>
+    
+    <div>
+        <h3>Step 3: Get Reports</h3>
+        <button onclick="getReports()">Get Reports</button>
+        <div id="reportsResult" class="result"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:3000/api';
+        let authToken = null;
+
+        async function testLogin() {
+            const resultDiv = document.getElementById('loginResult');
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/signin`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'patient1@example.com',
+                        password: '1234'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.data && data.data.token) {
+                    authToken = data.data.token;
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `✅ Login successful! Token: ${authToken.substring(0, 20)}...`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `❌ Login failed: ${data.message}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ Login error: ${error.message}`;
+            }
+        }
+
+        async function searchMedicines() {
+            const resultDiv = document.getElementById('searchResult');
+            const query = document.getElementById('medicineQuery').value;
+            
+            if (!authToken) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '❌ Please login first';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/medicines?search=${encodeURIComponent(query)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `✅ Found ${data.data.length} medicines:<br>` +
+                        data.data.slice(0, 5).map(med => `- ${med.name} (${med.category})`).join('<br>');
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `❌ Search failed: ${data.message}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ Search error: ${error.message}`;
+            }
+        }
+
+        async function getReports() {
+            const resultDiv = document.getElementById('reportsResult');
+            
+            if (!authToken) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '❌ Please login first';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/reports`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `✅ Found ${data.data.length} reports:<br>` +
+                        data.data.slice(0, 3).map(report => 
+                            `- Report for ${report.medicine?.name || 'Unknown'} (Status: ${report.status})`
+                        ).join('<br>');
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `❌ Reports failed: ${data.message}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ Reports error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
