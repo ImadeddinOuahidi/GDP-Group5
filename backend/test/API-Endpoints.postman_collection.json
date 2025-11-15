@@ -1,0 +1,675 @@
+{
+  "info": {
+    "name": "GDP-Group5 API - Complete Collection",
+    "description": "Complete API endpoint collection for testing all 61 endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "doctorToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "medicineId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "reportId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "progressionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "fileKey",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Signup - Patient",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('authToken', jsonData.data.token);",
+                  "    pm.collectionVariables.set('userId', jsonData.data.user._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"patient@test.com\",\n  \"password\": \"Test123456\",\n  \"phone\": \"+1234567890\",\n  \"dateOfBirth\": \"1990-01-01\",\n  \"gender\": \"male\",\n  \"role\": \"patient\",\n  \"address\": {\n    \"street\": \"123 Test St\",\n    \"city\": \"Test City\",\n    \"state\": \"TS\",\n    \"zipCode\": \"12345\",\n    \"country\": \"USA\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/signup",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "signup"]
+            }
+          }
+        },
+        {
+          "name": "Signup - Doctor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('doctorToken', jsonData.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Dr. Sarah\",\n  \"lastName\": \"Smith\",\n  \"email\": \"doctor@test.com\",\n  \"password\": \"Test123456\",\n  \"phone\": \"+1234567891\",\n  \"dateOfBirth\": \"1985-05-15\",\n  \"gender\": \"female\",\n  \"role\": \"doctor\",\n  \"address\": {\n    \"street\": \"456 Medical Ave\",\n    \"city\": \"Test City\",\n    \"state\": \"TS\",\n    \"zipCode\": \"12345\"\n  },\n  \"doctorInfo\": {\n    \"licenseNumber\": \"TEST123456\",\n    \"specialization\": \"General Medicine\",\n    \"yearsOfExperience\": 5\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/signup",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "signup"]
+            }
+          }
+        },
+        {
+          "name": "Signup - Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('adminToken', jsonData.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Admin\",\n  \"lastName\": \"User\",\n  \"email\": \"admin@test.com\",\n  \"password\": \"Test123456\",\n  \"phone\": \"+1234567892\",\n  \"dateOfBirth\": \"1980-01-01\",\n  \"gender\": \"other\",\n  \"role\": \"admin\",\n  \"address\": {\n    \"street\": \"789 Admin Blvd\",\n    \"city\": \"Test City\",\n    \"state\": \"TS\",\n    \"zipCode\": \"12345\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/signup",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "signup"]
+            }
+          }
+        },
+        {
+          "name": "Signin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('authToken', jsonData.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"patient@test.com\",\n  \"password\": \"Test123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/signin",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "signin"]
+            }
+          }
+        },
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John Updated\",\n  \"phone\": \"+1987654321\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"Test123456\",\n  \"newPassword\": \"NewTest123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/change-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "change-password"]
+            }
+          }
+        },
+        {
+          "name": "Update Profile Picture",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profilePicture\": \"https://example.com/images/profile.jpg\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/profile-picture",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "profile-picture"]
+            }
+          }
+        },
+        {
+          "name": "Verify Email",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/verify-email?token=your-verification-token",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "verify-email"],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "your-verification-token"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Resend Verification",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"patient@test.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/resend-verification",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "resend-verification"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Medicines",
+      "item": [
+        {
+          "name": "Add Medicine",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('medicineId', jsonData.data.medicine._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{doctorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Aspirin\",\n  \"genericName\": \"Acetylsalicylic Acid\",\n  \"category\": \"Pain Relief\",\n  \"manufacturer\": \"PharmaCo\",\n  \"description\": \"Pain reliever and fever reducer\",\n  \"dosageForm\": \"Tablet\",\n  \"strength\": \"500mg\",\n  \"quantityInStock\": 100,\n  \"reorderLevel\": 20,\n  \"price\": 5.99,\n  \"expiryDate\": \"2025-12-31\",\n  \"sideEffects\": [\"Stomach upset\", \"Heartburn\"],\n  \"contraindications\": [\"Bleeding disorders\", \"Pregnancy\"],\n  \"requiresPrescription\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/medicines",
+              "host": ["{{baseUrl}}"],
+              "path": ["medicines"]
+            }
+          }
+        },
+        {
+          "name": "Get All Medicines",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/medicines?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["medicines"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "10"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Medicine by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/medicines/{{medicineId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["medicines", "{{medicineId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Medicine",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{doctorToken}}", "type": "string"}]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 6.99,\n  \"quantityInStock\": 150\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/medicines/{{medicineId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["medicines", "{{medicineId}}"]
+            }
+          }
+        },
+        {
+          "name": "Fuzzy Search",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/medicines/search/fuzzy?query=asprin&threshold=0.6",
+              "host": ["{{baseUrl}}"],
+              "path": ["medicines", "search", "fuzzy"],
+              "query": [
+                {"key": "query", "value": "asprin"},
+                {"key": "threshold", "value": "0.6"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Suggestions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/medicines/suggestions?query=asp&limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["medicines", "suggestions"],
+              "query": [
+                {"key": "query", "value": "asp"},
+                {"key": "limit", "value": "5"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/medicines/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["medicines", "categories"]
+            }
+          }
+        },
+        {
+          "name": "Update Stock",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{doctorToken}}", "type": "string"}]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantityInStock\": 200\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/medicines/{{medicineId}}/stock",
+              "host": ["{{baseUrl}}"],
+              "path": ["medicines", "{{medicineId}}", "stock"]
+            }
+          }
+        },
+        {
+          "name": "Get Low Stock Medicines",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/medicines/low-stock",
+              "host": ["{{baseUrl}}"],
+              "path": ["medicines", "low-stock"]
+            }
+          }
+        },
+        {
+          "name": "Delete Medicine",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/medicines/{{medicineId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["medicines", "{{medicineId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Submit Report",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('reportId', jsonData.data._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"medicine\": \"{{medicineId}}\",\n  \"sideEffects\": [\n    {\n      \"effect\": \"Nausea\",\n      \"severity\": \"Moderate\",\n      \"onset\": \"Within hours\",\n      \"bodySystem\": \"Gastrointestinal\"\n    }\n  ],\n  \"medicationUsage\": {\n    \"indication\": \"Pain relief\",\n    \"dosage\": {\n      \"amount\": \"500mg\",\n      \"frequency\": \"Twice daily\",\n      \"route\": \"Oral\"\n    },\n    \"startDate\": \"2024-01-01T00:00:00.000Z\",\n    \"endDate\": \"2024-01-07T00:00:00.000Z\"\n  },\n  \"reportDetails\": {\n    \"incidentDate\": \"2024-01-03T14:30:00.000Z\",\n    \"seriousness\": \"Non-serious\",\n    \"outcome\": \"Recovering\"\n  }\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reports",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports"]
+            }
+          }
+        },
+        {
+          "name": "Get All Reports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "10"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Dashboard Stats",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{doctorToken}}", "type": "string"}]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "dashboard"]
+            }
+          }
+        },
+        {
+          "name": "Get Serious Reports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/serious",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "serious"]
+            }
+          }
+        },
+        {
+          "name": "Get Reports by Medicine",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/medicine/{{medicineId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "medicine", "{{medicineId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Report by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/{{reportId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "{{reportId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Report Status",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{doctorToken}}", "type": "string"}]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Under Review\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reports/{{reportId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "{{reportId}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "Add Follow-up",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"informationType\": \"Additional information\",\n  \"description\": \"Patient reports improvement after stopping medication\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reports/{{reportId}}/followup",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "{{reportId}}", "followup"]
+            }
+          }
+        },
+        {
+          "name": "Update Causality",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{"key": "token", "value": "{{doctorToken}}", "type": "string"}]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"algorithm\": \"WHO-UMC\",\n  \"score\": 5,\n  \"category\": \"Probable\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reports/{{reportId}}/causality",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "{{reportId}}", "causality"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

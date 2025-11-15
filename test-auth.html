@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auth API Test</title>
+</head>
+<body>
+    <h1>Authentication API Test</h1>
+    <div id="results"></div>
+
+    <script>
+        async function testAuth() {
+            const resultsDiv = document.getElementById('results');
+            
+            try {
+                resultsDiv.innerHTML = '<p>Testing authentication API...</p>';
+                
+                const credentials = {
+                    email: 'patient1@example.com',
+                    password: '1234'
+                };
+
+                resultsDiv.innerHTML += `<p>Sending request to: http://localhost:3000/api/auth/signin</p>`;
+                resultsDiv.innerHTML += `<p>Payload: ${JSON.stringify(credentials, null, 2)}</p>`;
+
+                const response = await fetch('http://localhost:3000/api/auth/signin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(credentials)
+                });
+
+                resultsDiv.innerHTML += `<p><strong>Response Status:</strong> ${response.status}</p>`;
+                resultsDiv.innerHTML += `<p><strong>Status Text:</strong> ${response.statusText}</p>`;
+
+                const responseText = await response.text();
+                resultsDiv.innerHTML += `<p><strong>Response Body:</strong> <pre>${responseText}</pre></p>`;
+
+                // Try to parse as JSON
+                try {
+                    const responseData = JSON.parse(responseText);
+                    resultsDiv.innerHTML += `<p><strong>Parsed JSON:</strong> <pre>${JSON.stringify(responseData, null, 2)}</pre></p>`;
+                } catch (e) {
+                    resultsDiv.innerHTML += `<p><strong>Note:</strong> Response is not valid JSON</p>`;
+                }
+
+            } catch (error) {
+                resultsDiv.innerHTML += `<p><strong>Error:</strong> ${error.message}</p>`;
+            }
+        }
+
+        // Run test when page loads
+        window.onload = testAuth;
+    </script>
+</body>
+</html>

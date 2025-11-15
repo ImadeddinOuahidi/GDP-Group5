@@ -1,0 +1,32 @@
+@startuml usecase5
+!theme plain
+title Use Case 5: Validate Submitted Report
+
+left to right direction
+
+actor "System" as System
+rectangle "ADR Reporting System" {
+    usecase "Validate Submitted Report" as UC5
+    usecase "Check Mandatory Fields" as UC5_1
+    usecase "Flag Missing/Invalid Inputs" as UC5_2
+    usecase "Send Error Message" as UC5_3
+    usecase "Continue Processing" as UC5_4
+}
+
+System --> UC5 : Patient-submitted form\n(text, image, voice)
+
+UC5 .> UC5_1 : <<include>>
+UC5 .> UC5_2 : <<include>>
+UC5 .> UC5_3 : <<extend>>\n(if incomplete)
+UC5 .> UC5_4 : <<extend>>\n(if valid)
+
+note right of UC5
+  **Inputs:**
+  - Patient-submitted form
+  
+  **Outputs:**
+  - Error message if incomplete
+  - Continue processing if valid
+end note
+
+@enduml

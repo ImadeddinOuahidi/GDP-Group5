@@ -1,0 +1,29 @@
+@startuml usecase8
+!theme plain
+title Use Case 8: Identify Duplicate Reports
+
+left to right direction
+
+actor "System" as System
+rectangle "ADR Reporting System" {
+    usecase "Identify Duplicate Reports" as UC8
+    usecase "Compare with Stored Reports" as UC8_1
+    usecase "Flag Potential Duplicates" as UC8_2
+    usecase "Send for Staff Review" as UC8_3
+}
+
+System --> UC8 : New patient report
+
+UC8 .> UC8_1 : <<include>>
+UC8 .> UC8_2 : <<include>>
+UC8 .> UC8_3 : <<include>>
+
+note right of UC8
+  **Inputs:**
+  - New patient report
+  
+  **Outputs:**
+  - Duplicates flagged for staff review
+end note
+
+@enduml

@@ -1,0 +1,30 @@
+@startuml usecase9
+!theme plain
+title Use Case 9: Mark Report Severity
+
+left to right direction
+
+actor "System" as System
+rectangle "ADR Reporting System" {
+    usecase "Mark Report Severity" as UC9
+    usecase "Analyze Content" as UC9_1
+    usecase "Assign Severity Level" as UC9_2
+    usecase "Store Severity with Report" as UC9_3
+}
+
+System --> UC9 : New report\n(validated and stored)
+
+UC9 .> UC9_1 : <<include>>
+UC9 .> UC9_2 : <<include>>
+UC9 .> UC9_3 : <<include>>
+
+note right of UC9
+  **Inputs:**
+  - New report (validated and stored)
+  
+  **Outputs:**
+  - Severity assigned and stored:
+  Critical, High, Medium, Low
+end note
+
+@enduml
