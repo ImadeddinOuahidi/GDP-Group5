@@ -263,6 +263,39 @@ app.get('/debug-info', (req, res) => {
   });
 });
 
+// Configuration info route - safely exposes environment settings
+app.get('/config-info', (req, res) => {
+  res.json({
+    success: true,
+    environment: process.env.NODE_ENV || 'development',
+    port: config.server.port,
+    cors: {
+      origin: config.cors.origin,
+      methods: config.cors.methods,
+      credentials: config.cors.credentials
+    },
+    security: {
+      helmet: true,
+      sanitizer: true,
+      rateLimit: {
+        general: 'enabled',
+        auth: 'enabled'
+      }
+    },
+    jwt: {
+      expiry: process.env.JWT_EXPIRES_IN || 'not set'
+    },
+    bodyParser: {
+      limit: '10mb'
+    },
+    swagger: '/api-docs',
+    logging: {
+      mode: config.server.isDevelopment ? 'dev' : 'production'
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
 
 // Handle 404 - Must be after all other routes
 app.all('*', notFound);
