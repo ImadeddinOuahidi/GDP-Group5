@@ -42,6 +42,9 @@ export default function Report() {
   const [medicines, setMedicines] = useState([]);
   const [selectedMedicine, setSelectedMedicine] = useState(null);
   const [medicineSearchLoading, setMedicineSearchLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   
   // Form data
   const [formData, setFormData] = useState({
@@ -114,8 +117,33 @@ export default function Report() {
     });
   };
 
+  // Form validation
+  const validateCurrentStep = () => {
+    const errors = {};
+    
+    if (activeStep === 0) {
+      if (!selectedMedicine) errors.medicine = 'Please select a medicine';
+      if (!formData.dosage.trim()) errors.dosage = 'Please enter the dosage';
+      if (!formData.frequency) errors.frequency = 'Please select frequency';
+      if (!formData.startDate) errors.startDate = 'Please enter start date';
+    } else if (activeStep === 1) {
+      if (!formData.symptoms.trim()) errors.symptoms = 'Please describe your symptoms';
+      if (!formData.severity) errors.severity = 'Please select severity level';
+    } else if (activeStep === 2) {
+      if (!formData.reporterRelation) errors.reporterRelation = 'Please select your relation to patient';
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleNext = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep + 1);
+    setSubmitAttempted(true);
+    if (validateCurrentStep()) {
+      setActiveStep((prevActiveStep) => prevActiveStep + 1);
+      setSubmitAttempted(false);
+      setValidationErrors({});
+    }
   };
 
   const handleBack = () => {
@@ -175,6 +203,7 @@ export default function Report() {
       
       if (response.status === 'success' || response.success) {
         setSubmitted(true);
+        setSuccessMessage('Your adverse drug reaction report has been submitted successfully. Our medical team will review it shortly.');
         console.log('Report submitted successfully:', response);
       } else {
         throw new Error(response.message || 'Failed to submit report');
@@ -225,7 +254,8 @@ export default function Report() {
                     required
                     label="Search Medicine"
                     placeholder="Start typing medicine name..."
-                    helperText="Search and select the medication you are reporting about"
+                    helperText={validationErrors.medicine || "Search and select the medication you are reporting about"}
+                    error={!!validationErrors.medicine}
                   />
                 )}
                 renderOption={(props, option) => (
@@ -255,7 +285,8 @@ export default function Report() {
                 value={formData.dosage}
                 onChange={handleInputChange('dosage')}
                 placeholder="e.g., 500mg, 1 tablet"
-                helperText="Strength per dose"
+                helperText={validationErrors.dosage || "Strength per dose"}
+                error={!!validationErrors.dosage}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -432,19 +463,36 @@ export default function Report() {
     return (
       <Container maxWidth="md">
         <Box sx={{ py: 4, textAlign: 'center' }}>
-          <Alert severity="success" sx={{ mb: 3 }}>
-            <Typography variant="h6">Report Submitted Successfully!</Typography>
-            <Typography>
-              Thank you for reporting your side effect. A healthcare professional will review your report.
+          <Alert severity="success" sx={{ mb: 3, p: 3 }}>
+            <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold' }}>
+              Report Submitted Successfully! ✅
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 2 }}>
+              {successMessage || 'Thank you for reporting your side effect. A healthcare professional will review your report.'}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Report ID: #{Math.random().toString(36).substr(2, 9).toUpperCase()}
             </Typography>
           </Alert>
-          <Button
-            variant="outlined"
-            onClick={() => {
-              setSubmitted(false);
-              setActiveStep(0);
-              setSelectedMedicine(null);
-              setFormData({
+          
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Button
+              variant="contained"
+              onClick={() => window.location.href = '/reports'}
+              sx={{ minWidth: 150 }}
+            >
+              View My Reports
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setSubmitted(false);
+                setActiveStep(0);
+                setSelectedMedicine(null);
+                setSuccessMessage('');
+                setValidationErrors({});
+                setSubmitAttempted(false);
+                setFormData({
                 medicationName: '',
                 dosage: '',
                 frequency: '',

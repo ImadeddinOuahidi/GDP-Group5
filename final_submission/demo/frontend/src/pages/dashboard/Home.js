@@ -43,25 +43,32 @@ export default function Home() {
     recentReports: [],
     completedProfile: 85,
   });
+  const [error, setError] = useState(null);
+  const [welcomeMessage, setWelcomeMessage] = useState('');
 
   // Simulate loading and fetch user stats
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Simulate API call with realistic delay
+        await new Promise(resolve => setTimeout(resolve, 1500));
         
-        // Mock user stats - in real app, fetch from API
-        setUserStats({
-          totalReports: 12,
+        // Enhanced mock user stats with more realistic data
+        const mockStats = {
+          totalReports: Math.floor(Math.random() * 20) + 5,
           recentReports: [
-            { id: 1, medicine: "Aspirin", date: "2025-10-28", status: "reviewed" },
-            { id: 2, medicine: "Ibuprofen", date: "2025-10-25", status: "pending" },
+            { id: 1, medicine: "Aspirin 500mg", date: "2026-01-14", status: "reviewed", severity: "mild" },
+            { id: 2, medicine: "Ibuprofen 400mg", date: "2026-01-12", status: "pending", severity: "moderate" },
+            { id: 3, medicine: "Lisinopril 10mg", date: "2026-01-10", status: "reviewed", severity: "mild" },
           ],
-          completedProfile: 85,
-        });
+          completedProfile: Math.floor(Math.random() * 30) + 70,
+        };
+        
+        setUserStats(mockStats);
+        setWelcomeMessage(`Welcome back, ${user?.firstName || 'User'}! You have ${mockStats.recentReports.filter(r => r.status === 'pending').length} pending reports.`);
       } catch (error) {
         console.error("Error loading user data:", error);
+        setError("Failed to load dashboard data. Please refresh the page.");
       } finally {
         setPageLoading(false);
       }
@@ -145,6 +152,20 @@ export default function Home() {
   return (
     <Container maxWidth="lg">
       <Box sx={{ py: 4 }}>
+        {/* Error Alert */}
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
+        
+        {/* Welcome Message */}
+        {welcomeMessage && (
+          <Alert severity="info" sx={{ mb: 3 }} onClose={() => setWelcomeMessage('')}>
+            {welcomeMessage}
+          </Alert>
+        )}
+
         {/* Welcome Header */}
         <Paper
           elevation={3}

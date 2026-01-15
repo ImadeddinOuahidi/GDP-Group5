@@ -35,17 +35,17 @@ const Navigation = ({ mobileOpen, handleDrawerToggle }) => {
   const { user, isPatient, isDoctor } = AuthContainer.useContainer();
 
   const patientNavItems = [
-    { text: 'Home', icon: <HomeIcon />, path: '/' },
-    { text: 'Report Side Effect', icon: <ReportIcon />, path: '/report' },
-    { text: 'My Reports', icon: <HistoryIcon />, path: '/reports' },
-    { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
+    { text: 'Home', icon: <HomeIcon />, path: '/', badge: null },
+    { text: 'Report Side Effect', icon: <ReportIcon />, path: '/report', badge: 'New' },
+    { text: 'My Reports', icon: <HistoryIcon />, path: '/reports', badge: '3' },
+    { text: 'Settings', icon: <SettingsIcon />, path: '/settings', badge: null },
   ];
 
   const doctorNavItems = [
-    { text: 'Doctor Dashboard', icon: <DoctorIcon />, path: '/doctor-home' },
-    { text: 'Medicine Management', icon: <MedicineIcon />, path: '/medicines' },
-    { text: 'Analytics', icon: <DashboardIcon />, path: '/dashboard' },
-    { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
+    { text: 'Doctor Dashboard', icon: <DoctorIcon />, path: '/doctor-home', badge: null },
+    { text: 'Medicine Management', icon: <MedicineIcon />, path: '/medicines', badge: null },
+    { text: 'Analytics', icon: <DashboardIcon />, path: '/dashboard', badge: 'New' },
+    { text: 'Settings', icon: <SettingsIcon />, path: '/settings', badge: null },
   ];
 
   const navItems = isPatient ? patientNavItems : doctorNavItems;
@@ -124,6 +124,18 @@ const Navigation = ({ mobileOpen, handleDrawerToggle }) => {
                   },
                 }}
               />
+              {item.badge && (
+                <Chip
+                  label={item.badge}
+                  size="small"
+                  color={item.badge === 'New' ? 'success' : 'primary'}
+                  sx={{ 
+                    height: 20, 
+                    fontSize: '0.75rem',
+                    fontWeight: 500
+                  }}
+                />
+              )}
             </ListItemButton>
           </ListItem>
         ))}

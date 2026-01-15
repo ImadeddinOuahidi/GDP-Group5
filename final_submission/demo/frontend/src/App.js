@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { Box, IconButton, useMediaQuery, useTheme, Alert, Snackbar } from "@mui/material";
+import { Box, IconButton, useMediaQuery, useTheme, Alert, Snackbar, LinearProgress, Typography } from "@mui/material";
 import { Menu as MenuIcon } from "@mui/icons-material";
 
 // Import components from new structure
@@ -28,7 +28,39 @@ function AppContent() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [appLoading, setAppLoading] = useState(true);
   const { isAuthenticated, isPatient } = AuthContainer.useContainer();
+
+  // Initialize app
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        // Simulate app initialization
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error('App initialization error:', error);
+      } finally {
+        setAppLoading(false);
+      }
+    };
+    
+    initializeApp();
+  }, []);
+
+  if (appLoading) {
+    return (
+      <Box sx={{ width: '100%', mt: 2 }}>
+        <LinearProgress />
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="h6" color="primary" sx={{ mb: 2 }}>
+              Loading SafeMed ADR...
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
+    );
+  }
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
