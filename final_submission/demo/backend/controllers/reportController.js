@@ -3,6 +3,7 @@ const ReportSideEffect = require('../models/ReportSideEffect');
 const Medicine = require('../models/Medicine');
 const User = require('../models/User');
 const SeverityAnalysisJob = require('../jobs/severityAnalysisJob');
+const DuplicateDetectionService = require('../services/duplicateDetectionService');
 const { sendSuccess, sendCreated, sendNotFound, sendForbidden, sendValidationError } = require('../utils/responseHelper');
 const { validateObjectId } = require('../utils/validationHelper');
 const { USER_ROLES, SUCCESS_MESSAGES, ERROR_MESSAGES } = require('../utils/constants');
@@ -496,4 +497,132 @@ async function getPatientIds(doctorId) {
   // This would typically get patient IDs for a specific doctor
   // Implementation depends on your appointment/patient management system
   return [];
+}
+
+// ============================================
+// DUPLICATE DETECTION - Use Case 8 Implementation
+// ============================================
+
+/**
+ * Find potential duplicate reports for a specific report
+ * GET /api/reports/:id/duplicates
+ * 
+ * Implements Use Case 8: Identify Duplicate Reports
+ * - Compares with stored reports
+ * - Flags potential duplicates for staff review
+ */
+exports.findDuplicates = async (req, res) => {
+  try {
+    const { id } = req.params;
+    validateObjectId(id, 'Report ID');
+
+    // Only doctors and admins can check for duplicates
+    if (req.user.role === USER_ROLES.PATIENT) {
+      return sendForbidden(res, 'Only healthcare staff can access duplicate detection');
+    }
+
+    const result = await DuplicateDetectionService.findDuplicates(id);
+    
+    sendSuccess(res, result, 'Duplicate analysis completed successfully');
+  } catch (error) {
+    console.error('Find duplicates error:', error);
+    if (error.message === 'Report not found') {
+      return sendNotFound(res, ERROR_MESSAGES.REPORT_NOT_FOUND);
+    }
+    throw error;
+  }
+};
+
+/**
+ * Check for duplicates before submitting a new report
+ * POST /api/reports/check-duplicates
+ * 
+ * Pre-submission duplicate check to warn users
+ */
+exports.checkDuplicatesBeforeSubmission = async (req, res) => {
+  try {
+    const reportData = req.body;
+    
+    const result = await DuplicateDetectionService.checkForDuplicatesBeforeSubmission(reportData);
+    
+    sendSuccess(res, {
+      ...result,
+      message: result.hasPotentialDuplicates 
+        ? 'Potential duplicate reports found. Please review before submitting.'
+        : 'No duplicates detected.'
+    });
+  } catch (error) {
+    console.error('Check duplicates before submission error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Flag a report as a confirmed duplicate
+ * POST /api/reports/:id/flag-duplicate
+ * 
+ * Allows staff to confirm and flag duplicate reports
+ */
+exports.flagAsDuplicate = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { originalReportId } = req.body;
+    
+    validateObjectId(id, 'Report ID');
+    validateObjectId(originalReportId, 'Original Report ID');
+
+    // Only doctors and admins can flag duplicates
+    if (req.user.role === USER_ROLES.PATIENT) {
+      return sendForbidden(res, 'Only healthcare staff can flag duplicates');
+    }
+
+    // Verify original report exists
+    const originalReport = await ReportSideEffect.findById(originalReportId);
+    if (!originalReport) {
+      return sendNotFound(res, 'Original report not found');
+    }
+
+    const report = await DuplicateDetectionService.flagAsDuplicate(
+      id, 
+      originalReportId, 
+      req.user._id
+    );
+
+    await report.populate([
+      { path: 'metadata.duplicateOf', select: 'reportDetails.reportDate medicine' },
+      { path: 'metadata.duplicateFlaggedBy', select: 'firstName lastName' }
+    ]);
+
+    const { sendUpdated } = require('../utils/responseHelper');
+    sendUpdated(res, { report }, 'Report flagged as duplicate successfully');
+  } catch (error) {
+    console.error('Flag as duplicate error:', error);
+    if (error.message === 'Report not found') {
+      return sendNotFound(res, ERROR_MESSAGES.REPORT_NOT_FOUND);
+    }
+    throw error;
+  }
+};
+
+/**
+ * Get duplicate detection statistics
+ * GET /api/reports/duplicate-stats
+ * 
+ * Provides analytics on duplicate detection
+ */
+exports.getDuplicateStats = async (req, res) => {
+  try {
+    // Only doctors and admins can access stats
+    if (req.user.role === USER_ROLES.PATIENT) {
+      return sendForbidden(res, 'Only healthcare staff can access duplicate statistics');
+    }
+
+    const stats = await DuplicateDetectionService.getDuplicateStats();
+    
+    sendSuccess(res, stats, 'Duplicate statistics retrieved successfully');
+  } catch (error) {
+    console.error('Get duplicate stats error:', error);
+    throw error;
+  }
+};
 }

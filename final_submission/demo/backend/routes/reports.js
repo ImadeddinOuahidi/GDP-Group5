@@ -381,6 +381,103 @@ router.get('/dashboard',
   reportController.getDashboardStats
 );
 
+// ============================================
+// DUPLICATE DETECTION ROUTES - Use Case 8
+// ============================================
+
+/**
+ * @swagger
+ * /api/reports/duplicate-stats:
+ *   get:
+ *     summary: Get duplicate detection statistics
+ *     description: Retrieve statistics about duplicate report detection (Admin/Doctor only)
+ *     tags: [Duplicate Detection]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved duplicate statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalReports:
+ *                       type: integer
+ *                       example: 150
+ *                     flaggedDuplicates:
+ *                       type: integer
+ *                       example: 12
+ *                     recentDuplicatesLast7Days:
+ *                       type: integer
+ *                       example: 3
+ *                     duplicateRate:
+ *                       type: string
+ *                       example: "8.00%"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ */
+router.get('/duplicate-stats', 
+  restrictTo('admin', 'doctor'),
+  reportController.getDuplicateStats
+);
+
+/**
+ * @swagger
+ * /api/reports/check-duplicates:
+ *   post:
+ *     summary: Check for duplicates before submission
+ *     description: Pre-submission check to identify potential duplicate reports
+ *     tags: [Duplicate Detection]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               medicine:
+ *                 type: string
+ *                 description: Medicine ID
+ *               patient:
+ *                 type: string
+ *                 description: Patient ID
+ *               sideEffects:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     effect:
+ *                       type: string
+ *     responses:
+ *       200:
+ *         description: Duplicate check completed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 hasPotentialDuplicates:
+ *                   type: boolean
+ *                 duplicateCount:
+ *                   type: integer
+ *                 duplicates:
+ *                   type: array
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ */
+router.post('/check-duplicates', reportController.checkDuplicatesBeforeSubmission);
+
 /**
  * @swagger
  * /api/reports/serious:
@@ -871,6 +968,116 @@ router.put('/:id/status',
 router.post('/:id/followup', 
   followUpValidation,
   reportController.addFollowUp
+);
+
+// ============================================
+// DUPLICATE DETECTION FOR SPECIFIC REPORT - Use Case 8
+// ============================================
+
+/**
+ * @swagger
+ * /api/reports/{id}/duplicates:
+ *   get:
+ *     summary: Find potential duplicate reports (Doctor/Admin only)
+ *     description: Analyze a specific report to find potential duplicates. Implements Use Case 8 - Identify Duplicate Reports.
+ *     tags: [Duplicate Detection]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Report ID to check for duplicates
+ *     responses:
+ *       200:
+ *         description: Duplicate analysis completed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     reportId:
+ *                       type: string
+ *                     analysisDate:
+ *                       type: string
+ *                       format: date-time
+ *                     totalCandidatesChecked:
+ *                       type: integer
+ *                     potentialDuplicatesFound:
+ *                       type: integer
+ *                     duplicates:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           reportId:
+ *                             type: string
+ *                           score:
+ *                             type: number
+ *                             description: Similarity score (0-1)
+ *                           isPotentialDuplicate:
+ *                             type: boolean
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       404:
+ *         $ref: '#/components/responses/NotFoundError'
+ */
+router.get('/:id/duplicates', 
+  restrictTo('admin', 'doctor'),
+  reportController.findDuplicates
+);
+
+/**
+ * @swagger
+ * /api/reports/{id}/flag-duplicate:
+ *   post:
+ *     summary: Flag report as duplicate (Doctor/Admin only)
+ *     description: Confirm and flag a report as a duplicate of another report
+ *     tags: [Duplicate Detection]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Report ID to flag as duplicate
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - originalReportId
+ *             properties:
+ *               originalReportId:
+ *                 type: string
+ *                 description: ID of the original report this is a duplicate of
+ *     responses:
+ *       200:
+ *         description: Report flagged as duplicate successfully
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       404:
+ *         $ref: '#/components/responses/NotFoundError'
+ */
+router.post('/:id/flag-duplicate', 
+  restrictTo('admin', 'doctor'),
+  reportController.flagAsDuplicate
 );
 
 /**
