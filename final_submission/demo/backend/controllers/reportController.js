@@ -625,4 +625,3 @@ exports.getDuplicateStats = async (req, res) => {
     throw error;
   }
 };
-}

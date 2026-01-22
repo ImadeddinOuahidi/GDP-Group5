@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Paper,
@@ -17,7 +17,6 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Chip,
   IconButton,
   Autocomplete,
 } from "@mui/material";
@@ -35,7 +34,7 @@ import AuthContainer from '../../store/containers/AuthContainer';
 const steps = ['Basic Information', 'Describe Symptoms', 'Additional Details'];
 
 export default function Report() {
-  const { user, isAuthenticated } = AuthContainer.useContainer();
+  const { user, isAuthenticated, login } = AuthContainer.useContainer();
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -43,7 +42,6 @@ export default function Report() {
   const [selectedMedicine, setSelectedMedicine] = useState(null);
   const [medicineSearchLoading, setMedicineSearchLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
-  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   
   // Form data
@@ -61,6 +59,78 @@ export default function Report() {
     photo: null,
   });
 
+  // Initialize component
+  useEffect(() => {
+    // Load some default medicines on component mount for better UX
+    const initializeMedicines = async () => {
+      try {
+        // Load popular medicines to show some options initially
+        const response = await medicineService.search('a'); // Generic search for common medicines
+        if (response.status === 'success' && response.data) {
+          setMedicines(response.data.slice(0, 10)); // Show first 10 as initial options
+        }
+      } catch (error) {
+        console.log('Failed to load initial medicines, using fallback');
+        // Set some demo medicines as fallback
+        setMedicines([
+          {
+            _id: 'demo-1',
+            name: 'Paracetamol',
+            genericName: 'Acetaminophen',
+            category: 'Analgesic'
+          },
+          {
+            _id: 'demo-2', 
+            name: 'Ibuprofen',
+            genericName: 'Ibuprofen',
+            category: 'NSAID'
+          },
+          {
+            _id: 'demo-3',
+            name: 'Aspirin',
+            genericName: 'Acetylsalicylic acid',
+            category: 'NSAID'
+          }
+        ]);
+      }
+    };
+
+    initializeMedicines();
+  }, []);
+
+  // Quick demo login function
+  const handleDemoLogin = async () => {
+    setLoading(true);
+    try {
+      const result = await login('patient1@example.com', '1234');
+      if (!result.success) {
+        // If API login fails, set up demo authentication manually
+        const demoUser = {
+          _id: 'demo-patient1',
+          email: 'patient1@example.com',
+          username: 'patient1',
+          role: 'patient',
+          name: 'John Doe',
+          firstName: 'John',
+          lastName: 'Doe',
+          isActive: true,
+          isEmailVerified: true
+        };
+        
+        // Set token and user in localStorage for demo
+        localStorage.setItem('token', 'demo-token-patient1');
+        localStorage.setItem('user', JSON.stringify(demoUser));
+        
+        // Refresh the page to update auth state
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Demo login failed:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleInputChange = (field) => (event) => {
     setFormData({
       ...formData,
@@ -69,17 +139,36 @@ export default function Report() {
   };
 
   const searchMedicines = async (searchTerm) => {
-    if (!searchTerm || searchTerm.length < 2) {
-      setMedicines([]);
+    console.log('Searching for medicines with term:', searchTerm); // Debug log
+    
+    if (!searchTerm || searchTerm.length < 1) {
+      // Load some default medicines when search is cleared
+      setMedicines([
+        {
+          _id: 'demo-1',
+          name: 'Paracetamol',
+          genericName: 'Acetaminophen',
+          category: 'Analgesic'
+        },
+        {
+          _id: 'demo-2', 
+          name: 'Ibuprofen',
+          genericName: 'Ibuprofen',
+          category: 'NSAID'
+        }
+      ]);
       return;
     }
     
     setMedicineSearchLoading(true);
     try {
       const response = await medicineService.search(searchTerm);
+      console.log('Medicine search response:', response); // Debug log
+      
       if (response.status === 'success' && response.data) {
         setMedicines(response.data);
       } else {
+        console.log('No medicines found, setting empty array');
         setMedicines([]);
       }
     } catch (error) {
@@ -125,12 +214,12 @@ export default function Report() {
       if (!selectedMedicine) errors.medicine = 'Please select a medicine';
       if (!formData.dosage.trim()) errors.dosage = 'Please enter the dosage';
       if (!formData.frequency) errors.frequency = 'Please select frequency';
-      if (!formData.startDate) errors.startDate = 'Please enter start date';
+      if (!formData.indication.trim()) errors.indication = 'Please enter what this medicine is for';
     } else if (activeStep === 1) {
       if (!formData.symptoms.trim()) errors.symptoms = 'Please describe your symptoms';
       if (!formData.severity) errors.severity = 'Please select severity level';
     } else if (activeStep === 2) {
-      if (!formData.reporterRelation) errors.reporterRelation = 'Please select your relation to patient';
+      if (!formData.startDate) errors.startDate = 'Please enter start date';
     }
     
     setValidationErrors(errors);
@@ -138,10 +227,8 @@ export default function Report() {
   };
 
   const handleNext = () => {
-    setSubmitAttempted(true);
     if (validateCurrentStep()) {
       setActiveStep((prevActiveStep) => prevActiveStep + 1);
-      setSubmitAttempted(false);
       setValidationErrors({});
     }
   };
@@ -168,34 +255,38 @@ export default function Report() {
     try {
       // Prepare report data for API submission matching backend schema
       const reportData = {
+        reportedBy: user._id, // Required: Reporter user ID
+        reporterRole: user.role || 'patient', // Required: Reporter role
         medicine: selectedMedicine._id, // Medicine ObjectId required
         sideEffects: [{
           effect: formData.symptoms,
           severity: formData.severity,
-          onset: formData.onset,
-          description: formData.additionalInfo || formData.symptoms
+          onset: formData.onset
         }],
         medicationUsage: {
           indication: formData.indication || 'Not specified',
           dosage: {
             amount: formData.dosage,
-            frequency: formData.frequency || 'As needed',
+            frequency: formData.frequency,
             route: formData.route
           },
-          startDate: formData.startDate ? new Date(formData.startDate).toISOString() : new Date().toISOString(),
+          startDate: formData.startDate ? new Date(formData.startDate).toISOString() : new Date().toISOString()
         },
         reportDetails: {
-          incidentDate: new Date().toISOString(),
+          incidentDate: formData.startDate ? new Date(formData.startDate).toISOString() : new Date().toISOString(),
           seriousness: formData.severity === 'Severe' || formData.severity === 'Life-threatening' ? 'Serious' : 'Non-serious',
-          outcome: 'Under investigation',
-          description: formData.additionalInfo || formData.symptoms
+          outcome: 'Unknown'
         },
         patientInfo: {
-          // These would come from user profile or additional form fields
-          age: null,
-          gender: 'Not specified'
+          age: user.age || null,
+          gender: user.gender || 'other'
         }
       };
+
+      // Add additional info as description if provided
+      if (formData.additionalInfo) {
+        reportData.sideEffects[0].description = formData.additionalInfo;
+      }
 
       console.log('Submitting report data:', reportData);
       
@@ -223,11 +314,11 @@ export default function Report() {
   const isStepComplete = (step) => {
     switch (step) {
       case 0:
-        return selectedMedicine && formData.dosage && formData.frequency;
+        return selectedMedicine && formData.dosage && formData.frequency && formData.indication;
       case 1:
         return formData.symptoms && formData.severity;
       case 2:
-        return formData.startDate && formData.indication;
+        return formData.startDate; // Only start date is required for final step
       default:
         return false;
     }
@@ -244,10 +335,16 @@ export default function Report() {
                 getOptionLabel={(option) => `${option.name} ${option.genericName ? `(${option.genericName})` : ''}`}
                 value={selectedMedicine}
                 onChange={handleMedicineSelect}
-                onInputChange={(event, value) => {
-                  searchMedicines(value);
+                onInputChange={(event, value, reason) => {
+                  console.log('Input change:', value, reason); // Debug log
+                  if (reason === 'input') {
+                    searchMedicines(value);
+                  }
                 }}
                 loading={medicineSearchLoading}
+                filterOptions={(x) => x} // Disable built-in filtering since we handle it server-side
+                noOptionsText="Type to search for medicines..."
+                loadingText="Searching medicines..."
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -491,7 +588,6 @@ export default function Report() {
                 setSelectedMedicine(null);
                 setSuccessMessage('');
                 setValidationErrors({});
-                setSubmitAttempted(false);
                 setFormData({
                 medicationName: '',
                 dosage: '',
@@ -510,6 +606,7 @@ export default function Report() {
             Submit Another Report
           </Button>
         </Box>
+      </Box>
       </Container>
     );
   }
@@ -527,9 +624,26 @@ export default function Report() {
 
           {!isAuthenticated && (
             <Alert severity="warning" sx={{ mb: 3 }}>
-              <Typography variant="body2">
+              <Typography variant="body2" sx={{ mb: 2 }}>
                 You must be logged in to submit a report. Please log in to continue.
               </Typography>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={handleDemoLogin}
+                  disabled={loading}
+                >
+                  {loading ? 'Logging in...' : 'Quick Demo Login'}
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => window.location.href = '/login'}
+                >
+                  Full Login
+                </Button>
+              </Box>
             </Alert>
           )}
 
