@@ -44,7 +44,7 @@ async function startDebugServer() {
   
   app.listen(3001, () => {
     console.log('Debug server running on http://localhost:3001');
-    console.log('Test with: curl -X POST http://localhost:3001/debug-signin -H "Content-Type: application/json" -d \'{"email":"patient1@example.com","password":"1234"}\'');
+    console.log('Test with: curl -X POST http://localhost:3001/debug-signin -H "Content-Type: application/json" -d \'{"email":"patient@demo.com","password":"Demo@123"}\'');;
   });
 }
 

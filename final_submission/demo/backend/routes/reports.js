@@ -1,10 +1,7 @@
 const express = require('express');
 const { body, query } = require('express-validator');
 const reportController = require('../controllers/reportController');
-const aiReportController = require('../controllers/aiReportController');
-const severityAnalysisController = require('../controllers/severityAnalysisController');
 const { protect, restrictTo, requirePermission } = require('../middleware/auth');
-const { uploadAIReportFiles, handleUploadErrors, validateUploadedFiles } = require('../middleware/fileUpload');
 
 const router = express.Router();
 
@@ -589,6 +586,9 @@ router.get('/medicine/:medicineId', [
   query('severity').optional().isIn(['Mild', 'Moderate', 'Severe', 'Life-threatening']),
   query('seriousness').optional().isIn(['Serious', 'Non-serious'])
 ], reportController.getReportsByMedicine);
+
+// GET /api/reports/pending-reviews - Get reports pending doctor review (must be before /:id route)
+router.get('/pending-reviews', reportController.getPendingReviews);
 
 /**
  * @swagger
@@ -1338,94 +1338,101 @@ router.put('/:id/causality',
  *                   type: string
  *                   example: "AI_SERVICE_UNAVAILABLE"
  */
-// POST /api/reports/aisubmit - AI-powered report submission
-router.post('/aisubmit',
-  uploadAIReportFiles,
-  handleUploadErrors,
-  validateUploadedFiles,
-  aiReportController.submitAIReport
-);
+
+// ==================== Doctor Review Routes ====================
+// Note: GET /pending-reviews is defined above (before /:id route) to avoid route conflicts
 
 /**
  * @swagger
- * /api/reports/aipreview:
+ * /api/reports/{id}/request-review:
  *   post:
- *     summary: Preview AI-extracted report data
- *     description: Process multimodal input and preview extracted data without submitting the report
- *     tags: [AI-Powered Reports]
+ *     summary: Request a doctor review for a report
+ *     description: Allows patients to request a doctor's review of their side effect report
+ *     tags: [Doctor Reviews]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
  *     requestBody:
- *       required: true
  *       content:
- *         multipart/form-data:
+ *         application/json:
  *           schema:
  *             type: object
  *             properties:
- *               text:
+ *               reason:
  *                 type: string
- *                 maxLength: 5000
- *                 example: "I experienced dizziness after taking my blood pressure medication this morning."
- *               images:
- *                 type: array
- *                 items:
- *                   type: string
- *                   format: binary
- *                 maxItems: 5
- *               audio:
- *                 type: string
- *                 format: binary
  *     responses:
  *       200:
- *         description: Report data extracted successfully (preview mode)
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 message:
- *                   type: string
- *                   example: "Report data extracted successfully (preview mode)"
- *                 data:
- *                   type: object
- *                   properties:
- *                     extractedData:
- *                       type: object
- *                       description: "Structured data extracted from multimodal input"
- *                     suggestedMedicines:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/Medicine'
- *                     isPreview:
- *                       type: boolean
- *                       example: true
- *       400:
- *         $ref: '#/components/responses/ValidationError'
- *       401:
- *         $ref: '#/components/responses/UnauthorizedError'
- *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         description: Doctor review requested successfully
  */
-// POST /api/reports/aipreview - Preview AI-extracted data
-router.post('/aipreview',
-  uploadAIReportFiles,
-  handleUploadErrors,
-  validateUploadedFiles,
-  aiReportController.previewAIReport
-);
+router.post('/:id/request-review', reportController.requestDoctorReview);
 
 /**
  * @swagger
- * /api/reports/aiconfirm:
+ * /api/reports/{id}/submit-review:
  *   post:
- *     summary: Submit confirmed AI-extracted report
- *     description: Submit a report using AI-extracted data that has been reviewed and confirmed by the user
- *     tags: [AI-Powered Reports]
+ *     summary: Submit doctor review for a report
+ *     description: Allows doctors to submit their review and remarks for a report
+ *     tags: [Doctor Reviews]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               remarks:
+ *                 type: string
+ *               agreedWithAI:
+ *                 type: boolean
+ *               severityOverride:
+ *                 type: string
+ *                 enum: [Mild, Moderate, Severe, Life-threatening]
+ *               recommendation:
+ *                 type: string
+ *               actionRequired:
+ *                 type: string
+ *                 enum: [none, monitor, adjust_dosage, stop_medication, seek_emergency, schedule_appointment]
+ *               followUpRequired:
+ *                 type: boolean
+ *               followUpDate:
+ *                 type: string
+ *                 format: date
+ *               additionalNotes:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Doctor review submitted successfully
+ */
+router.post('/:id/submit-review', reportController.submitDoctorReview);
+
+/**
+ * @swagger
+ * /api/reports/{id}/assign-doctor:
+ *   post:
+ *     summary: Assign a report to a doctor for review
+ *     description: Allows administrators to assign reports to specific doctors
+ *     tags: [Doctor Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
  *     requestBody:
  *       required: true
  *       content:
@@ -1433,78 +1440,14 @@ router.post('/aipreview',
  *           schema:
  *             type: object
  *             required:
- *               - extractedData
- *               - medicineId
+ *               - doctorId
  *             properties:
- *               extractedData:
- *                 type: object
- *                 description: "AI-extracted report data from previous preview"
- *               medicineId:
+ *               doctorId:
  *                 type: string
- *                 example: "507f1f77bcf86cd799439011"
- *                 description: "Selected medicine ID from suggested medicines"
- *               modifications:
- *                 type: object
- *                 description: "User modifications to the extracted data"
- *                 properties:
- *                   sideEffects:
- *                     type: array
- *                     items:
- *                       type: object
- *                   patientInfo:
- *                     type: object
- *                   reportDetails:
- *                     type: object
  *     responses:
- *       201:
- *         description: AI-assisted report submitted successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 message:
- *                   type: string
- *                   example: "AI-assisted report submitted successfully"
- *                 data:
- *                   $ref: '#/components/schemas/ReportSideEffect'
- *       400:
- *         $ref: '#/components/responses/ValidationError'
- *       401:
- *         $ref: '#/components/responses/UnauthorizedError'
- *       404:
- *         description: Medicine not found
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: "Medicine not found"
- *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *       200:
+ *         description: Report assigned to doctor successfully
  */
-// POST /api/reports/aiconfirm - Submit confirmed AI report
-router.post('/aiconfirm',
-  [
-    body('extractedData').notEmpty().withMessage('Extracted data is required'),
-    body('medicineId').isMongoId().withMessage('Valid medicine ID is required'),
-    body('modifications').optional().isObject().withMessage('Modifications must be an object')
-  ],
-  aiReportController.submitConfirmedAIReport
-);
-
-// Severity Analysis Routes
-router.post('/:id/analyze-severity', severityAnalysisController.analyzeSeverity);
-router.get('/:id/severity-status', severityAnalysisController.getSeverityStatus);
-router.post('/batch-analyze', severityAnalysisController.batchAnalyzeSeverity);
-router.get('/analysis-stats', severityAnalysisController.getAnalysisStats);
+router.post('/:id/assign-doctor', reportController.assignToDoctor);
 
 module.exports = router;

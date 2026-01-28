@@ -3,7 +3,7 @@
  * Common functions for file upload processing
  */
 
-const S3Service = require('../services/s3Service');
+const minioService = require('../services/minioService');
 const { FILE_LIMITS } = require('./constants');
 
 /**
@@ -20,7 +20,7 @@ const formatFileData = (file, userId = null) => {
     size: file.size,
     originalName: file.originalname,
     mimetype: file.mimetype,
-    category: S3Service.getFileCategory(file.mimetype),
+    category: minioService.getCategory(file.mimetype),
     uploadedBy: userId,
     uploadedAt: new Date()
   };

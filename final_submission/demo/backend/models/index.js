@@ -1,50 +1,46 @@
 // Model relationships and usage examples
 
 const User = require('./User');
-const Medicine = require('./Medicine');
+const Medication = require('./Medication'); // Simplified medication system for side effect reporting
 const ReportSideEffect = require('./ReportSideEffect');
 
 /**
  * Model Relationships:
  * 
- * 1. User -> Medicine (One-to-Many)
- *    - A user (doctor/admin) can create/manage multiple medicines
- *    - Medicine.createdBy references User._id
+ * SIMPLIFIED MEDICATION SYSTEM:
  * 
- * 2. User -> ReportSideEffect (One-to-Many)
- *    - A user can report multiple side effects
+ * 1. User (Doctor/Admin) -> Medication (One-to-Many)
+ *    - Doctors create predefined medications for patients to choose from
+ *    - Medication.createdBy references User._id
+ * 
+ * 2. User (Patient) -> Medication (One-to-Many)
+ *    - Patients can create custom medications if not found in predefined list
+ *    - These are marked as source: 'patient' and need verification
+ * 
+ * 3. Medication -> ReportSideEffect (One-to-Many)
+ *    - A medication can have multiple side effect reports
+ *    - ReportSideEffect.medication references Medication._id
+ * 
+ * 4. User (Patient) -> ReportSideEffect (One-to-Many)
+ *    - A patient can report multiple side effects
  *    - ReportSideEffect.reportedBy references User._id
- * 
- * 3. User -> ReportSideEffect (One-to-Many for patients)
- *    - A patient can have multiple side effect reports
- *    - ReportSideEffect.patient references User._id
- * 
- * 4. Medicine -> ReportSideEffect (One-to-Many)
- *    - A medicine can have multiple side effect reports
- *    - ReportSideEffect.medicine references Medicine._id
  */
 
 // Example usage patterns:
 
-// 1. Get all medicines created by a doctor
-async function getMedicinesByDoctor(doctorId) {
-  return await Medicine.find({ createdBy: doctorId, isActive: true })
-    .populate('createdBy', 'firstName lastName');
+// 1. Get all side effect reports for a specific medication
+async function getSideEffectReportsForMedication(medicationId) {
+  return await ReportSideEffect.findByMedicine(medicationId);
 }
 
-// 2. Get all side effect reports for a specific medicine
-async function getSideEffectReportsForMedicine(medicineId) {
-  return await ReportSideEffect.findByMedicine(medicineId);
-}
-
-// 3. Get all reports submitted by a user
+// 2. Get all reports submitted by a user
 async function getReportsByUser(userId) {
   return await ReportSideEffect.find({ reportedBy: userId })
     .populate('medicine', 'name genericName')
     .populate('patient', 'firstName lastName');
 }
 
-// 4. Get patient's medical history including reported side effects
+// 3. Get patient's medical history including reported side effects
 async function getPatientMedicalHistory(patientId) {
   const patient = await User.findById(patientId)
     .populate('sideEffectReports')
@@ -63,16 +59,16 @@ async function getPatientMedicalHistory(patientId) {
   };
 }
 
-// 5. Get medicines in a specific category with their side effect statistics
-async function getMedicinesWithSideEffectStats(category) {
-  const medicines = await Medicine.find({ category, isActive: true });
+// 4. Get medications by category with their side effect statistics
+async function getMedicationsWithSideEffectStats(category) {
+  const medications = await Medication.getByCategory(category);
   
-  const medicinesWithStats = await Promise.all(medicines.map(async (medicine) => {
-    const reports = await ReportSideEffect.find({ medicine: medicine._id });
+  const medicationsWithStats = await Promise.all(medications.map(async (medication) => {
+    const reports = await ReportSideEffect.find({ medicine: medication._id });
     const seriousReports = reports.filter(r => r.reportDetails.seriousness === 'Serious');
     
     return {
-      ...medicine.toObject(),
+      ...medication.toObject(),
       sideEffectStats: {
         totalReports: reports.length,
         seriousReports: seriousReports.length,
@@ -81,7 +77,7 @@ async function getMedicinesWithSideEffectStats(category) {
     };
   }));
   
-  return medicinesWithStats;
+  return medicationsWithStats;
 }
 
 // Helper function to get most common side effects
@@ -100,38 +96,37 @@ function getMostCommonSideEffects(reports) {
     .map(([effect, count]) => ({ effect, count }));
 }
 
-// 6. Find doctors specializing in specific conditions with their prescribed medicines
+// 5. Find doctors specializing in specific conditions
 async function getDoctorsBySpecialization(specialization) {
   const doctors = await User.find({ 
     role: 'doctor',
     'doctorInfo.specialization': specialization,
     isActive: true
-  }).populate('prescribedMedicines');
+  });
   
   return doctors;
 }
 
-// 7. Advanced query: Find medicines with high-severity side effects
-async function getMedicinesWithHighSeveritySideEffects() {
+// 6. Advanced query: Find medications with high-severity side effects
+async function getMedicationsWithHighSeveritySideEffects() {
   const highSeverityReports = await ReportSideEffect.find({
     'sideEffects.severity': { $in: ['Severe', 'Life-threatening'] },
     'reportDetails.seriousness': 'Serious'
   }).populate('medicine');
   
-  const medicineIds = [...new Set(highSeverityReports.map(r => r.medicine._id))];
-  return await Medicine.find({ _id: { $in: medicineIds } });
+  const medicationIds = [...new Set(highSeverityReports.map(r => r.medicine._id))];
+  return await Medication.find({ _id: { $in: medicationIds } });
 }
 
 module.exports = {
   User,
-  Medicine,
+  Medication,
   ReportSideEffect,
   // Helper functions
-  getMedicinesByDoctor,
-  getSideEffectReportsForMedicine,
+  getSideEffectReportsForMedication,
   getReportsByUser,
   getPatientMedicalHistory,
-  getMedicinesWithSideEffectStats,
+  getMedicationsWithSideEffectStats,
   getDoctorsBySpecialization,
-  getMedicinesWithHighSeveritySideEffects
+  getMedicationsWithHighSeveritySideEffects
 };

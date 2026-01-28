@@ -1,7 +1,7 @@
 const Fuse = require('fuse.js');
 const levenshtein = require('fast-levenshtein');
 const natural = require('natural');
-const Medicine = require('../models/Medicine');
+const Medication = require('../models/Medication');
 
 class FuzzySearchService {
   constructor() {
@@ -72,17 +72,14 @@ class FuzzySearchService {
 
       console.log('Updating fuzzy search index...');
       
-      // Fetch all active medicines
-      const medicines = await Medicine.find({
-        isActive: true,
-        isDiscontinued: false
-      }).lean();
+      // Fetch all active medications
+      const medications = await Medication.find({}).lean();
 
       // Create search index
-      this.medicineIndex = new Fuse(medicines, this.fuseOptions);
+      this.medicineIndex = new Fuse(medications, this.fuseOptions);
       this.lastIndexUpdate = now;
       
-      console.log(`Fuzzy search index updated with ${medicines.length} medicines`);
+      console.log(`Fuzzy search index updated with ${medications.length} medications`);
     } catch (error) {
       console.error('Error updating search index:', error);
       throw error;

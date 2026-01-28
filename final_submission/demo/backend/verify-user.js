@@ -7,7 +7,7 @@ async function verifyUser() {
     await mongoose.connect('mongodb://127.0.0.1:27017/safemed_adr');
     console.log('Connected to MongoDB');
 
-    const user = await User.findOne({ email: 'patient1@example.com' }).select('+password');
+    const user = await User.findOne({ email: 'patient@demo.com' }).select('+password');
     
     if (user) {
       console.log('Found user:', {
@@ -22,7 +22,7 @@ async function verifyUser() {
       });
 
       // Test password verification
-      const testPasswords = ['1234', 'password123', 'password'];
+      const testPasswords = ['Demo@123', 'password123', 'password'];
       for (const pwd of testPasswords) {
         const isMatch = await user.correctPassword(pwd, user.password);
         console.log(`Password '${pwd}': ${isMatch ? 'MATCH' : 'NO MATCH'}`);

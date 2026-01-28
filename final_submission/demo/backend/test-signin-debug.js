@@ -9,8 +9,8 @@ async function testSignin() {
 
   // Test data
   const testData = {
-    email: 'patient1@example.com',
-    password: '1234'
+    email: 'patient@demo.com',
+    password: 'Demo@123'
   };
 
   console.log('\n=== Testing Signin Flow ===');

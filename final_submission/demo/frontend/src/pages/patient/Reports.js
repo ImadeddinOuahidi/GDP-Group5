@@ -17,11 +17,6 @@ import {
   Select,
   FormControl,
   InputLabel,
-  Divider,
-  IconButton,
-  Menu,
-  ListItemIcon,
-  ListItemText,
   Paper,
   Skeleton,
   useTheme,
@@ -30,10 +25,6 @@ import {
 } from '@mui/material';
 import {
   Search as SearchIcon,
-  MoreVert as MoreVertIcon,
-  Visibility as ViewIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
   Add as AddIcon,
   Report as ReportIcon,
   CheckCircle as CheckCircleIcon,
@@ -43,11 +34,44 @@ import {
   History as HistoryIcon,
   CalendarToday as CalendarIcon,
   Assessment as SeverityIcon,
+  Psychology as AIIcon,
+  PersonSearch as DoctorIcon,
+  ArrowForward as ArrowIcon,
 } from '@mui/icons-material';
-import AuthContainer from '../../store/containers/AuthContainer';
 import { reportService } from '../../services';
 
 const statusConfig = {
+  'draft': {
+    color: 'default',
+    icon: <PendingIcon />,
+    label: 'Draft'
+  },
+  'submitted': {
+    color: 'warning',
+    icon: <PendingIcon />,
+    label: 'Submitted'
+  },
+  'under review': {
+    color: 'info',
+    icon: <WarningIcon />,
+    label: 'Under Review'
+  },
+  'reviewed': {
+    color: 'success',
+    icon: <CheckCircleIcon />,
+    label: 'Reviewed'
+  },
+  'closed': {
+    color: 'success',
+    icon: <CheckCircleIcon />,
+    label: 'Closed'
+  },
+  'rejected': {
+    color: 'error',
+    icon: <ErrorIcon />,
+    label: 'Rejected'
+  },
+  // Legacy mappings
   'pending': {
     color: 'warning',
     icon: <PendingIcon />,
@@ -58,20 +82,10 @@ const statusConfig = {
     icon: <WarningIcon />,
     label: 'Under Review'
   },
-  'reviewed': {
-    color: 'success',
-    icon: <CheckCircleIcon />,
-    label: 'Reviewed'
-  },
   'confirmed': {
     color: 'success',
     icon: <CheckCircleIcon />,
     label: 'Confirmed'
-  },
-  'rejected': {
-    color: 'error',
-    icon: <ErrorIcon />,
-    label: 'Rejected'
   },
   'archived': {
     color: 'default',
@@ -101,8 +115,6 @@ export default function Reports() {
   const [sortBy, setSortBy] = useState('date_desc');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [selectedReport, setSelectedReport] = useState(null);
 
   useEffect(() => {
     const loadReports = async () => {
@@ -117,16 +129,20 @@ export default function Reports() {
         
         console.log('API Response:', response); // Debug log
         
-        if (response.status === 'success' && response.data) {
+        // Handle both response formats: { success: true, data: [] } and { status: 'success', data: [] }
+        const isSuccess = response.success === true || response.status === 'success';
+        const reportData = response.data || [];
+        
+        if (isSuccess && reportData.length > 0) {
           // Transform the API data to match the expected format
-          const transformedReports = response.data.map(report => ({
+          const transformedReports = reportData.map(report => ({
             id: report._id,
             medicine: report.medicine?.name || 'Unknown Medicine',
             brandName: report.medicine?.genericName || report.medicine?.name || 'Unknown Brand',
             dosage: report.medicationUsage?.dosage?.amount || 'Unknown Dosage',
             sideEffect: report.sideEffects?.[0]?.effect || 'Unknown Side Effect',
             severity: report.sideEffects?.[0]?.severity?.toLowerCase() || 'mild',
-            status: report.status || 'pending',
+            status: report.status?.toLowerCase() || 'pending',
             dateSubmitted: report.reportDetails?.reportDate || report.createdAt,
             dateReviewed: report.reviewDetails?.reviewDate || null,
             reviewedBy: report.reviewedBy?.firstName && report.reviewedBy?.lastName 
@@ -135,10 +151,20 @@ export default function Reports() {
             description: report.sideEffects?.[0]?.description || report.description || 'No description provided',
             outcome: report.reportDetails?.outcome || 'Under investigation',
             reportId: `ADR-${report._id?.slice(-8)?.toUpperCase()}` || `ADR-${Date.now()}`,
+            // AI Analysis fields
+            aiProcessed: report.metadata?.aiProcessed || false,
+            aiSeverity: report.metadata?.aiAnalysis?.severity || null,
+            aiUrgency: report.metadata?.aiAnalysis?.patientGuidance?.urgencyLevel || null,
+            aiRecommendation: report.metadata?.aiAnalysis?.patientGuidance?.recommendation || null,
+            // Doctor Review fields
+            doctorReviewRequested: report.doctorReview?.requested || false,
+            doctorReviewStatus: report.doctorReview?.status || null,
+            doctorRemarks: report.doctorReview?.remarks || null,
           }));
           
           setReports(transformedReports);
-          setTotalPages(Math.ceil((response.total || transformedReports.length) / 10));
+          const total = response.meta?.pagination?.total || response.total || transformedReports.length;
+          setTotalPages(Math.ceil(total / 10));
           console.log('Transformed reports:', transformedReports);
         } else {
           // No data returned from API
@@ -158,26 +184,6 @@ export default function Reports() {
 
     loadReports();
   }, [page]);
-
-  const handleMenuOpen = (event, report) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedReport(report);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setSelectedReport(null);
-  };
-
-  const handleViewReport = (reportId) => {
-    navigate(`/reports/${reportId}`);
-    handleMenuClose();
-  };
-
-  const handleEditReport = (reportId) => {
-    navigate(`/report/edit/${reportId}`);
-    handleMenuClose();
-  };
 
   const filteredReports = reports.filter(report => {
     const matchesSearch = report.medicine.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -412,12 +418,17 @@ export default function Reports() {
             {sortedReports.map((report, index) => (
               <Fade in timeout={300 + index * 100} key={report.id}>
                 <Card
+                  onClick={() => navigate(`/reports/${report.id}`)}
                   sx={{
+                    cursor: 'pointer',
                     transition: 'all 0.2s ease-in-out',
                     '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: theme.shadows[4],
+                      transform: 'translateY(-4px)',
+                      boxShadow: theme.shadows[8],
+                      borderColor: 'primary.main',
                     },
+                    border: '1px solid',
+                    borderColor: 'divider',
                   }}
                 >
                   <CardContent>
@@ -441,12 +452,6 @@ export default function Reports() {
                                 {report.brandName} • {report.dosage}
                               </Typography>
                             </Box>
-                            <IconButton
-                              onClick={(e) => handleMenuOpen(e, report)}
-                              size="small"
-                            >
-                              <MoreVertIcon />
-                            </IconButton>
                           </Stack>
 
                           {/* Side Effect Description */}
@@ -504,12 +509,74 @@ export default function Reports() {
 
                           {/* Outcome */}
                           <Box>
-                            <Typography variant="body2" fontWeight="500" gutterBottom>
-                              Outcome:
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {report.outcome}
-                            </Typography>
+                            {/* AI Analysis Status */}
+                            {report.aiProcessed ? (
+                              <Paper 
+                                sx={{ 
+                                  p: 1.5, 
+                                  mb: 1, 
+                                  bgcolor: report.aiUrgency === 'emergency' ? 'error.50' :
+                                           report.aiUrgency === 'urgent' ? 'warning.50' :
+                                           report.aiUrgency === 'soon' ? 'info.50' : 'success.50',
+                                  border: '1px solid',
+                                  borderColor: report.aiUrgency === 'emergency' ? 'error.main' :
+                                              report.aiUrgency === 'urgent' ? 'warning.main' :
+                                              report.aiUrgency === 'soon' ? 'info.main' : 'success.main',
+                                }}
+                              >
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                  <AIIcon fontSize="small" color={
+                                    report.aiUrgency === 'emergency' ? 'error' :
+                                    report.aiUrgency === 'urgent' ? 'warning' :
+                                    report.aiUrgency === 'soon' ? 'info' : 'success'
+                                  } />
+                                  <Typography variant="body2" fontWeight="500">
+                                    AI: {report.aiUrgency?.charAt(0).toUpperCase() + report.aiUrgency?.slice(1) || 'Analyzed'}
+                                  </Typography>
+                                </Stack>
+                              </Paper>
+                            ) : (
+                              <Paper sx={{ p: 1.5, mb: 1, bgcolor: 'grey.100' }}>
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                  <PendingIcon fontSize="small" color="action" />
+                                  <Typography variant="body2" color="text.secondary">
+                                    AI Analysis Pending
+                                  </Typography>
+                                </Stack>
+                              </Paper>
+                            )}
+
+                            {/* Doctor Review Status */}
+                            {report.doctorReviewStatus === 'completed' ? (
+                              <Paper sx={{ p: 1.5, bgcolor: 'success.50', border: '1px solid', borderColor: 'success.main' }}>
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                  <DoctorIcon fontSize="small" color="success" />
+                                  <Typography variant="body2" fontWeight="500" color="success.dark">
+                                    Doctor Reviewed
+                                  </Typography>
+                                </Stack>
+                              </Paper>
+                            ) : report.doctorReviewRequested ? (
+                              <Paper sx={{ p: 1.5, bgcolor: 'info.50', border: '1px solid', borderColor: 'info.main' }}>
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                  <DoctorIcon fontSize="small" color="info" />
+                                  <Typography variant="body2" color="info.dark">
+                                    Review Requested
+                                  </Typography>
+                                </Stack>
+                              </Paper>
+                            ) : null}
+                          </Box>
+
+                          {/* View Details Arrow */}
+                          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                            <Chip 
+                              label="View Details" 
+                              icon={<ArrowIcon />} 
+                              color="primary" 
+                              variant="outlined"
+                              size="small"
+                            />
                           </Box>
                         </Stack>
                       </Grid>
@@ -532,33 +599,6 @@ export default function Reports() {
             />
           </Box>
         )}
-
-        {/* Action Menu */}
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={handleMenuClose}
-        >
-          <MenuItem onClick={() => handleViewReport(selectedReport?.id)}>
-            <ListItemIcon>
-              <ViewIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>View Details</ListItemText>
-          </MenuItem>
-          <MenuItem onClick={() => handleEditReport(selectedReport?.id)}>
-            <ListItemIcon>
-              <EditIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>Edit Report</ListItemText>
-          </MenuItem>
-          <Divider />
-          <MenuItem onClick={handleMenuClose} sx={{ color: 'error.main' }}>
-            <ListItemIcon>
-              <DeleteIcon fontSize="small" color="error" />
-            </ListItemIcon>
-            <ListItemText>Delete Report</ListItemText>
-          </MenuItem>
-        </Menu>
       </Box>
     </Container>
   );

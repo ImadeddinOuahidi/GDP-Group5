@@ -5,7 +5,7 @@
 
 const SymptomProgression = require('../models/SymptomProgression');
 const ReportSideEffect = require('../models/ReportSideEffect');
-const Medicine = require('../models/Medicine');
+const Medication = require('../models/Medication');
 const User = require('../models/User');
 
 class SymptomProgressionService {

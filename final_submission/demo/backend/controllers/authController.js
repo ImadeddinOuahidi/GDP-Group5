@@ -33,7 +33,7 @@ const generateVerificationToken = () => {
 const sendVerificationEmail = async (user, verificationToken) => {
   const transporter = createEmailTransporter();
   
-  const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
+  const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/verify-email?token=${verificationToken}`;
   
   const mailOptions = {
     from: process.env.EMAIL_USER,

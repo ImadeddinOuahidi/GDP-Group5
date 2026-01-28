@@ -1,8 +1,8 @@
 // Simple test to check the auth API endpoint
 const testAuthEndpoint = async () => {
   const credentials = {
-    email: 'patient1@example.com',
-    password: '1234'
+    email: 'patient@demo.com',
+    password: 'Demo@123'
   };
 
   console.log('Testing auth API endpoint...');

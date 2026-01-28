@@ -8,8 +8,8 @@ async function testAuth() {
     console.log('Connected to MongoDB');
 
     // Test the full authentication flow
-    const email = 'patient1@example.com';
-    const password = '1234';
+    const email = 'patient@demo.com';
+    const password = 'Demo@123';
 
     console.log('\n1. Finding user with email:', email);
     const user = await User.findOne({ email }).select('+password');

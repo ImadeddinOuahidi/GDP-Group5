@@ -153,30 +153,20 @@ const sideEffectTemplates = [
 
 
 for (let i = 0; i < NUM_MEDICINES; i++) {
+  const creatorId = getRandomElement(userIds.admins.length > 0 ? userIds.admins : userIds.doctors);
   const medicine = {
     _id: faker.database.mongodbObjectId(),
     name: faker.commerce.productName(),
     genericName: faker.lorem.word(),
-    brandName: faker.company.name(),
-    manufacturer: {
-      name: faker.company.name(),
-      country: faker.location.country(),
-      licenseNumber: faker.string.alphanumeric(12).toUpperCase(),
-    },
     category: getRandomElement(medicineCategories),
-    therapeuticClass: faker.lorem.words(2),
-    drugClass: faker.lorem.words(2),
-    dosageForm: faker.helpers.arrayElement(['Tablet', 'Capsule', 'Syrup', 'Injection']),
-    strength: {
-      value: faker.number.int({ min: 10, max: 500 }),
-      unit: 'mg',
-    },
-    route: [faker.helpers.arrayElement(['Oral', 'Intravenous', 'Topical'])],
-    prescriptionRequired: faker.datatype.boolean(),
-    indications: [{ condition: faker.lorem.word(), description: faker.lorem.sentence() }],
-    knownSideEffects: getRandomSubset(sideEffectTemplates, faker.number.int({ min: 1, max: 4 })),
-    createdBy: getRandomElement(userIds.admins),
+    dosageForm: faker.helpers.arrayElement(['Tablet', 'Capsule', 'Liquid/Syrup', 'Injection', 'Cream/Ointment', 'Drops']),
+    commonStrengths: [`${faker.number.int({ min: 10, max: 500 })}mg`],
+    description: faker.lorem.sentence(),
+    source: 'predefined',
+    createdBy: creatorId,
+    creatorRole: 'admin',
     isActive: true,
+    isVerified: true,
   };
   medicines.push(medicine);
   medicineIds.push(medicine._id);
@@ -189,7 +179,7 @@ const reportIds = [];
 for (let i = 0; i < NUM_REPORTS; i++) {
   const patientId = getRandomElement(userIds.patients);
   const medicineId = getRandomElement(medicineIds);
-  const reportedSideEffect = getRandomElement(medicines.find(m => m._id === medicineId).knownSideEffects);
+  const reportedSideEffect = getRandomElement(sideEffectTemplates);
 
   const report = {
     _id: faker.database.mongodbObjectId(),

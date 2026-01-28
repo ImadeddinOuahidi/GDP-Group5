@@ -1,10 +1,9 @@
 const { validationResult } = require('express-validator');
 const ReportSideEffect = require('../models/ReportSideEffect');
-const Medicine = require('../models/Medicine');
+const Medication = require('../models/Medication');
 const User = require('../models/User');
-const SeverityAnalysisJob = require('../jobs/severityAnalysisJob');
-const DuplicateDetectionService = require('../services/duplicateDetectionService');
-const { sendSuccess, sendCreated, sendNotFound, sendForbidden, sendValidationError } = require('../utils/responseHelper');
+const rabbitmqService = require('../services/rabbitmqService');
+const { sendSuccess, sendCreated, sendNotFound, sendForbidden, sendValidationError, sendError } = require('../utils/responseHelper');
 const { validateObjectId } = require('../utils/validationHelper');
 const { USER_ROLES, SUCCESS_MESSAGES, ERROR_MESSAGES } = require('../utils/constants');
 const AppError = require('../utils/appError');
@@ -18,10 +17,10 @@ exports.submitReport = async (req, res) => {
       return sendValidationError(res, errors.array());
     }
 
-    // Verify medicine exists
-    const medicine = await Medicine.findById(req.body.medicine);
-    if (!medicine) {
-      return sendNotFound(res, ERROR_MESSAGES.MEDICINE_NOT_FOUND);
+    // Verify medication exists
+    const medication = await Medication.findById(req.body.medicine);
+    if (!medication) {
+      return sendNotFound(res, ERROR_MESSAGES.MEDICATION_NOT_FOUND || 'Medication not found');
     }
 
     // If patient is specified, verify they exist and are a patient
@@ -54,19 +53,20 @@ exports.submitReport = async (req, res) => {
       { path: 'patient', select: 'firstName lastName' }
     ]);
 
-    // Trigger AI severity analysis job asynchronously
+    // Publish event to RabbitMQ for async AI processing
     setImmediate(async () => {
       try {
-        console.log(`[Report Controller] Triggering severity analysis for report: ${report._id}`);
-        await SeverityAnalysisJob.processReport(report._id.toString());
-      } catch (jobError) {
-        console.error('[Report Controller] Background job error:', jobError);
+        console.log(`[Report Controller] Publishing report created event: ${report._id}`);
+        await rabbitmqService.publishReportCreated(report);
+      } catch (publishError) {
+        console.error('[Report Controller] Failed to publish event:', publishError);
+        // Non-blocking - report is still saved successfully
       }
     });
 
     sendCreated(res, { 
       report,
-      aiAnalysisStatus: 'processing'
+      aiAnalysisStatus: 'queued'
     }, 'Side effect report submitted successfully');
 
   } catch (error) {
@@ -190,11 +190,14 @@ exports.getReportById = async (req, res) => {
       return sendForbidden(res, ERROR_MESSAGES.FORBIDDEN);
     }
 
-    sendSuccess(res, { report });
+    sendSuccess(res, { data: { report } });
 
   } catch (error) {
     console.error('Get report by ID error:', error);
-    throw error;
+    if (error.statusCode) {
+      return sendError(res, error.message, error.statusCode);
+    }
+    return sendServerError(res, 'Failed to fetch report');
   }
 };
 
@@ -349,8 +352,8 @@ exports.getReportsByMedicine = async (req, res) => {
       .skip(skip)
       .limit(limit);
 
-    // Get medicine info
-    const medicine = await Medicine.findById(medicineId, 'name genericName category');
+    // Get medication info
+    const medication = await Medication.findById(medicineId, 'name genericName category');
     const total = await ReportSideEffect.countDocuments(filter);
 
     const { sendPaginated } = require('../utils/responseHelper');
@@ -359,7 +362,7 @@ exports.getReportsByMedicine = async (req, res) => {
       limit,
       total,
       totalPages: Math.ceil(total / limit),
-      meta: { medicine }
+      meta: { medication }
     });
 
   } catch (error) {
@@ -468,14 +471,23 @@ function canAccessReport(user, report) {
   // Admin can access all reports
   if (user.role === 'admin') return true;
   
+  // Get the reportedBy ID (handle both populated and non-populated cases)
+  const reportedById = report.reportedBy?._id?.toString() || report.reportedBy?.toString();
+  const patientId = report.patient?._id?.toString() || report.patient?.toString();
+  const assignedToId = report.assignedTo?._id?.toString() || report.assignedTo?.toString();
+  const userId = user._id.toString();
+  
   // User can access reports they submitted
-  if (report.reportedBy.toString() === user._id.toString()) return true;
+  if (reportedById === userId) return true;
   
   // Patient can access reports about them
-  if (user.role === 'patient' && report.patient && report.patient.toString() === user._id.toString()) return true;
+  if (user.role === 'patient' && patientId === userId) return true;
   
   // Doctor can access reports they're assigned to or submitted
-  if (user.role === 'doctor' && report.assignedTo && report.assignedTo.toString() === user._id.toString()) return true;
+  if (user.role === 'doctor' && assignedToId === userId) return true;
+  
+  // Doctors can access all reports for review purposes
+  if (user.role === 'doctor') return true;
   
   return false;
 }
@@ -623,5 +635,252 @@ exports.getDuplicateStats = async (req, res) => {
   } catch (error) {
     console.error('Get duplicate stats error:', error);
     throw error;
+  }
+};
+
+/**
+ * Request a doctor review for a report
+ * POST /api/reports/:id/request-review
+ * 
+ * Allows patients to request a doctor's review of their side effect report
+ */
+exports.requestDoctorReview = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    
+    validateObjectId(id, 'Report ID');
+
+    const report = await ReportSideEffect.findById(id);
+    if (!report) {
+      return sendNotFound(res, ERROR_MESSAGES.REPORT_NOT_FOUND || 'Report not found');
+    }
+
+    // Only the patient who submitted or healthcare staff can request review
+    if (req.user.role === USER_ROLES.PATIENT && 
+        report.reportedBy.toString() !== req.user._id.toString()) {
+      return sendForbidden(res, 'You can only request review for your own reports');
+    }
+
+    // Check if review already requested
+    if (report.doctorReview?.requested) {
+      return res.status(400).json({
+        success: false,
+        message: 'A doctor review has already been requested for this report'
+      });
+    }
+
+    // Update the report with review request
+    report.doctorReview = {
+      requested: true,
+      requestedAt: new Date(),
+      requestedBy: req.user._id,
+      requestReason: reason || 'Patient requested doctor review',
+      status: 'pending'
+    };
+
+    await report.save();
+
+    await report.populate([
+      { path: 'reportedBy', select: 'firstName lastName' },
+      { path: 'medicine', select: 'name genericName' }
+    ]);
+
+    sendSuccess(res, { data: { report }, message: 'Doctor review requested successfully' });
+  } catch (error) {
+    console.error('Request doctor review error:', error);
+    if (error.statusCode) {
+      return sendError(res, error.message, error.statusCode);
+    }
+    return sendError(res, 'Failed to request doctor review', 500);
+  }
+};
+
+/**
+ * Get reports pending doctor review
+ * GET /api/reports/pending-reviews
+ * 
+ * For doctors to see reports that need their review
+ */
+exports.getPendingReviews = async (req, res) => {
+  try {
+    // Only doctors and admins can access pending reviews
+    if (req.user.role === USER_ROLES.PATIENT) {
+      return sendForbidden(res, 'Only healthcare staff can access pending reviews');
+    }
+
+    const { validatePagination } = require('../utils/validationHelper');
+    const { page, limit, skip } = validatePagination(req.query);
+
+    const filter = {
+      isActive: true,
+      isDeleted: false,
+      'doctorReview.requested': true,
+      'doctorReview.status': { $in: ['pending', 'in_review'] }
+    };
+
+    // If specific doctor, filter by assigned
+    if (req.query.assignedToMe === 'true') {
+      filter['doctorReview.assignedDoctor'] = req.user._id;
+    }
+
+    const [reports, total] = await Promise.all([
+      ReportSideEffect.find(filter)
+        .populate('reportedBy', 'firstName lastName email')
+        .populate('medicine', 'name genericName category')
+        .populate('patient', 'firstName lastName')
+        .populate('doctorReview.requestedBy', 'firstName lastName')
+        .sort({ 'doctorReview.requestedAt': -1 })
+        .skip(skip)
+        .limit(limit),
+      ReportSideEffect.countDocuments(filter)
+    ]);
+
+    sendSuccess(res, { 
+      data: { reports },
+      message: 'Pending reviews retrieved successfully',
+      meta: {
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasNextPage: page * limit < total,
+          hasPrevPage: page > 1
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get pending reviews error:', error);
+    if (error.statusCode) {
+      return sendError(res, error.message, error.statusCode);
+    }
+    return sendError(res, 'Failed to fetch pending reviews', 500);
+  }
+};
+
+/**
+ * Submit doctor review/remarks for a report
+ * POST /api/reports/:id/submit-review
+ * 
+ * Allows doctors to submit their review and remarks
+ */
+exports.submitDoctorReview = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      remarks, 
+      agreedWithAI, 
+      severityOverride, 
+      recommendation, 
+      actionRequired,
+      followUpRequired,
+      followUpDate,
+      additionalNotes 
+    } = req.body;
+    
+    validateObjectId(id, 'Report ID');
+
+    // Only doctors and admins can submit reviews
+    if (req.user.role === USER_ROLES.PATIENT) {
+      return sendForbidden(res, 'Only healthcare staff can submit reviews');
+    }
+
+    const report = await ReportSideEffect.findById(id);
+    if (!report) {
+      return sendNotFound(res, ERROR_MESSAGES.REPORT_NOT_FOUND || 'Report not found');
+    }
+
+    // Update doctor review information
+    report.doctorReview = {
+      ...report.doctorReview,
+      status: 'completed',
+      reviewedBy: req.user._id,
+      reviewedAt: new Date(),
+      remarks: remarks || '',
+      doctorAssessment: {
+        agreedWithAI: agreedWithAI !== undefined ? agreedWithAI : true,
+        severityOverride: severityOverride || undefined,
+        recommendation: recommendation || '',
+        actionRequired: actionRequired || 'none',
+        followUpRequired: followUpRequired || false,
+        followUpDate: followUpDate ? new Date(followUpDate) : undefined,
+        additionalNotes: additionalNotes || ''
+      }
+    };
+
+    // Update report status to reviewed
+    report.status = 'Reviewed';
+
+    await report.save();
+
+    await report.populate([
+      { path: 'reportedBy', select: 'firstName lastName' },
+      { path: 'medicine', select: 'name genericName' },
+      { path: 'patient', select: 'firstName lastName' },
+      { path: 'doctorReview.reviewedBy', select: 'firstName lastName' }
+    ]);
+
+    sendSuccess(res, { data: { report }, message: 'Doctor review submitted successfully' });
+  } catch (error) {
+    console.error('Submit doctor review error:', error);
+    if (error.statusCode) {
+      return sendError(res, error.message, error.statusCode);
+    }
+    return sendError(res, 'Failed to submit doctor review', 500);
+  }
+};
+
+/**
+ * Assign a report to a doctor for review
+ * POST /api/reports/:id/assign-doctor
+ * 
+ * Allows admins to assign reports to specific doctors
+ */
+exports.assignToDoctor = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { doctorId } = req.body;
+    
+    validateObjectId(id, 'Report ID');
+    validateObjectId(doctorId, 'Doctor ID');
+
+    // Only admins can assign
+    if (req.user.role !== USER_ROLES.ADMIN) {
+      return sendForbidden(res, 'Only administrators can assign reports to doctors');
+    }
+
+    // Verify doctor exists and is a doctor
+    const doctor = await User.findById(doctorId);
+    if (!doctor || doctor.role !== USER_ROLES.DOCTOR) {
+      return sendNotFound(res, 'Doctor not found');
+    }
+
+    const report = await ReportSideEffect.findById(id);
+    if (!report) {
+      return sendNotFound(res, ERROR_MESSAGES.REPORT_NOT_FOUND || 'Report not found');
+    }
+
+    // Update assignment
+    report.doctorReview = {
+      ...report.doctorReview,
+      assignedDoctor: doctorId,
+      assignedAt: new Date(),
+      status: 'in_review'
+    };
+
+    await report.save();
+
+    await report.populate([
+      { path: 'doctorReview.assignedDoctor', select: 'firstName lastName email' }
+    ]);
+
+    sendSuccess(res, { data: { report }, message: 'Report assigned to doctor successfully' });
+  } catch (error) {
+    console.error('Assign to doctor error:', error);
+    if (error.statusCode) {
+      return sendError(res, error.message, error.statusCode);
+    }
+    return sendError(res, 'Failed to assign report to doctor', 500);
   }
 };

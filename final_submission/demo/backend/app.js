@@ -71,11 +71,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 
 // Import routes
 const authRoutes = require('./routes/auth');
-const medicineRoutes = require('./routes/medicines');
+const medicationRoutes = require('./routes/medications'); // Simplified medication system for side effect reporting
 const reportRoutes = require('./routes/reports');
 const symptomProgressionRoutes = require('./routes/symptomProgression');
-// Temporarily disabled due to AWS SDK dependency issues
-// const uploadRoutes = require('./routes/uploads');
+const uploadRoutes = require('./routes/uploads'); // MinIO-based file uploads
 
 // Apply strict rate limiting to auth routes
 app.use('/api/auth', authLimiter);
@@ -93,11 +92,10 @@ app.use('/api/auth', (req, res, next) => {
 
 // Mount API routes
 app.use('/api/auth', authRoutes);
-app.use('/api/medicines', medicineRoutes);
+app.use('/api/medications', medicationRoutes); // Simplified medication system
 app.use('/api/reports', reportRoutes);
 app.use('/api/symptom-progression', symptomProgressionRoutes);
-// Temporarily disabled due to AWS SDK dependency issues
-// app.use('/api/uploads', uploadRoutes);
+app.use('/api/uploads', uploadRoutes); // File uploads via MinIO
 
 // Health and utility routes
 app.get('/', (req, res) => {
@@ -309,6 +307,12 @@ const startServer = async () => {
     // Connect to database
     await database.connect();
     
+    // Connect to RabbitMQ (non-blocking)
+    const rabbitmqService = require('./services/rabbitmqService');
+    rabbitmqService.connect().catch(err => {
+      console.log('[App] RabbitMQ connection deferred - events will queue when available');
+    });
+    
     // Start server
     const server = app.listen(config.server.port, () => {
       logger.info(`🚀 Server running in ${config.server.env} mode on port ${config.server.port}`);
@@ -321,6 +325,7 @@ const startServer = async () => {
       
       server.close(async () => {
         logger.info('HTTP server closed');
+        await rabbitmqService.close().catch(() => {});
         await database.disconnect();
         logger.info('Graceful shutdown completed');
         process.exit(0);

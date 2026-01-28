@@ -20,10 +20,9 @@ export const ROUTES = {
   DOCTOR_HOME: '/doctor-home',
   SETTINGS: '/settings',
   
-  // Doctor Routes
-  MEDICINES: '/medicines',
-  ADD_MEDICINE: '/add-medicine',
-  EDIT_MEDICINE: '/edit-medicine',
+  // Doctor Routes - Medication Management
+  MEDICATIONS: '/medications',
+  ADD_MEDICATION: '/add-medication',
   
   // Patient Routes
   REPORT: '/report',
@@ -37,7 +36,7 @@ export const ROUTES = {
       REFRESH: '/auth/refresh',
       LOGOUT: '/auth/logout',
     },
-    MEDICINES: '/medicines',
+    MEDICATIONS: '/medications', // Medication system for side effect reporting
     REPORTS: '/reports',
     SYMPTOMS: '/symptom-progression',
   }
@@ -118,15 +117,21 @@ export const THEME_MODES = {
   SYSTEM: 'system'
 };
 
-// Medicine Categories
-export const MEDICINE_CATEGORIES = [
-  'Antibiotic', 'Analgesic', 'Antiviral', 'Antifungal', 'Antihistamine',
+// Medication Categories
+export const MEDICATION_CATEGORIES = [
+  'Analgesic', 'Antibiotic', 'Antiviral', 'Antifungal', 'Antihistamine',
   'Cardiovascular', 'Diabetes', 'Respiratory', 'Gastrointestinal',
   'Neurological', 'Psychiatric', 'Dermatological', 'Hormonal',
-  'Immunosuppressant', 'Vaccine', 'Vitamin', 'Supplement', 'Other'
+  'Supplement', 'Other'
 ];
 
-// Dosage Forms
+// Medication Dosage Forms
+export const MEDICATION_DOSAGE_FORMS = [
+  'Tablet', 'Capsule', 'Liquid/Syrup', 'Injection', 'Cream/Ointment',
+  'Drops', 'Inhaler', 'Patch', 'Powder', 'Other'
+];
+
+// Dosage Forms (for reports)
 export const DOSAGE_FORMS = [
   'Tablet', 'Capsule', 'Syrup', 'Injection', 'Cream', 'Ointment',
   'Drops', 'Inhaler', 'Patch', 'Suppository', 'Powder', 'Gel'

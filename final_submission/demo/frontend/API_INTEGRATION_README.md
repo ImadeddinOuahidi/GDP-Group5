@@ -52,9 +52,11 @@ The frontend will be available at `http://localhost:3000`
 - Create a user account through the backend API
 - Use real email/password credentials to login
 
-#### Demo Login (fallback):
-- **Patient**: Use `patient1@example.com` or `patient1` with password `1234`
-- **Doctor**: Use `doctor1@example.com` or `doctor1` with password `abcd`
+#### Demo Login Credentials:
+- **Patient**: Email: `patient@demo.com` / Password: `Demo@123`
+- **Doctor**: Email: `doctor@demo.com` / Password: `Demo@123`
+
+> **Tip:** Click on the credential chips on the login page to auto-fill the login form!
 
 ## Key Features
 

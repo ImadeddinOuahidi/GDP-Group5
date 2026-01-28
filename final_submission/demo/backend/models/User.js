@@ -191,7 +191,7 @@ const userSchema = new mongoose.Schema({
 
 // Add relationships - User can have multiple medicines prescribed and side effect reports
 userSchema.virtual('prescribedMedicines', {
-  ref: 'Medicine',
+  ref: 'Medication',
   localField: '_id',
   foreignField: 'createdBy'
 });

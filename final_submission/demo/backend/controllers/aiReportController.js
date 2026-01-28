@@ -1,5 +1,5 @@
 const aiService = require('../services/aiService');
-const Medicine = require('../models/Medicine');
+const Medication = require('../models/Medication');
 const ReportSideEffect = require('../models/ReportSideEffect');
 const symptomProgressionService = require('../services/symptomProgressionService');
 
@@ -157,12 +157,12 @@ const submitConfirmedAIReport = async (req, res) => {
       });
     }
 
-    // Verify medicine exists
-    const medicine = await Medicine.findById(medicineId);
-    if (!medicine) {
+    // Verify medication exists
+    const medication = await Medication.findById(medicineId);
+    if (!medication) {
       return res.status(404).json({
         status: 'error',
-        message: 'Medicine not found'
+        message: 'Medication not found'
       });
     }
 
@@ -194,43 +194,42 @@ const submitConfirmedAIReport = async (req, res) => {
 // Helper Functions
 
 /**
- * Find medicine by name (fuzzy matching)
+ * Find medication by name (fuzzy matching)
  */
 async function findMedicineByName(medicineName) {
   try {
     // Try exact match first
-    let medicine = await Medicine.findOne({
+    let medication = await Medication.findOne({
       $or: [
         { name: new RegExp(medicineName, 'i') },
         { genericName: new RegExp(medicineName, 'i') }
       ]
     });
 
-    return medicine;
+    return medication;
   } catch (error) {
-    console.error('Medicine search error:', error);
+    console.error('Medication search error:', error);
     return null;
   }
 }
 
 /**
- * Search for medicines based on query
+ * Search for medications based on query
  */
 async function searchMedicines(query, limit = 5) {
   try {
-    const medicines = await Medicine.find({
+    const medications = await Medication.find({
       $or: [
         { name: new RegExp(query, 'i') },
-        { genericName: new RegExp(query, 'i') },
-        { 'indications.condition': new RegExp(query, 'i') }
+        { genericName: new RegExp(query, 'i') }
       ]
     })
-    .select('name genericName dosageForm strength category')
+    .select('name genericName dosageForm category')
     .limit(limit);
 
-    return medicines;
+    return medications;
   } catch (error) {
-    console.error('Medicine search error:', error);
+    console.error('Medication search error:', error);
     return [];
   }
 }

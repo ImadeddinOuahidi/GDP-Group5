@@ -8,13 +8,15 @@ import {
   Home,
   Report,
   Reports,
+  ReportDetail,
   Settings,
   DoctorHome,
   Dashboard,
   Login,
   Registration,
-  AddMedicine,
-  MedicineManagement
+  AddMedication,
+  MedicationManagement,
+  ReviewRequests
 } from "./pages";
 
 // Import custom components and providers
@@ -170,15 +172,19 @@ function AppContent() {
                 <Route path="/" element={<Home />} />
                 <Route path="/report" element={<Report />} />
                 <Route path="/reports" element={<Reports />} />
+                <Route path="/reports/:id" element={<ReportDetail />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </>
             ) : (
               <>
                 <Route path="/doctor-home" element={<DoctorHome />} />
-                <Route path="/medicines" element={<MedicineManagement />} />
-                <Route path="/add-medicine" element={<AddMedicine />} />
-                <Route path="/edit-medicine/:id" element={<AddMedicine />} />
+                <Route path="/review-requests" element={<ReviewRequests />} />
+                <Route path="/reports/:id" element={<ReportDetail />} />
+                {/* Medication System Routes for Side Effect Reporting */}
+                <Route path="/medications" element={<MedicationManagement />} />
+                <Route path="/add-medication" element={<AddMedication />} />
+                <Route path="/medications/edit/:id" element={<AddMedication />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/doctor" element={<Navigate to="/doctor-home" replace />} />

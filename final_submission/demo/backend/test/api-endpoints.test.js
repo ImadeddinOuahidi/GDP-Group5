@@ -13,7 +13,7 @@ const request = require('supertest');
 const app = require('../app');
 const mongoose = require('mongoose');
 const User = require('../models/User');
-const Medicine = require('../models/Medicine');
+const Medication = require('../models/Medication');
 const ReportSideEffect = require('../models/ReportSideEffect');
 const SymptomProgression = require('../models/SymptomProgression');
 
@@ -22,7 +22,7 @@ let authToken = '';
 let doctorToken = '';
 let adminToken = '';
 let testUserId = '';
-let testMedicineId = '';
+let testMedicationId = '';
 let testReportId = '';
 let testProgressionId = '';
 let uploadedFileKey = '';

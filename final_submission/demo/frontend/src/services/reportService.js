@@ -192,6 +192,48 @@ class ReportService {
     return formData;
   }
 
+  // ==================== Doctor Review Methods ====================
+
+  // Request a doctor review for a report
+  async requestDoctorReview(reportId, reason = '') {
+    try {
+      const response = await apiClient.post(`${ROUTES.API.REPORTS}/${reportId}/request-review`, { reason });
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  // Get reports pending doctor review (for doctors)
+  async getPendingReviews(params = {}) {
+    try {
+      const response = await apiClient.get(`${ROUTES.API.REPORTS}/pending-reviews`, { params });
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  // Submit doctor review for a report
+  async submitDoctorReview(reportId, reviewData) {
+    try {
+      const response = await apiClient.post(`${ROUTES.API.REPORTS}/${reportId}/submit-review`, reviewData);
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  // Assign a report to a doctor (admin only)
+  async assignToDoctor(reportId, doctorId) {
+    try {
+      const response = await apiClient.post(`${ROUTES.API.REPORTS}/${reportId}/assign-doctor`, { doctorId });
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
   // Handle API errors
   handleError(error) {
     const message = error.response?.data?.message || error.message || 'An error occurred';

@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const { users, medicines, reports, symptomProgressions } = require('./data');
 const User = require('../models/User');
-const Medicine = require('../models/Medicine');
+const Medication = require('../models/Medication');
 const ReportSideEffect = require('../models/ReportSideEffect');
 const SymptomProgression = require('../models/SymptomProgression');
 
@@ -17,7 +17,7 @@ const seedDatabase = async () => {
     // 2. Clear existing data
     console.log('Clearing existing data...');
     await User.deleteMany({});
-    await Medicine.deleteMany({});
+    await Medication.deleteMany({});
     await ReportSideEffect.deleteMany({});
     await SymptomProgression.deleteMany({});
     console.log('Existing data cleared.');
@@ -27,8 +27,8 @@ const seedDatabase = async () => {
     await User.insertMany(users);
     console.log(`${users.length} users inserted.`);
 
-    await Medicine.insertMany(medicines);
-    console.log(`${medicines.length} medicines inserted.`);
+    await Medication.insertMany(medicines);
+    console.log(`${medicines.length} medications inserted.`);
 
     await ReportSideEffect.insertMany(reports);
     console.log(`${reports.length} side effect reports inserted.`);

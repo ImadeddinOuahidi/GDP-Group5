@@ -21,6 +21,7 @@ import {
   MedicalServices as DoctorIcon,
   Person as PatientIcon,
   LocalPharmacy as MedicineIcon,
+  RateReview as ReviewIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AuthContainer from '../../store/containers/AuthContainer';
@@ -42,9 +43,10 @@ const Navigation = ({ mobileOpen, handleDrawerToggle }) => {
   ];
 
   const doctorNavItems = [
-    { text: 'Doctor Dashboard', icon: <DoctorIcon />, path: '/doctor-home', badge: null },
-    { text: 'Medicine Management', icon: <MedicineIcon />, path: '/medicines', badge: null },
-    { text: 'Analytics', icon: <DashboardIcon />, path: '/dashboard', badge: 'New' },
+    { text: 'Dashboard', icon: <DoctorIcon />, path: '/doctor-home', badge: null },
+    { text: 'Review Requests', icon: <ReviewIcon />, path: '/review-requests', badge: null },
+    { text: 'Medications', icon: <MedicineIcon />, path: '/medications', badge: null },
+    { text: 'Analytics', icon: <DashboardIcon />, path: '/dashboard', badge: null },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings', badge: null },
   ];
 

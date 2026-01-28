@@ -20,7 +20,7 @@ const symptomProgressionSchema = new mongoose.Schema({
   // Medicine information
   medicine: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Medicine',
+    ref: 'Medication',
     required: [true, 'Medicine is required'],
     index: true
   },

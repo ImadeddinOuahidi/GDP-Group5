@@ -2,29 +2,27 @@ import { useState, useEffect } from "react";
 import { createContainer } from "unstated-next";
 import { api } from "../../services/apiClient";
 
-// Mock user database for demo purposes (fallback)
+// Demo user database for demo purposes (fallback)
 const MOCK_USERS = {
-  patient1: { 
+  "patient@demo.com": { 
     _id: "demo-patient1",
-    email: "patient1@example.com", 
-    username: "patient1",
-    password: "1234", 
+    email: "patient@demo.com", 
+    password: "Demo@123", 
     role: "patient", 
-    name: "John Doe",
-    firstName: "John",
-    lastName: "Doe",
+    name: "Demo Patient",
+    firstName: "Demo",
+    lastName: "Patient",
     isActive: true,
     isEmailVerified: true
   },
-  doctor1: { 
+  "doctor@demo.com": { 
     _id: "demo-doctor1",
-    email: "doctor1@example.com", 
-    username: "doctor1",
-    password: "abcd", 
+    email: "doctor@demo.com", 
+    password: "Demo@123", 
     role: "doctor", 
-    name: "Dr. Smith",
-    firstName: "Dr. Jane",
-    lastName: "Smith",
+    name: "Dr. Demo",
+    firstName: "Dr. Demo",
+    lastName: "Doctor",
     isActive: true,
     isEmailVerified: true
   },
@@ -79,15 +77,8 @@ function useAuth(initialState = null) {
     setError("");
     
     try {
-      // Determine if input is email or username for demo users
-      let email = emailOrUsername;
-      if (!emailOrUsername.includes('@')) {
-        // It's a username, map to demo email
-        const mockUser = MOCK_USERS[emailOrUsername];
-        if (mockUser) {
-          email = mockUser.email;
-        }
-      }
+      // Normalize email input (MOCK_USERS now uses email as key)
+      const email = emailOrUsername.toLowerCase().trim();
 
       // Try API call first
       try {
@@ -121,18 +112,16 @@ function useAuth(initialState = null) {
         if (apiError.code === 'ECONNREFUSED' || apiError.message.includes('Network Error')) {
           console.log("API unavailable, trying demo credentials...");
           
-          const username = emailOrUsername.includes('@') ? 
-            Object.keys(MOCK_USERS).find(key => MOCK_USERS[key].email === emailOrUsername) :
-            emailOrUsername;
+          // MOCK_USERS now keyed by email
+          const mockUser = MOCK_USERS[email];
             
-          if (username && MOCK_USERS[username] && MOCK_USERS[username].password === password) {
-            const mockUser = MOCK_USERS[username];
+          if (mockUser && mockUser.password === password) {
             
             // Use the complete mock user data with normalization
             const normalizedUser = {
               ...mockUser,
-              name: mockUser.name || mockUser.username,
-              firstName: mockUser.firstName || mockUser.name?.split(' ')[0] || mockUser.username,
+              name: mockUser.name || mockUser.email,
+              firstName: mockUser.firstName || mockUser.name?.split(' ')[0] || 'User',
               lastName: mockUser.lastName || mockUser.name?.split(' ')[1] || '',
             };
             
@@ -140,7 +129,7 @@ function useAuth(initialState = null) {
             setIsAuthenticated(true);
             
             // Save to localStorage (demo token)
-            localStorage.setItem("token", `demo-token-${username}`);
+            localStorage.setItem("token", `demo-token-${mockUser.role}`);
             localStorage.setItem("user", JSON.stringify(normalizedUser));
             
             return { success: true, user: normalizedUser };

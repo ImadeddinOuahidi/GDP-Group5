@@ -54,8 +54,8 @@ export default function Login({ onShowRegistration }) {
   };
 
   const demoCredentials = [
-    { role: "Patient", username: "patient1", email: "patient1@example.com", password: "1234", color: "primary" },
-    { role: "Doctor", username: "doctor1", email: "doctor1@example.com", password: "abcd", color: "secondary" },
+    { role: "Patient", email: "patient@demo.com", password: "Demo@123", color: "primary" },
+    { role: "Doctor", email: "doctor@demo.com", password: "Demo@123", color: "secondary" },
   ];
 
   return (
@@ -110,11 +110,22 @@ export default function Login({ onShowRegistration }) {
                 {demoCredentials.map((cred) => (
                   <Chip
                     key={cred.role}
-                    label={`${cred.role}: ${cred.username}/${cred.password}`}
+                    label={`${cred.role}: ${cred.email} / ${cred.password}`}
                     color={cred.color}
                     variant="outlined"
                     size="small"
-                    sx={{ fontSize: '0.75rem' }}
+                    onClick={() => {
+                      setEmailOrUsername(cred.email);
+                      setPassword(cred.password);
+                    }}
+                    sx={{ 
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      '&:hover': {
+                        backgroundColor: cred.color === 'primary' ? 'primary.light' : 'secondary.light',
+                        color: 'white'
+                      }
+                    }}
                   />
                 ))}
               </Box>

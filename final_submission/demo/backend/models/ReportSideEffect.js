@@ -16,7 +16,7 @@ const reportSideEffectSchema = new mongoose.Schema({
   // Medicine information
   medicine: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Medicine',
+    ref: 'Medication',
     required: [true, 'Medicine is required']
   },
   medicineDetails: {
@@ -106,8 +106,9 @@ const reportSideEffectSchema = new mongoose.Schema({
       enum: [
         'Gastrointestinal', 'Cardiovascular', 'Respiratory', 'Nervous System',
         'Musculoskeletal', 'Dermatological', 'Genitourinary', 'Endocrine',
-        'Hematological', 'Psychiatric', 'Ocular', 'Otic', 'Other'
-      ]
+        'Hematological', 'Psychiatric', 'Ocular', 'Otic', 'Other', 'Unknown'
+      ],
+      default: 'Unknown'
     },
     description: {
       type: String,
@@ -340,29 +341,115 @@ const reportSideEffectSchema = new mongoose.Schema({
     },
     aiProcessingError: String,
     aiAnalysis: {
-      overallSeverity: {
-        type: String,
-        enum: ['Mild', 'Moderate', 'Severe', 'Life-threatening']
+      severity: {
+        level: {
+          type: String,
+          enum: ['Mild', 'Moderate', 'Severe', 'Life-threatening']
+        },
+        confidence: Number,
+        reasoning: String
       },
-      priorityLevel: {
+      priority: {
         type: String,
         enum: ['Low', 'Medium', 'High', 'Critical']
       },
-      seriousnessClassification: {
-        type: String,
-        enum: ['Serious', 'Non-serious']
+      seriousness: {
+        classification: {
+          type: String,
+          enum: ['Serious', 'Non-serious']
+        },
+        reasons: [String]
       },
-      confidenceScore: {
-        type: Number,
-        min: 0,
-        max: 100
-      },
-      reasoning: String,
-      recommendedActions: [String],
+      bodySystemsAffected: [String],
       riskFactors: [String],
-      requiresImmediateAttention: Boolean,
-      analyzedAt: Date,
-      model: String
+      recommendedActions: [String],
+      causalityAssessment: {
+        likelihood: {
+          type: String,
+          enum: ['Certain', 'Probable', 'Possible', 'Unlikely', 'Unassessable']
+        },
+        reasoning: String
+      },
+      keywords: [String],
+      summary: String,
+      overallRiskScore: Number,
+      // Patient-facing guidance from AI
+      patientGuidance: {
+        urgencyLevel: {
+          type: String,
+          enum: ['routine', 'soon', 'urgent', 'emergency'],
+          default: 'routine'
+        },
+        recommendation: String,  // Main guidance message
+        nextSteps: [String],     // Action items for patient
+        warningSignsToWatch: [String],  // Red flags to monitor
+        canContinueMedication: {
+          type: Boolean,
+          default: true
+        },
+        shouldSeekMedicalAttention: {
+          type: Boolean,
+          default: false
+        }
+      },
+      model: String,
+      processedAt: Date
+    },
+    aiModelUsed: String,
+    aiRiskScore: Number
+  },
+  
+  // Doctor Review Request
+  doctorReview: {
+    requested: {
+      type: Boolean,
+      default: false
+    },
+    requestedAt: Date,
+    requestedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    requestReason: String,
+    // Review status
+    status: {
+      type: String,
+      enum: ['not_requested', 'pending', 'in_review', 'completed'],
+      default: 'not_requested'
+    },
+    // Assigned doctor
+    assignedDoctor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    assignedAt: Date,
+    // Doctor's review
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    reviewedAt: Date,
+    // Doctor's remarks/notes
+    remarks: String,
+    // Doctor's assessment
+    doctorAssessment: {
+      agreedWithAI: Boolean,
+      severityOverride: {
+        type: String,
+        enum: ['Mild', 'Moderate', 'Severe', 'Life-threatening']
+      },
+      recommendation: String,
+      actionRequired: {
+        type: String,
+        enum: ['none', 'monitor', 'adjust_dosage', 'stop_medication', 'seek_emergency', 'schedule_appointment'],
+        default: 'none'
+      },
+      followUpRequired: {
+        type: Boolean,
+        default: false
+      },
+      followUpDate: Date,
+      additionalNotes: String
     }
   },
   

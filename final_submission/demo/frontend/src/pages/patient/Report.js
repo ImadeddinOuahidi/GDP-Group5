@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Container,
   Paper,
@@ -19,30 +19,148 @@ import {
   MenuItem,
   IconButton,
   Autocomplete,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Divider,
+  Chip,
+  LinearProgress,
+  Tooltip,
 } from "@mui/material";
 import {
   CloudUpload as UploadIcon,
   Mic as MicIcon,
+  MicOff as MicOffIcon,
   Send as SendIcon,
   PhotoCamera as PhotoIcon,
   Delete as DeleteIcon,
+  Add as AddIcon,
+  Stop as StopIcon,
+  FiberManualRecord as RecordIcon,
 } from "@mui/icons-material";
 import { ButtonLoading } from "../../components/ui/Loading";
-import { reportService, medicineService } from "../../services";
+import { reportService, medicationService } from "../../services";
+import { MEDICATION_CATEGORIES, MEDICATION_DOSAGE_FORMS } from "../../config/constants";
 import AuthContainer from '../../store/containers/AuthContainer';
 
 const steps = ['Basic Information', 'Describe Symptoms', 'Additional Details'];
+
+// Speech-to-text hook
+const useSpeechToText = () => {
+  const [isListening, setIsListening] = useState(false);
+  const [transcript, setTranscript] = useState('');
+  const [isSupported, setIsSupported] = useState(false);
+  const [error, setError] = useState(null);
+  const recognitionRef = useRef(null);
+
+  useEffect(() => {
+    // Check for browser support
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      setIsSupported(true);
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+      recognitionRef.current.lang = 'en-US';
+
+      recognitionRef.current.onresult = (event) => {
+        let finalTranscript = '';
+        let interimTranscript = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i];
+          if (result.isFinal) {
+            finalTranscript += result[0].transcript + ' ';
+          } else {
+            interimTranscript += result[0].transcript;
+          }
+        }
+        
+        setTranscript(prev => prev + finalTranscript);
+      };
+
+      recognitionRef.current.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setError(event.error);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
+
+  const startListening = useCallback(() => {
+    if (recognitionRef.current && !isListening) {
+      setError(null);
+      setTranscript('');
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  }, [isListening]);
+
+  const stopListening = useCallback(() => {
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    }
+  }, [isListening]);
+
+  const resetTranscript = useCallback(() => {
+    setTranscript('');
+  }, []);
+
+  return {
+    isListening,
+    transcript,
+    isSupported,
+    error,
+    startListening,
+    stopListening,
+    resetTranscript
+  };
+};
 
 export default function Report() {
   const { user, isAuthenticated, login } = AuthContainer.useContainer();
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [medicines, setMedicines] = useState([]);
-  const [selectedMedicine, setSelectedMedicine] = useState(null);
-  const [medicineSearchLoading, setMedicineSearchLoading] = useState(false);
+  const [medications, setMedications] = useState([]);
+  const [selectedMedication, setSelectedMedication] = useState(null);
+  const [medicationSearchLoading, setMedicationSearchLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
+  const [submissionError, setSubmissionError] = useState('');
+  
+  // Speech-to-text
+  const { 
+    isListening, 
+    transcript, 
+    isSupported: speechSupported, 
+    error: speechError,
+    startListening, 
+    stopListening,
+    resetTranscript 
+  } = useSpeechToText();
+  
+  // New medication dialog state
+  const [newMedicationDialog, setNewMedicationDialog] = useState(false);
+  const [newMedicationData, setNewMedicationData] = useState({
+    name: '',
+    genericName: '',
+    category: '',
+    dosageForm: ''
+  });
+  const [newMedicationLoading, setNewMedicationLoading] = useState(false);
   
   // Form data
   const [formData, setFormData] = useState({
@@ -59,60 +177,47 @@ export default function Report() {
     photo: null,
   });
 
-  // Initialize component
+  // Update symptoms when transcript changes
   useEffect(() => {
-    // Load some default medicines on component mount for better UX
-    const initializeMedicines = async () => {
+    if (transcript) {
+      setFormData(prev => ({
+        ...prev,
+        symptoms: prev.symptoms + transcript
+      }));
+      resetTranscript();
+    }
+  }, [transcript, resetTranscript]);
+
+  // Initialize component - load popular medications
+  useEffect(() => {
+    const initializeMedications = async () => {
       try {
-        // Load popular medicines to show some options initially
-        const response = await medicineService.search('a'); // Generic search for common medicines
-        if (response.status === 'success' && response.data) {
-          setMedicines(response.data.slice(0, 10)); // Show first 10 as initial options
+        const response = await medicationService.getPopular(10);
+        if (response.success && response.data?.medications) {
+          setMedications(response.data.medications);
         }
       } catch (error) {
-        console.log('Failed to load initial medicines, using fallback');
-        // Set some demo medicines as fallback
-        setMedicines([
-          {
-            _id: 'demo-1',
-            name: 'Paracetamol',
-            genericName: 'Acetaminophen',
-            category: 'Analgesic'
-          },
-          {
-            _id: 'demo-2', 
-            name: 'Ibuprofen',
-            genericName: 'Ibuprofen',
-            category: 'NSAID'
-          },
-          {
-            _id: 'demo-3',
-            name: 'Aspirin',
-            genericName: 'Acetylsalicylic acid',
-            category: 'NSAID'
-          }
-        ]);
+        console.log('Failed to load initial medications:', error);
       }
     };
 
-    initializeMedicines();
+    initializeMedications();
   }, []);
 
   // Quick demo login function
   const handleDemoLogin = async () => {
     setLoading(true);
     try {
-      const result = await login('patient1@example.com', '1234');
+      const result = await login('patient@demo.com', 'Demo@123');
       if (!result.success) {
         // If API login fails, set up demo authentication manually
         const demoUser = {
           _id: 'demo-patient1',
-          email: 'patient1@example.com',
-          username: 'patient1',
+          email: 'patient@demo.com',
           role: 'patient',
-          name: 'John Doe',
-          firstName: 'John',
-          lastName: 'Doe',
+          name: 'Demo Patient',
+          firstName: 'Demo',
+          lastName: 'Patient',
           isActive: true,
           isEmailVerified: true
         };
@@ -138,54 +243,98 @@ export default function Report() {
     });
   };
 
-  const searchMedicines = async (searchTerm) => {
-    console.log('Searching for medicines with term:', searchTerm); // Debug log
-    
+  // Search medications using new medication service
+  const searchMedications = async (searchTerm) => {
     if (!searchTerm || searchTerm.length < 1) {
-      // Load some default medicines when search is cleared
-      setMedicines([
-        {
-          _id: 'demo-1',
-          name: 'Paracetamol',
-          genericName: 'Acetaminophen',
-          category: 'Analgesic'
-        },
-        {
-          _id: 'demo-2', 
-          name: 'Ibuprofen',
-          genericName: 'Ibuprofen',
-          category: 'NSAID'
+      // Show popular medications when search is empty
+      try {
+        const response = await medicationService.getPopular(10);
+        if (response.success && response.data?.medications) {
+          setMedications(response.data.medications);
         }
-      ]);
+      } catch (error) {
+        console.log('Error loading popular medications');
+      }
       return;
     }
     
-    setMedicineSearchLoading(true);
+    setMedicationSearchLoading(true);
     try {
-      const response = await medicineService.search(searchTerm);
-      console.log('Medicine search response:', response); // Debug log
-      
-      if (response.status === 'success' && response.data) {
-        setMedicines(response.data);
+      const response = await medicationService.search(searchTerm);
+      if (response.success && response.data?.medications) {
+        setMedications(response.data.medications);
       } else {
-        console.log('No medicines found, setting empty array');
-        setMedicines([]);
+        setMedications([]);
       }
     } catch (error) {
-      console.error('Error searching medicines:', error);
-      setMedicines([]);
+      console.error('Error searching medications:', error);
+      setMedications([]);
     } finally {
-      setMedicineSearchLoading(false);
+      setMedicationSearchLoading(false);
     }
   };
 
-  const handleMedicineSelect = (event, value) => {
-    setSelectedMedicine(value);
+  const handleMedicationSelect = (event, value) => {
+    setSelectedMedication(value);
     if (value) {
       setFormData({
         ...formData,
         medicationName: value.name,
       });
+    }
+  };
+
+  // Handle creating a new medication
+  const handleOpenNewMedicationDialog = () => {
+    setNewMedicationDialog(true);
+  };
+
+  const handleCloseNewMedicationDialog = () => {
+    setNewMedicationDialog(false);
+    setNewMedicationData({
+      name: '',
+      genericName: '',
+      category: '',
+      dosageForm: ''
+    });
+  };
+
+  const handleNewMedicationInputChange = (field) => (event) => {
+    setNewMedicationData({
+      ...newMedicationData,
+      [field]: event.target.value,
+    });
+  };
+
+  const handleCreateNewMedication = async () => {
+    if (!newMedicationData.name.trim()) {
+      return;
+    }
+
+    setNewMedicationLoading(true);
+    try {
+      const response = await medicationService.createPatientMedication(newMedicationData);
+      
+      if (response.success) {
+        const newMedication = response.data.medication;
+        setSelectedMedication(newMedication);
+        setFormData({
+          ...formData,
+          medicationName: newMedication.name,
+        });
+        setMedications(prev => [newMedication, ...prev]);
+        handleCloseNewMedicationDialog();
+        
+        // Show message if it was an existing medication
+        if (response.data.isExisting) {
+          alert('This medication already exists in our system. We\'ve selected it for you.');
+        }
+      }
+    } catch (error) {
+      console.error('Error creating medication:', error);
+      alert('Failed to create medication. Please try again.');
+    } finally {
+      setNewMedicationLoading(false);
     }
   };
 
@@ -211,10 +360,10 @@ export default function Report() {
     const errors = {};
     
     if (activeStep === 0) {
-      if (!selectedMedicine) errors.medicine = 'Please select a medicine';
+      if (!selectedMedication) errors.medication = 'Please select a medication';
       if (!formData.dosage.trim()) errors.dosage = 'Please enter the dosage';
       if (!formData.frequency) errors.frequency = 'Please select frequency';
-      if (!formData.indication.trim()) errors.indication = 'Please enter what this medicine is for';
+      if (!formData.indication.trim()) errors.indication = 'Please enter what this medication is for';
     } else if (activeStep === 1) {
       if (!formData.symptoms.trim()) errors.symptoms = 'Please describe your symptoms';
       if (!formData.severity) errors.severity = 'Please select severity level';
@@ -239,14 +388,15 @@ export default function Report() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmissionError('');
     
     if (!isAuthenticated || !user) {
-      alert('You must be logged in to submit a report.');
+      setSubmissionError('You must be logged in to submit a report.');
       return;
     }
     
-    if (!selectedMedicine) {
-      alert('Please select a medicine from the search results.');
+    if (!selectedMedication) {
+      setSubmissionError('Please select a medication from the list or create a new one.');
       return;
     }
     
@@ -254,39 +404,36 @@ export default function Report() {
     
     try {
       // Prepare report data for API submission matching backend schema
+      // Note: Backend expects 'medicine' not 'medication'
       const reportData = {
-        reportedBy: user._id, // Required: Reporter user ID
-        reporterRole: user.role || 'patient', // Required: Reporter role
-        medicine: selectedMedicine._id, // Medicine ObjectId required
+        // Don't send reportedBy - backend gets it from authenticated user
+        reporterRole: user.role || 'patient',
+        medicine: selectedMedication._id, // Backend expects 'medicine' field
         sideEffects: [{
-          effect: formData.symptoms,
+          effect: formData.symptoms.trim(),
           severity: formData.severity,
-          onset: formData.onset
+          onset: formData.onset,
+          description: formData.additionalInfo?.trim() || undefined
         }],
         medicationUsage: {
-          indication: formData.indication || 'Not specified',
+          indication: formData.indication?.trim() || 'General use',
           dosage: {
-            amount: formData.dosage,
-            frequency: formData.frequency,
+            amount: formData.dosage.trim(),
+            frequency: formData.frequency.trim(),
             route: formData.route
           },
-          startDate: formData.startDate ? new Date(formData.startDate).toISOString() : new Date().toISOString()
+          startDate: formData.startDate ? new Date(formData.startDate) : new Date()
         },
         reportDetails: {
-          incidentDate: formData.startDate ? new Date(formData.startDate).toISOString() : new Date().toISOString(),
+          incidentDate: formData.startDate ? new Date(formData.startDate) : new Date(),
           seriousness: formData.severity === 'Severe' || formData.severity === 'Life-threatening' ? 'Serious' : 'Non-serious',
           outcome: 'Unknown'
         },
         patientInfo: {
-          age: user.age || null,
+          age: user.age || undefined,
           gender: user.gender || 'other'
         }
       };
-
-      // Add additional info as description if provided
-      if (formData.additionalInfo) {
-        reportData.sideEffects[0].description = formData.additionalInfo;
-      }
 
       console.log('Submitting report data:', reportData);
       
@@ -301,20 +448,39 @@ export default function Report() {
       }
     } catch (error) {
       console.error('Error submitting report:', error);
-      alert(`Failed to submit report: ${error.message || 'Please try again.'}`);
+      // Extract detailed error message
+      let errorMessage = 'Failed to submit report. Please try again.';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.errors) {
+        errorMessage = error.response.data.errors.map(e => e.msg || e.message).join(', ');
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      setSubmissionError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
+  // Voice input toggle
   const handleVoiceInput = () => {
-    alert("Voice input feature coming soon! This will allow you to record your symptoms verbally.");
+    if (!speechSupported) {
+      setSubmissionError('Speech recognition is not supported in your browser. Please use Chrome or Edge.');
+      return;
+    }
+    
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
   };
 
   const isStepComplete = (step) => {
     switch (step) {
       case 0:
-        return selectedMedicine && formData.dosage && formData.frequency && formData.indication;
+        return selectedMedication && formData.dosage && formData.frequency && formData.indication;
       case 1:
         return formData.symptoms && formData.severity;
       case 2:
@@ -330,49 +496,75 @@ export default function Report() {
         return (
           <Grid container spacing={3}>
             <Grid item xs={12}>
-              <Autocomplete
-                options={medicines}
-                getOptionLabel={(option) => `${option.name} ${option.genericName ? `(${option.genericName})` : ''}`}
-                value={selectedMedicine}
-                onChange={handleMedicineSelect}
-                onInputChange={(event, value, reason) => {
-                  console.log('Input change:', value, reason); // Debug log
-                  if (reason === 'input') {
-                    searchMedicines(value);
-                  }
-                }}
-                loading={medicineSearchLoading}
-                filterOptions={(x) => x} // Disable built-in filtering since we handle it server-side
-                noOptionsText="Type to search for medicines..."
-                loadingText="Searching medicines..."
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    required
-                    label="Search Medicine"
-                    placeholder="Start typing medicine name..."
-                    helperText={validationErrors.medicine || "Search and select the medication you are reporting about"}
-                    error={!!validationErrors.medicine}
-                  />
-                )}
-                renderOption={(props, option) => (
-                  <Box component="li" {...props}>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                <Autocomplete
+                  sx={{ flexGrow: 1 }}
+                  options={medications}
+                  getOptionLabel={(option) => `${option.name}${option.genericName ? ` (${option.genericName})` : ''}`}
+                  value={selectedMedication}
+                  onChange={handleMedicationSelect}
+                  onInputChange={(event, value, reason) => {
+                    if (reason === 'input') {
+                      searchMedications(value);
+                    }
+                  }}
+                  loading={medicationSearchLoading}
+                  filterOptions={(x) => x} // Disable built-in filtering since we handle it server-side
+                  noOptionsText={
                     <Box>
-                      <Typography variant="body1">{option.name}</Typography>
-                      {option.genericName && (
-                        <Typography variant="body2" color="text.secondary">
-                          {option.genericName}
-                        </Typography>
-                      )}
-                      {option.category && (
-                        <Typography variant="caption" color="text.secondary">
-                          Category: {option.category}
-                        </Typography>
-                      )}
+                      <Typography variant="body2" sx={{ mb: 1 }}>No medications found</Typography>
+                      <Button
+                        size="small"
+                        startIcon={<AddIcon />}
+                        onClick={handleOpenNewMedicationDialog}
+                      >
+                        Add New Medication
+                      </Button>
                     </Box>
-                  </Box>
-                )}
-              />
+                  }
+                  loadingText="Searching medications..."
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      required
+                      label="Search Medication"
+                      placeholder="Start typing medication name..."
+                      helperText={validationErrors.medication || "Search and select the medication you are reporting about"}
+                      error={!!validationErrors.medication}
+                    />
+                  )}
+                  renderOption={(props, option) => (
+                    <Box component="li" {...props}>
+                      <Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography variant="body1">{option.name}</Typography>
+                          {option.source === 'patient' && !option.isVerified && (
+                            <Chip label="Unverified" size="small" color="warning" variant="outlined" />
+                          )}
+                        </Box>
+                        {option.genericName && (
+                          <Typography variant="body2" color="text.secondary">
+                            {option.genericName}
+                          </Typography>
+                        )}
+                        {option.category && (
+                          <Typography variant="caption" color="text.secondary">
+                            Category: {option.category}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  )}
+                />
+                <Button
+                  variant="outlined"
+                  startIcon={<AddIcon />}
+                  onClick={handleOpenNewMedicationDialog}
+                  sx={{ mt: 1, whiteSpace: 'nowrap' }}
+                >
+                  Can't find it?
+                </Button>
+              </Box>
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
@@ -401,6 +593,7 @@ export default function Report() {
               <FormControl fullWidth>
                 <InputLabel>Route of Administration</InputLabel>
                 <Select
+                  sx={{minWidth: '220px'}}
                   value={formData.route}
                   label="Route of Administration"
                   onChange={handleInputChange('route')}
@@ -446,6 +639,7 @@ export default function Report() {
               <FormControl fullWidth required>
                 <InputLabel>Severity Level</InputLabel>
                 <Select
+                  sx={{minWidth: '220px'}}
                   value={formData.severity}
                   label="Severity Level"
                   onChange={handleInputChange('severity')}
@@ -461,6 +655,7 @@ export default function Report() {
               <FormControl fullWidth required>
                 <InputLabel>When did it start?</InputLabel>
                 <Select
+                  sx={{minWidth: '220px'}}
                   value={formData.onset}
                   label="When did it start?"
                   onChange={handleInputChange('onset')}
@@ -474,14 +669,39 @@ export default function Report() {
               </FormControl>
             </Grid>
             <Grid item xs={12}>
-              <Button
-                variant="outlined"
-                startIcon={<MicIcon />}
-                onClick={handleVoiceInput}
-                sx={{ mr: 2 }}
-              >
-                Record Voice Description
-              </Button>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                <Tooltip title={speechSupported ? (isListening ? 'Click to stop recording' : 'Click to start voice recording') : 'Speech recognition not supported in this browser'}>
+                  <span>
+                    <Button
+                      variant={isListening ? "contained" : "outlined"}
+                      color={isListening ? "error" : "primary"}
+                      startIcon={isListening ? <StopIcon /> : <MicIcon />}
+                      onClick={handleVoiceInput}
+                      disabled={!speechSupported}
+                    >
+                      {isListening ? 'Stop Recording' : 'Record Voice'}
+                    </Button>
+                  </span>
+                </Tooltip>
+                {isListening && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <RecordIcon sx={{ color: 'error.main', animation: 'pulse 1s infinite' }} />
+                    <Typography variant="body2" color="error">
+                      Listening... Speak now
+                    </Typography>
+                  </Box>
+                )}
+                {!speechSupported && (
+                  <Typography variant="caption" color="text.secondary">
+                    (Use Chrome or Edge for voice input)
+                  </Typography>
+                )}
+              </Box>
+              {speechError && (
+                <Alert severity="warning" sx={{ mt: 1 }}>
+                  Speech error: {speechError}. Please try again.
+                </Alert>
+              )}
             </Grid>
           </Grid>
         );
@@ -585,28 +805,28 @@ export default function Report() {
               onClick={() => {
                 setSubmitted(false);
                 setActiveStep(0);
-                setSelectedMedicine(null);
+                setSelectedMedication(null);
                 setSuccessMessage('');
                 setValidationErrors({});
                 setFormData({
-                medicationName: '',
-                dosage: '',
-                frequency: '',
-                route: 'Oral',
-                indication: '',
-                symptoms: '',
-                severity: 'Mild',
-                onset: 'Within hours',
-                startDate: '',
-                additionalInfo: '',
-                photo: null,
-              });
-            }}
-          >
-            Submit Another Report
-          </Button>
+                  medicationName: '',
+                  dosage: '',
+                  frequency: '',
+                  route: 'Oral',
+                  indication: '',
+                  symptoms: '',
+                  severity: 'Mild',
+                  onset: 'Within hours',
+                  startDate: '',
+                  additionalInfo: '',
+                  photo: null,
+                });
+              }}
+            >
+              Submit Another Report
+            </Button>
+          </Box>
         </Box>
-      </Box>
       </Container>
     );
   }
@@ -655,6 +875,13 @@ export default function Report() {
             ))}
           </Stepper>
 
+          {/* Submission Error Display */}
+          {submissionError && (
+            <Alert severity="error" sx={{ mb: 3 }} onClose={() => setSubmissionError('')}>
+              <Typography variant="body2">{submissionError}</Typography>
+            </Alert>
+          )}
+
           <form onSubmit={handleSubmit}>
             {renderStepContent(activeStep)}
 
@@ -697,6 +924,81 @@ export default function Report() {
           </Alert>
         </Paper>
       </Box>
+
+      {/* New Medication Dialog */}
+      <Dialog open={newMedicationDialog} onClose={handleCloseNewMedicationDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Add New Medication</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
+            Can't find your medication? Add it here and it will be available for your report.
+            A healthcare professional will verify it later.
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <TextField
+                required
+                fullWidth
+                label="Medication Name"
+                placeholder="e.g., Paracetamol, Lisinopril"
+                value={newMedicationData.name}
+                onChange={handleNewMedicationInputChange('name')}
+                autoFocus
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Generic Name (Optional)"
+                placeholder="e.g., Acetaminophen"
+                value={newMedicationData.genericName}
+                onChange={handleNewMedicationInputChange('genericName')}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Category</InputLabel>
+                <Select
+                  sx={{minWidth: '220px'}}
+                  value={newMedicationData.category}
+                  onChange={handleNewMedicationInputChange('category')}
+                  label="Category"
+                >
+                  <MenuItem value="">Select category</MenuItem>
+                  {MEDICATION_CATEGORIES.map(cat => (
+                    <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Dosage Form</InputLabel>
+                <Select
+                  sx={{minWidth: '220px'}}
+                  value={newMedicationData.dosageForm}
+                  onChange={handleNewMedicationInputChange('dosageForm')}
+                  label="Dosage Form"
+                >
+                  <MenuItem value="">Select form</MenuItem>
+                  {MEDICATION_DOSAGE_FORMS.map(form => (
+                    <MenuItem key={form} value={form}>{form}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseNewMedicationDialog}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleCreateNewMedication}
+            disabled={!newMedicationData.name.trim() || newMedicationLoading}
+          >
+            {newMedicationLoading ? 'Adding...' : 'Add Medication'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

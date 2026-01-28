@@ -4,7 +4,7 @@
  */
 
 const SymptomProgression = require('../models/SymptomProgression');
-const Medicine = require('../models/Medicine');
+const Medication = require('../models/Medication');
 
 class SymptomProgressionAnalytics {
 

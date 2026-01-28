@@ -36,7 +36,7 @@ async function createDemoUser() {
     console.log('Connected to MongoDB');
 
     // Check if demo user exists
-    const existingUser = await User.findOne({ email: 'patient1@example.com' });
+    const existingUser = await User.findOne({ email: 'patient@demo.com' });
     if (existingUser) {
       console.log('Demo user already exists:', existingUser.email);
       return;
@@ -46,8 +46,8 @@ async function createDemoUser() {
     const demoUser = new User({
       firstName: 'Demo',
       lastName: 'Patient',
-      email: 'patient1@example.com',
-      password: '1234',
+      email: 'patient@demo.com',
+      password: 'Demo@123',
       phone: '555-123-4567',
       role: 'patient',
     });
