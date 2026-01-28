@@ -6,7 +6,7 @@ const ReportSideEffect = require('../models/ReportSideEffect');
 const SymptomProgression = require('../models/SymptomProgression');
 
 // MongoDB Connection URI - use the same logic as in your app.js
-const mongoURI = process.env.MONGODB_URI || 'mongodb+srv://modugulaanjireddy18_db_user:r0H53qLCObKUZc9Z@cluster0.cncdtpb.mongodb.net/';
+const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/healthcare_app';
 
 const seedDatabase = async () => {
   try {

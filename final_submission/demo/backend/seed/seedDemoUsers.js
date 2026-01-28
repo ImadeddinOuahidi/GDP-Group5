@@ -12,7 +12,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 // Get MongoDB URI from config (same as main app)
-const MONGO_URI = process.env.MONGODB_URI || 'mongodb+srv://modugulaanjireddy18_db_user:r0H53qLCObKUZc9Z@cluster0.cncdtpb.mongodb.net/';
+const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/healthcare_app';
 
 // Define User schema directly to avoid model conflicts
 const userSchema = new mongoose.Schema({

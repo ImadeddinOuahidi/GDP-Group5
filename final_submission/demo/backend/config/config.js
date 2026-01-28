@@ -16,7 +16,7 @@ const config = {
 
   // Database Configuration
   database: {
-    uri: process.env.MONGODB_URI || 'mongodb+srv://modugulaanjireddy18_db_user:r0H53qLCObKUZc9Z@cluster0.cncdtpb.mongodb.net/',
+    uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/healthcare_app',
     options: {
       maxPoolSize: parseInt(process.env.DB_POOL_SIZE) || 10,
       minPoolSize: parseInt(process.env.DB_MIN_POOL_SIZE) || 2,
