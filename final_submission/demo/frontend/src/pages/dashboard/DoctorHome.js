@@ -33,6 +33,8 @@ import {
   LightMode as LightModeIcon,
   RateReview as ReviewIcon,
   ArrowForward as ArrowForwardIcon,
+  SmartToy as AIIcon,
+  PriorityHigh as CriticalIcon,
 } from '@mui/icons-material';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthContainer from '../../store/containers/AuthContainer';
@@ -48,12 +50,17 @@ export default function DoctorHome() {
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
-    approved: 0,
-    rejected: 0,
+    reviewed: 0,
     severe: 0,
-    high: 0,
+    highPriority: 0,
     thisWeek: 0,
+    aiProcessed: 0,
+    pendingReviews: 0,
   });
+  const [aiSeverity, setAiSeverity] = useState([]);
+  const [patientSeverity, setPatientSeverity] = useState([]);
+  const [priorityDist, setPriorityDist] = useState([]);
+  const [topMedicines, setTopMedicines] = useState([]);
   const [pendingReviewCount, setPendingReviewCount] = useState(0);
   const [recentReviews, setRecentReviews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,35 +70,41 @@ export default function DoctorHome() {
     try {
       setLoading(true);
       
-      // Load reports for stats
-      const reportsResponse = await reportService.getAllReports({
-        page: 1,
-        limit: 100,
-        sortBy: 'createdAt',
-        sortOrder: 'desc'
-      });
+      // Use the backend aggregation endpoint instead of fetching 100 reports client-side
+      const [dashResponse, reviewsResponse] = await Promise.all([
+        reportService.getDashboardStats(),
+        reportService.getPendingReviews()
+      ]);
       
-      if (reportsResponse.status === 'success' && reportsResponse.data) {
-        const reports = reportsResponse.data;
-        const now = new Date();
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      if (dashResponse.success && dashResponse.data) {
+        const d = dashResponse.data;
+        
+        // Parse status distribution into a map
+        const statusMap = {};
+        (d.reportsByStatus || []).forEach(s => { statusMap[s._id] = s.count; });
         
         setStats({
-          total: reports.length,
-          pending: reports.filter(r => r.status?.toLowerCase() === 'submitted' || r.status?.toLowerCase() === 'pending').length,
-          approved: reports.filter(r => r.status?.toLowerCase() === 'reviewed' || r.status?.toLowerCase() === 'approved').length,
-          rejected: reports.filter(r => r.status?.toLowerCase() === 'rejected').length,
-          severe: reports.filter(r => r.sideEffects?.some(se => se.severity?.toLowerCase() === 'severe')).length,
-          high: reports.filter(r => r.priority?.toLowerCase() === 'high').length,
-          thisWeek: reports.filter(r => new Date(r.createdAt) > weekAgo).length,
+          total: d.totalReports || 0,
+          pending: (statusMap['Submitted'] || 0) + (statusMap['Under Review'] || 0),
+          reviewed: statusMap['Reviewed'] || 0,
+          severe: d.severeCaseCount || 0,
+          highPriority: d.highPriorityCount || 0,
+          thisWeek: d.reportsThisWeek || 0,
+          aiProcessed: d.aiProcessedCount || 0,
+          pendingReviews: d.pendingReviewCount || 0,
         });
+        
+        setAiSeverity(d.aiSeverityDistribution || []);
+        setPatientSeverity(d.patientSeverityDistribution || []);
+        setPriorityDist(d.reportsByPriority || []);
+        setTopMedicines(d.mostReportedMedicines || []);
       }
 
       // Load pending review requests
-      const reviewsResponse = await reportService.getPendingReviews();
-      if (reviewsResponse.success && reviewsResponse.data?.reports) {
-        setPendingReviewCount(reviewsResponse.data.reports.length);
-        setRecentReviews(reviewsResponse.data.reports.slice(0, 3));
+      const reviewsArray = Array.isArray(reviewsResponse.data) ? reviewsResponse.data : (reviewsResponse.data?.reports || []);
+      if (reviewsResponse.success && reviewsArray.length >= 0) {
+        setPendingReviewCount(reviewsArray.length);
+        setRecentReviews(reviewsArray.slice(0, 3));
       }
       
     } catch (error) {
@@ -210,7 +223,7 @@ export default function DoctorHome() {
 
       {/* Statistics Dashboard */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={4} lg={2.4}>
+        <Grid item xs={12} sm={6} md={4} lg={2}>
           <Card 
             sx={{ 
               height: '100%',
@@ -233,7 +246,7 @@ export default function DoctorHome() {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={4} lg={2.4}>
+        <Grid item xs={12} sm={6} md={4} lg={2}>
           <Card 
             sx={{ 
               height: '100%',
@@ -258,7 +271,7 @@ export default function DoctorHome() {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={4} lg={2.4}>
+        <Grid item xs={12} sm={6} md={4} lg={2}>
           <Card 
             sx={{ 
               height: '100%',
@@ -270,18 +283,18 @@ export default function DoctorHome() {
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                 <ApprovedIcon sx={{ fontSize: 40, mr: 2 }} />
                 <Typography variant="h3" sx={{ fontWeight: 700 }}>
-                  {stats.approved}
+                  {stats.reviewed}
                 </Typography>
               </Box>
               <Typography variant="body1" sx={{ opacity: 0.9 }}>Reviewed</Typography>
               <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                {stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0}% completed
+                {stats.total > 0 ? Math.round((stats.reviewed / stats.total) * 100) : 0}% completed
               </Typography>
             </CardContent>
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={4} lg={2.4}>
+        <Grid item xs={12} sm={6} md={4} lg={2}>
           <Card 
             sx={{ 
               height: '100%',
@@ -297,12 +310,12 @@ export default function DoctorHome() {
                 </Typography>
               </Box>
               <Typography variant="body1" sx={{ opacity: 0.9 }}>Severe Cases</Typography>
-              <Typography variant="caption" sx={{ opacity: 0.7 }}>Requires attention</Typography>
+              <Typography variant="caption" sx={{ opacity: 0.7 }}>AI + patient reported</Typography>
             </CardContent>
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={4} lg={2.4}>
+        <Grid item xs={12} sm={6} md={4} lg={2}>
           <Card 
             sx={{ 
               height: '100%',
@@ -312,9 +325,9 @@ export default function DoctorHome() {
           >
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <TrendingUpIcon sx={{ fontSize: 40, mr: 2 }} />
+                <CriticalIcon sx={{ fontSize: 40, mr: 2 }} />
                 <Typography variant="h3" sx={{ fontWeight: 700 }}>
-                  {stats.high}
+                  {stats.highPriority}
                 </Typography>
               </Box>
               <Typography variant="body1" sx={{ opacity: 0.9 }}>High Priority</Typography>
@@ -322,6 +335,91 @@ export default function DoctorHome() {
             </CardContent>
           </Card>
         </Grid>
+
+        <Grid item xs={12} sm={6} md={4} lg={2}>
+          <Card 
+            sx={{ 
+              height: '100%',
+              background: `linear-gradient(135deg, #7c4dff, #651fff)`,
+              color: 'white',
+            }}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <AIIcon sx={{ fontSize: 40, mr: 2 }} />
+                <Typography variant="h3" sx={{ fontWeight: 700 }}>
+                  {stats.aiProcessed}
+                </Typography>
+              </Box>
+              <Typography variant="body1" sx={{ opacity: 0.9 }}>AI Analyzed</Typography>
+              <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                {stats.total > 0 ? Math.round((stats.aiProcessed / stats.total) * 100) : 0}% coverage
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* AI Severity Distribution + Top Medicines */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        {aiSeverity.length > 0 && (
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+                  AI Severity Assessment
+                </Typography>
+                {aiSeverity.map((item) => {
+                  const level = item._id || 'Unknown';
+                  const colorMap = { 'Mild': 'success', 'Moderate': 'warning', 'Severe': 'error', 'Life-threatening': 'error' };
+                  const total = aiSeverity.reduce((sum, s) => sum + s.count, 0);
+                  return (
+                    <Box key={level} sx={{ mb: 1.5 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                        <Chip 
+                          label={level} 
+                          size="small" 
+                          color={colorMap[level] || 'default'}
+                          variant={level === 'Life-threatening' ? 'filled' : 'outlined'}
+                        />
+                        <Typography variant="body2" fontWeight={600}>{item.count}</Typography>
+                      </Box>
+                      <LinearProgress
+                        variant="determinate"
+                        value={total > 0 ? (item.count / total) * 100 : 0}
+                        color={colorMap[level] || 'primary'}
+                        sx={{ height: 8, borderRadius: 4 }}
+                      />
+                    </Box>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+
+        {topMedicines.length > 0 && (
+          <Grid item xs={12} md={aiSeverity.length > 0 ? 6 : 12}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+                  Most Reported Medications
+                </Typography>
+                {topMedicines.map((med, i) => (
+                  <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, borderBottom: i < topMedicines.length - 1 ? '1px solid' : 'none', borderColor: 'divider' }}>
+                    <Box>
+                      <Typography variant="body1" fontWeight={500}>{med.medicineName}</Typography>
+                      {med.medicineGeneric && (
+                        <Typography variant="caption" color="text.secondary">{med.medicineGeneric}</Typography>
+                      )}
+                    </Box>
+                    <Chip label={`${med.reportCount} reports`} size="small" color="primary" variant="outlined" />
+                  </Box>
+                ))}
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
       </Grid>
 
       {/* Quick Actions */}
@@ -418,51 +516,76 @@ export default function DoctorHome() {
               endIcon={<ArrowForwardIcon />} 
               onClick={() => navigate('/review-requests')}
             >
-              View All
+              View All ({pendingReviewCount})
             </Button>
           </Box>
           <Grid container spacing={2}>
-            {recentReviews.map((review) => (
-              <Grid item xs={12} md={4} key={review._id}>
-                <Card 
-                  sx={{ 
-                    cursor: 'pointer',
-                    '&:hover': { boxShadow: theme.shadows[4] },
-                    borderLeft: 4,
-                    borderColor: review.metadata?.aiAnalysis?.patientGuidance?.urgencyLevel === 'urgent' 
-                      ? 'error.main' 
-                      : review.metadata?.aiAnalysis?.patientGuidance?.urgencyLevel === 'soon'
-                      ? 'warning.main'
-                      : 'success.main'
-                  }}
-                  onClick={() => navigate('/review-requests')}
-                >
-                  <CardContent>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <Avatar sx={{ mr: 1, width: 32, height: 32, bgcolor: 'primary.light' }}>
-                        <PatientIcon fontSize="small" />
-                      </Avatar>
-                      <Typography variant="subtitle2" fontWeight={600}>
-                        {review.patient?.firstName} {review.patient?.lastName}
+            {recentReviews.map((review) => {
+              const aiSev = review.metadata?.aiAnalysis?.severity?.level;
+              const patientSev = review.sideEffects?.[0]?.severity;
+              const urgency = review.metadata?.aiAnalysis?.patientGuidance?.urgencyLevel;
+              const borderColor = urgency === 'emergency' || urgency === 'urgent' 
+                ? 'error.main' 
+                : urgency === 'soon' ? 'warning.main' : 'success.main';
+              
+              return (
+                <Grid item xs={12} md={4} key={review._id}>
+                  <Card 
+                    sx={{ 
+                      cursor: 'pointer',
+                      '&:hover': { boxShadow: theme.shadows[4] },
+                      borderLeft: 4,
+                      borderColor
+                    }}
+                    onClick={() => navigate('/review-requests')}
+                  >
+                    <CardContent>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                        <Avatar sx={{ mr: 1, width: 32, height: 32, bgcolor: 'primary.light' }}>
+                          <PatientIcon fontSize="small" />
+                        </Avatar>
+                        <Typography variant="subtitle2" fontWeight={600}>
+                          {review.patient?.firstName} {review.patient?.lastName}
+                        </Typography>
+                      </Box>
+                      <Typography variant="body2" color="text.secondary" noWrap>
+                        {review.medicine?.name} - {review.sideEffects?.[0]?.effect}
                       </Typography>
-                    </Box>
-                    <Typography variant="body2" color="text.secondary" noWrap>
-                      {review.medicine?.name} - {review.sideEffects?.[0]?.effect}
-                    </Typography>
-                    <Box sx={{ mt: 1 }}>
-                      <Chip 
-                        label={review.sideEffects?.[0]?.severity || 'Unknown'} 
-                        size="small"
-                        color={
-                          review.sideEffects?.[0]?.severity?.toLowerCase() === 'severe' ? 'error' :
-                          review.sideEffects?.[0]?.severity?.toLowerCase() === 'moderate' ? 'warning' : 'success'
-                        }
-                      />
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
+                      <Box sx={{ mt: 1, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                        <Chip 
+                          label={patientSev || 'Unknown'} 
+                          size="small"
+                          color={
+                            patientSev === 'Life-threatening' || patientSev === 'Severe' ? 'error' :
+                            patientSev === 'Moderate' ? 'warning' : 'success'
+                          }
+                        />
+                        {aiSev && aiSev !== patientSev && (
+                          <Chip 
+                            icon={<AIIcon sx={{ fontSize: 14 }} />}
+                            label={`AI: ${aiSev}`}
+                            size="small"
+                            variant="outlined"
+                            color={
+                              aiSev === 'Life-threatening' || aiSev === 'Severe' ? 'error' :
+                              aiSev === 'Moderate' ? 'warning' : 'success'
+                            }
+                          />
+                        )}
+                        {review.priority && (
+                          <Chip 
+                            label={review.priority}
+                            size="small"
+                            variant="outlined"
+                            color={review.priority === 'Critical' ? 'error' : review.priority === 'High' ? 'warning' : 'default'}
+                          />
+                        )}
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              );
+            })}
           </Grid>
         </>
       )}

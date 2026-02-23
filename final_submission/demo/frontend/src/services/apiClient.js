@@ -183,12 +183,12 @@ export const api = {
 
   // Medicine endpoints
   medicines: {
-    getAll: (params) => apiClient.get('/medicines', { params }),
-    getById: (id) => apiClient.get(`/medicines/${id}`),
-    create: (medicineData) => apiClient.post('/medicines', medicineData),
-    update: (id, medicineData) => apiClient.put(`/medicines/${id}`, medicineData),
-    delete: (id) => apiClient.delete(`/medicines/${id}`),
-    search: (query) => apiClient.get(`/medicines/search?q=${encodeURIComponent(query)}`)
+    getAll: (params) => apiClient.get('/medications', { params }),
+    getById: (id) => apiClient.get(`/medications/${id}`),
+    create: (medicineData) => apiClient.post('/medications', medicineData),
+    update: (id, medicineData) => apiClient.put(`/medications/${id}`, medicineData),
+    delete: (id) => apiClient.delete(`/medications/${id}`),
+    search: (query) => apiClient.get(`/medications/search?q=${encodeURIComponent(query)}`)
   },
 
   // Reports endpoints
@@ -199,7 +199,24 @@ export const api = {
     update: (id, reportData) => apiClient.put(`/reports/${id}`, reportData),
     delete: (id) => apiClient.delete(`/reports/${id}`),
     getByPatient: (patientId, params) => apiClient.get(`/reports/patient/${patientId}`, { params }),
-    getByDoctor: (doctorId, params) => apiClient.get(`/reports/doctor/${doctorId}`, { params })
+    getByDoctor: (doctorId, params) => apiClient.get(`/reports/doctor/${doctorId}`, { params }),
+    getDashboard: () => apiClient.get('/reports/dashboard')
+  },
+
+  // Notification endpoints
+  notifications: {
+    getAll: (params) => apiClient.get('/notifications', { params }),
+    getUnreadCount: () => apiClient.get('/notifications/unread-count'),
+    markRead: (id) => apiClient.put(`/notifications/${id}/read`),
+    markAllRead: () => apiClient.put('/notifications/mark-all-read'),
+    stream: () => `${apiClient.defaults.baseURL}/notifications/stream`
+  },
+
+  // Export endpoints
+  exports: {
+    reports: (params) => apiClient.get('/export/reports', { params, responseType: 'blob' }),
+    singleReport: (id, format) => apiClient.get(`/export/reports/${id}`, { params: { format } }),
+    statistics: (params) => apiClient.get('/export/statistics', { params, responseType: 'blob' })
   },
 
   // Symptom progression endpoints

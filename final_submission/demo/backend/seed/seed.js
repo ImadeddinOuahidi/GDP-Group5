@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 const { users, medicines, reports, symptomProgressions } = require('./data');
 const User = require('../models/User');
 const Medication = require('../models/Medication');
@@ -24,7 +25,16 @@ const seedDatabase = async () => {
 
     // 3. Insert new data
     console.log('Inserting new seed data...');
-    await User.insertMany(users);
+
+    // insertMany bypasses save() hooks, so hash passwords explicitly.
+    const hashedUsers = await Promise.all(
+      users.map(async (user) => ({
+        ...user,
+        password: await bcrypt.hash(user.password, 12)
+      }))
+    );
+
+    await User.insertMany(hashedUsers);
     console.log(`${users.length} users inserted.`);
 
     await Medication.insertMany(medicines);

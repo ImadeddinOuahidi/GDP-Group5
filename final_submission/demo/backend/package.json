@@ -7,11 +7,14 @@
     "start": "node app.js",
     "dev": "nodemon app.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "seed": "node seed/seed.js"
+    "seed": "node seed/seed.js",
+    "seed:medications": "node seed/seedMedications.js",
+    "seed:demo-users": "node seed/seedDemoUsers.js"
   },
   "author": "Anji Reddy",
   "license": "ISC",
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
     "aws-sdk": "^2.1691.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",

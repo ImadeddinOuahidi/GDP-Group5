@@ -39,7 +39,7 @@ const signupValidation = [
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
   
   body('phone')
-    .isMobilePhone()
+    .isMobilePhone('any')
     .withMessage('Please provide a valid phone number'),
   
   body('dateOfBirth')
@@ -105,7 +105,7 @@ const signupValidation = [
   
   body('patientInfo.emergencyContact.phone')
     .if(body('role').equals('patient'))
-    .isMobilePhone()
+    .isMobilePhone('any')
     .withMessage('Emergency contact phone must be valid'),
   
   body('patientInfo.bloodGroup')
@@ -127,9 +127,25 @@ const signupValidation = [
 
 // Temporary simplified validation for signin
 const signinValidation = [
+  body('identifier')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 150 })
+    .withMessage('Identifier must be between 2 and 150 characters'),
+
   body('email')
-    .notEmpty()
-    .withMessage('Email is required'),
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 150 })
+    .withMessage('Email must be between 2 and 150 characters'),
+
+  body()
+    .custom((value) => {
+      if (!value.identifier && !value.email) {
+        throw new Error('Email or username is required');
+      }
+      return true;
+    }),
   
   body('password')
     .notEmpty()
@@ -232,7 +248,7 @@ router.post('/signup', signupValidation, authController.signup);
  *           schema:
  *             $ref: '#/components/schemas/UserSignin'
  *           example:
- *             email: "john.doe@example.com"
+ *             identifier: "john.doe@example.com"
  *             password: "SecurePass123"
  *     responses:
  *       200:
@@ -427,7 +443,7 @@ router.put('/profile', [
   
   body('phone')
     .optional()
-    .isMobilePhone()
+    .isMobilePhone('any')
     .withMessage('Please provide a valid phone number'),
   
   body('dateOfBirth')

@@ -31,8 +31,8 @@ export const ROUTES = {
   // API Routes
   API: {
     AUTH: {
-      LOGIN: '/auth/login',
-      REGISTER: '/auth/register',
+      LOGIN: '/auth/signin',
+      REGISTER: '/auth/signup',
       REFRESH: '/auth/refresh',
       LOGOUT: '/auth/logout',
     },

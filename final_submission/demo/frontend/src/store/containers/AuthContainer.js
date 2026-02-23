@@ -77,12 +77,12 @@ function useAuth(initialState = null) {
     setError("");
     
     try {
-      // Normalize email input (MOCK_USERS now uses email as key)
-      const email = emailOrUsername.toLowerCase().trim();
+      const identifier = emailOrUsername.trim();
+      const email = identifier.toLowerCase();
 
       // Try API call first
       try {
-        const response = await api.auth.signin({ email, password });
+        const response = await api.auth.signin({ identifier, email, password });
         
         if (response.data.success) {
           const { user: apiUser, token } = response.data.data;

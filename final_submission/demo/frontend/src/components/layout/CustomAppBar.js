@@ -11,6 +11,13 @@ import {
   Avatar,
   Tooltip,
   Chip,
+  Badge,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Divider,
+  Popover,
   useTheme,
 } from '@mui/material';
 import {
@@ -18,18 +25,30 @@ import {
   LightMode,
   AccountCircle,
   Logout,
-  SwapHoriz,
   MedicalServices as MedicalServicesIcon,
+  Notifications as NotificationsIcon,
+  Warning as WarningIcon,
+  CheckCircle as CheckIcon,
+  Info as InfoIcon,
+  Error as ErrorIcon,
+  Language as LanguageIcon,
+  DoneAll as DoneAllIcon,
 } from '@mui/icons-material';
 import { useThemeMode } from '../../styles/theme/ThemeProvider';
 import AuthContainer from '../../store/containers/AuthContainer';
+import { useNotifications } from '../../contexts/NotificationContext';
+import { useI18n } from '../../i18n';
 
 const CustomAppBar = () => {
   const theme = useTheme();
   const { isDarkMode, toggleTheme } = useThemeMode();
   const { user, logout, switchRole, isPatient, isDoctor } = AuthContainer.useContainer();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { locale, changeLanguage, supportedLanguages, t } = useI18n();
   
   const [anchorEl, setAnchorEl] = React.useState(null);
+  const [notifAnchor, setNotifAnchor] = React.useState(null);
+  const [langAnchor, setLangAnchor] = React.useState(null);
 
   // Safe function to get user display name
   const getUserDisplayName = () => {
@@ -151,6 +170,99 @@ const CustomAppBar = () => {
               </IconButton>
             </Tooltip>
 
+            {/* Language Selector */}
+            <Tooltip title={t('settings.selectLanguage')}>
+              <IconButton
+                color="inherit"
+                onClick={(e) => setLangAnchor(e.currentTarget)}
+              >
+                <LanguageIcon />
+              </IconButton>
+            </Tooltip>
+            <Menu
+              anchorEl={langAnchor}
+              open={Boolean(langAnchor)}
+              onClose={() => setLangAnchor(null)}
+              PaperProps={{ sx: { minWidth: 160 } }}
+            >
+              {supportedLanguages.map((lang) => (
+                <MenuItem
+                  key={lang.code}
+                  selected={locale === lang.code}
+                  onClick={() => { changeLanguage(lang.code); setLangAnchor(null); }}
+                >
+                  <span style={{ marginRight: 8 }}>{lang.flag}</span>
+                  {lang.nativeName}
+                </MenuItem>
+              ))}
+            </Menu>
+
+            {/* Notification Bell */}
+            <Tooltip title={t('notifications.title')}>
+              <IconButton
+                color="inherit"
+                onClick={(e) => setNotifAnchor(e.currentTarget)}
+              >
+                <Badge badgeContent={unreadCount} color="error" max={99}>
+                  <NotificationsIcon />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+            <Popover
+              open={Boolean(notifAnchor)}
+              anchorEl={notifAnchor}
+              onClose={() => setNotifAnchor(null)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              PaperProps={{ sx: { width: 360, maxHeight: 420 } }}
+            >
+              <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: 1, borderColor: 'divider' }}>
+                <Typography variant="subtitle1" fontWeight="bold">{t('notifications.title')}</Typography>
+                {unreadCount > 0 && (
+                  <Tooltip title={t('notifications.markAllRead')}>
+                    <IconButton size="small" onClick={markAllAsRead}>
+                      <DoneAllIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Box>
+              <List sx={{ p: 0, maxHeight: 340, overflow: 'auto' }}>
+                {notifications.length === 0 ? (
+                  <ListItem>
+                    <ListItemText
+                      primary={t('notifications.noNotifications')}
+                      primaryTypographyProps={{ color: 'text.secondary', textAlign: 'center' }}
+                    />
+                  </ListItem>
+                ) : (
+                  notifications.slice(0, 10).map((notif) => {
+                    const icon = notif.priority === 'critical' ? <ErrorIcon color="error" /> :
+                      notif.priority === 'high' ? <WarningIcon color="warning" /> :
+                      notif.type === 'review_completed' ? <CheckIcon color="success" /> :
+                      <InfoIcon color="info" />;
+                    return (
+                      <React.Fragment key={notif._id || notif.id}>
+                        <ListItem
+                          button
+                          onClick={() => { markAsRead(notif._id || notif.id); setNotifAnchor(null); }}
+                          sx={{ bgcolor: notif.isRead ? 'transparent' : 'action.hover', py: 1.5 }}
+                        >
+                          <ListItemIcon sx={{ minWidth: 36 }}>{icon}</ListItemIcon>
+                          <ListItemText
+                            primary={notif.title}
+                            secondary={notif.message}
+                            primaryTypographyProps={{ variant: 'body2', fontWeight: notif.isRead ? 'normal' : 'bold' }}
+                            secondaryTypographyProps={{ variant: 'caption', noWrap: true }}
+                          />
+                        </ListItem>
+                        <Divider component="li" />
+                      </React.Fragment>
+                    );
+                  })
+                )}
+              </List>
+            </Popover>
+
             <Tooltip title="Account settings">
               <IconButton
                 size="large"
@@ -189,22 +301,6 @@ const CustomAppBar = () => {
                   {getUserDisplayName()}
                 </Typography>
               </Box>
-
-              <MenuItem 
-                onClick={() => handleRoleSwitch('patient')} 
-                disabled={isPatient}
-              >
-                <SwapHoriz sx={{ mr: 1 }} />
-                Switch to Patient
-              </MenuItem>
-              
-              <MenuItem 
-                onClick={() => handleRoleSwitch('doctor')} 
-                disabled={isDoctor}
-              >
-                <SwapHoriz sx={{ mr: 1 }} />
-                Switch to Doctor
-              </MenuItem>
 
               <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
                 <Logout sx={{ mr: 1 }} />

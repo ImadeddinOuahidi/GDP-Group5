@@ -75,6 +75,8 @@ const medicationRoutes = require('./routes/medications'); // Simplified medicati
 const reportRoutes = require('./routes/reports');
 const symptomProgressionRoutes = require('./routes/symptomProgression');
 const uploadRoutes = require('./routes/uploads'); // MinIO-based file uploads
+const notificationRoutes = require('./routes/notifications'); // Real-time notifications
+const exportRoutes = require('./routes/export'); // Report export (CSV/JSON/PDF)
 
 // Apply strict rate limiting to auth routes
 app.use('/api/auth', authLimiter);
@@ -96,6 +98,8 @@ app.use('/api/medications', medicationRoutes); // Simplified medication system
 app.use('/api/reports', reportRoutes);
 app.use('/api/symptom-progression', symptomProgressionRoutes);
 app.use('/api/uploads', uploadRoutes); // File uploads via MinIO
+app.use('/api/notifications', notificationRoutes); // Real-time notifications via SSE
+app.use('/api/export', exportRoutes); // Report export (CSV/JSON/PDF data)
 
 // Health and utility routes
 app.get('/', (req, res) => {

@@ -50,217 +50,240 @@ import {
   Search,
   FilterList,
   Refresh,
-  Analytics,
   CalendarToday,
   FileDownload,
-  PictureAsPdf,
   TableChart,
-  AutorenewRounded
+  AutorenewRounded,
+  DataObject as JsonIcon,
+  Print as PrintIcon
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
+import { api } from '../../services/apiClient';
+import { exportReportsCSV, exportReportsJSON, exportClientCSV, exportClientJSON } from '../../utils/exportUtils';
+import { useI18n } from '../../i18n';
 
 export default function Dashboard() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const navigate = useNavigate();
+  const { t } = useI18n();
   const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [severityFilter, setSeverityFilter] = React.useState('');
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [lastUpdated, setLastUpdated] = React.useState(new Date());
   const [snackbar, setSnackbar] = React.useState({ open: false, message: '', severity: 'success' });
   const [exportMenuAnchor, setExportMenuAnchor] = React.useState(null);
+  const [reports, setReports] = React.useState([]);
+  const [dashboardStats, setDashboardStats] = React.useState(null);
 
-  // Dummy data for now
-  const reports = [
-    { id: 1, patient: "John Doe", drug: "Drug A", symptom: "Headache", severity: "High", date: "2025-09-20", status: "Under Review" },
-    { id: 2, patient: "Maria Lopez", drug: "Drug B", symptom: "Rash", severity: "Critical", date: "2025-09-21", status: "Investigating" },
-    { id: 3, patient: "Ali Khan", drug: "Drug C", symptom: "Dizziness", severity: "Medium", date: "2025-09-22", status: "Resolved" },
-    { id: 4, patient: "Sarah Johnson", drug: "Drug D", symptom: "Nausea", severity: "Low", date: "2025-09-23", status: "Monitoring" },
-    { id: 5, patient: "Michael Brown", drug: "Drug E", symptom: "Fatigue", severity: "Medium", date: "2025-09-24", status: "Under Review" },
-    { id: 6, patient: "Emma Wilson", drug: "Drug F", symptom: "Insomnia", severity: "High", date: "2025-09-25", status: "Investigating" },
-    { id: 7, patient: "David Chen", drug: "Drug G", symptom: "Anxiety", severity: "Critical", date: "2025-09-26", status: "Urgent" },
-    { id: 8, patient: "Lisa Anderson", drug: "Drug H", symptom: "Memory Loss", severity: "High", date: "2025-09-27", status: "Under Review" },
-  ];
+  // Fetch real data from API
+  const fetchData = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // Fetch reports and dashboard stats in parallel
+      const [reportsRes, statsRes] = await Promise.all([
+        api.reports.getAll({ limit: 100, sortBy: 'reportDetails.reportDate', sortOrder: 'desc' }).catch(() => null),
+        api.reports.getDashboard ? api.reports.getDashboard().catch(() => null) : Promise.resolve(null),
+      ]);
+
+      // sendPaginated returns { success, data: [...], meta: { pagination } }
+      if (Array.isArray(reportsRes?.data?.data)) {
+        setReports(reportsRes.data.data);
+      } else if (Array.isArray(reportsRes?.data?.reports)) {
+        setReports(reportsRes.data.reports);
+      }
+
+      // getDashboard uses sendSuccess → { success, data: { totalReports, ... } }
+      if (statsRes?.data?.data) {
+        setDashboardStats(statsRes.data.data);
+      }
+
+      setLastUpdated(new Date());
+    } catch (error) {
+      console.error('Dashboard fetch error:', error);
+      setSnackbar({ open: true, message: t('dashboard.refreshError'), severity: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [t]);
+
+  React.useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Helper: get patient name from populated report
+  const getPatientName = (report) => {
+    if (report.patient?.firstName) return `${report.patient.firstName} ${report.patient.lastName || ''}`.trim();
+    return 'Anonymous';
+  };
+
+  // Helper: get drug name from populated report
+  const getDrugName = (report) => report.medicine?.name || 'Unknown';
+
+  // Helper: get primary symptom
+  const getSymptom = (report) => (report.sideEffects || [])[0]?.effect || 'N/A';
+
+  // Helper: get highest severity — prefers AI-detected severity, falls back to patient-reported
+  const getSeverity = (report) => {
+    // Check AI-detected severity first
+    const aiSeverity = report.metadata?.aiAnalysis?.severity?.level;
+    if (aiSeverity) return aiSeverity;
+    
+    // Fall back to patient-reported severity
+    const levels = ['Life-threatening', 'Severe', 'Moderate', 'Mild'];
+    const effects = report.sideEffects || [];
+    for (const level of levels) {
+      if (effects.some((e) => e.severity === level)) return level;
+    }
+    return report.priority || 'N/A';
+  };
+
+  // Helper: check if AI analysis exists
+  const hasAIAnalysis = (report) => !!report.metadata?.aiProcessed;
 
   // Filter reports based on search and severity
   const filteredReports = reports.filter(report => {
-    const matchesSearch = 
-      report.patient.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.drug.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.symptom.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesSeverity = severityFilter === '' || report.severity === severityFilter;
-    
+    const patientName = getPatientName(report).toLowerCase();
+    const drugName = getDrugName(report).toLowerCase();
+    const symptom = getSymptom(report).toLowerCase();
+    const search = searchTerm.toLowerCase();
+    const matchesSearch = !searchTerm || patientName.includes(search) || drugName.includes(search) || symptom.includes(search);
+    const matchesSeverity = !severityFilter || getSeverity(report) === severityFilter || report.priority === severityFilter;
     return matchesSearch && matchesSeverity;
   });
 
-  // Statistics data
+  // Computed stats from real data
+  const criticalCount = dashboardStats?.severeCaseCount ?? reports.filter(r => r.priority === 'critical' || r.sideEffects?.some(e => e.severity === 'Severe' || e.severity === 'Life-threatening')).length;
+  const uniquePatients = new Set(reports.map(r => r.patient?._id || r.patient).filter(Boolean)).size;
+  const uniqueDrugs = new Set(reports.map(r => r.medicine?._id || r.medicine).filter(Boolean)).size;
+
   const stats = [
     {
-      title: "Total Reports",
-      value: reports.length,
+      title: t('dashboard.totalReports'),
+      value: dashboardStats?.totalReports ?? reports.length,
       icon: <Assessment />,
       color: theme.palette.primary.main,
-      change: "+12%",
-      subtitle: "This month"
+      subtitle: t('dashboard.thisMonth')
     },
     {
-      title: "Critical Cases",
-      value: reports.filter(r => r.severity === "Critical").length,
+      title: t('dashboard.criticalCases'),
+      value: dashboardStats?.seriousReports ?? criticalCount,
       icon: <Warning />,
       color: theme.palette.error.main,
-      change: "+5%",
-      subtitle: "Requires immediate attention"
+      subtitle: t('dashboard.requiresAttention')
     },
     {
-      title: "Active Patients",
-      value: new Set(reports.map(r => r.patient)).size,
+      title: t('dashboard.activePatients'),
+      value: uniquePatients,
       icon: <Person />,
       color: theme.palette.success.main,
-      change: "+8%",
-      subtitle: "Under monitoring"
+      subtitle: t('dashboard.underMonitoring')
     },
     {
-      title: "Monitored Drugs",
-      value: new Set(reports.map(r => r.drug)).size,
+      title: t('dashboard.monitoredDrugs'),
+      value: uniqueDrugs,
       icon: <Medication />,
       color: theme.palette.info.main,
-      change: "+3%",
-      subtitle: "In database"
+      subtitle: t('dashboard.inDatabase')
     }
   ];
 
   const getSeverityColor = (severity) => {
-    switch (severity.toLowerCase()) {
-      case 'critical':
-        return 'error';
-      case 'high':
-        return 'warning';
-      case 'medium':
-        return 'info';
-      case 'low':
-        return 'success';
-      default:
-        return 'default';
+    switch ((severity || '').toLowerCase()) {
+      case 'critical': case 'life-threatening': return 'error';
+      case 'high': case 'severe': return 'warning';
+      case 'medium': case 'moderate': return 'info';
+      case 'low': case 'mild': return 'success';
+      default: return 'default';
     }
   };
 
   const getStatusColor = (status) => {
-    switch (status.toLowerCase()) {
-      case 'urgent':
-        return 'error';
-      case 'investigating':
-        return 'warning';
-      case 'under review':
-        return 'info';
-      case 'monitoring':
-        return 'primary';
-      case 'resolved':
-        return 'success';
-      default:
-        return 'default';
+    switch ((status || '').toLowerCase()) {
+      case 'urgent': return 'error';
+      case 'investigating': case 'under review': return 'warning';
+      case 'submitted': return 'info';
+      case 'monitoring': case 'reviewed': return 'primary';
+      case 'resolved': case 'closed': return 'success';
+      default: return 'default';
     }
   };
 
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value);
-    setPage(0);
-  };
-
-  const handleSeverityFilterChange = (event) => {
-    setSeverityFilter(event.target.value);
-    setPage(0);
-  };
+  const handleChangePage = (event, newPage) => { setPage(newPage); };
+  const handleChangeRowsPerPage = (event) => { setRowsPerPage(parseInt(event.target.value, 10)); setPage(0); };
+  const handleSearchChange = (event) => { setSearchTerm(event.target.value); setPage(0); };
+  const handleSeverityFilterChange = (event) => { setSeverityFilter(event.target.value); setPage(0); };
 
   const handleRefresh = async () => {
-    setIsLoading(true);
-    try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setLastUpdated(new Date());
-      setSnackbar({
-        open: true,
-        message: 'Dashboard data refreshed successfully!',
-        severity: 'success'
-      });
-    } catch (error) {
-      setSnackbar({
-        open: true,
-        message: 'Failed to refresh data. Please try again.',
-        severity: 'error'
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    await fetchData();
+    setSnackbar({ open: true, message: t('dashboard.refreshSuccess'), severity: 'success' });
   };
 
-  const handleExportClick = (event) => {
-    setExportMenuAnchor(event.currentTarget);
-  };
+  const handleExportClick = (event) => { setExportMenuAnchor(event.currentTarget); };
+  const handleExportClose = () => { setExportMenuAnchor(null); };
 
-  const handleExportClose = () => {
-    setExportMenuAnchor(null);
-  };
-
-  const handleExport = (format) => {
-    const timestamp = new Date().toISOString().split('T')[0];
-    const filename = `adr-reports-${timestamp}`;
-    
-    if (format === 'csv') {
-      exportToCSV(filename);
-    } else if (format === 'pdf') {
-      exportToPDF(filename);
-    }
-    
-    setSnackbar({
-      open: true,
-      message: `Report exported as ${format.toUpperCase()} successfully!`,
-      severity: 'success'
-    });
-    
+  const handleExport = async (format) => {
     handleExportClose();
+    try {
+      if (format === 'csv') {
+        const backendOk = await exportReportsCSV();
+        if (!backendOk) exportClientCSV(filteredReports);
+      } else if (format === 'json') {
+        const backendOk = await exportReportsJSON();
+        if (!backendOk) exportClientJSON(filteredReports);
+      } else if (format === 'print') {
+        // Print all filtered reports - generate a summary view
+        const printWindow = window.open('', '_blank', 'width=900,height=700');
+        if (printWindow) {
+          printWindow.document.write(generateDashboardPrintHTML(filteredReports));
+          printWindow.document.close();
+          setTimeout(() => printWindow.print(), 500);
+        }
+      }
+      setSnackbar({ open: true, message: t('dashboard.exportSuccess', { format: format.toUpperCase() }), severity: 'success' });
+    } catch (err) {
+      setSnackbar({ open: true, message: 'Export failed. Please try again.', severity: 'error' });
+    }
   };
 
-  const exportToCSV = (filename) => {
-    const headers = ['Report ID', 'Patient', 'Drug', 'Symptom', 'Severity', 'Status', 'Date'];
-    const csvContent = [
-      headers.join(','),
-      ...filteredReports.map(report => [
-        `#${report.id.toString().padStart(3, '0')}`,
-        `"${report.patient}"`,
-        `"${report.drug}"`,
-        `"${report.symptom}"`,
-        report.severity,
-        `"${report.status}"`,
-        report.date
-      ].join(','))
-    ].join('\n');
+  // Generate printable dashboard summary
+  const generateDashboardPrintHTML = (data) => {
+    const rows = data.map((r) => `<tr>
+      <td>${r._id || ''}</td>
+      <td>${getPatientName(r)}</td>
+      <td>${getDrugName(r)}</td>
+      <td>${getSymptom(r)}</td>
+      <td>${getSeverity(r)}</td>
+      <td>${r.status || ''}</td>
+      <td>${r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ''}</td>
+    </tr>`).join('');
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${filename}.csv`;
-    link.click();
+    return `<!DOCTYPE html><html><head><title>ADR Reports Summary</title>
+      <style>body{font-family:Arial,sans-serif;padding:30px;color:#333}
+      h1{color:#1976d2;border-bottom:2px solid #1976d2;padding-bottom:8px}
+      table{width:100%;border-collapse:collapse;margin-top:16px}
+      th,td{border:1px solid #ddd;padding:8px;text-align:left;font-size:13px}
+      th{background:#f5f5f5;font-weight:600}
+      .stats{display:flex;gap:20px;margin:16px 0}
+      .stat{padding:12px;border:1px solid #ddd;border-radius:8px;text-align:center;flex:1}
+      .stat-value{font-size:24px;font-weight:bold;color:#1976d2}
+      .footer{margin-top:24px;text-align:center;font-size:11px;color:#999;border-top:1px solid #ddd;padding-top:12px}
+      @media print{body{padding:10px}}</style></head><body>
+      <h1>SafeMed ADR - Reports Summary</h1>
+      <p>Generated: ${new Date().toLocaleString()} | Total Reports: ${data.length}</p>
+      <div class="stats">
+        <div class="stat"><div class="stat-value">${reports.length}</div>Total Reports</div>
+        <div class="stat"><div class="stat-value">${criticalCount}</div>Critical</div>
+        <div class="stat"><div class="stat-value">${uniquePatients}</div>Patients</div>
+        <div class="stat"><div class="stat-value">${uniqueDrugs}</div>Medications</div>
+      </div>
+      <table><thead><tr><th>ID</th><th>Patient</th><th>Medication</th><th>Symptom</th><th>Severity</th><th>Status</th><th>Date</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+      <div class="footer">SafeMed ADR - Adverse Drug Reaction Reporting System | CONFIDENTIAL</div>
+      </body></html>`;
   };
 
-  const exportToPDF = (filename) => {
-    // Placeholder for PDF export - would integrate with a PDF library like jsPDF
-    console.log(`Exporting to PDF: ${filename}.pdf`);
-    // In real implementation, you'd use jsPDF or similar library
-  };
-
-  const handleSnackbarClose = () => {
-    setSnackbar({ ...snackbar, open: false });
-  };
+  const handleSnackbarClose = () => { setSnackbar({ ...snackbar, open: false }); };
 
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 } }}>
@@ -441,47 +464,63 @@ export default function Dashboard() {
             <TableBody>
               {filteredReports
                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                .map((report) => (
+                .map((report) => {
+                const patientName = getPatientName(report);
+                const drugName = getDrugName(report);
+                const symptom = getSymptom(report);
+                const severity = getSeverity(report);
+                return (
                 <TableRow 
-                  key={report.id}
+                  key={report._id}
                   sx={{ 
                     '&:hover': { 
-                      bgcolor: alpha(theme.palette.primary.main, 0.02) 
+                      bgcolor: alpha(theme.palette.primary.main, 0.02),
+                      cursor: 'pointer'
                     } 
                   }}
+                  onClick={() => navigate(`/reports/${report._id}`)}
                 >
                   <TableCell>
                     <Typography variant="body2" fontWeight="medium">
-                      #{report.id.toString().padStart(3, '0')}
+                      #{(report._id || '').slice(-6).toUpperCase()}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <Avatar sx={{ width: 32, height: 32, mr: 2, bgcolor: 'primary.main' }}>
-                        {report.patient.split(' ').map(n => n[0]).join('')}
+                        {patientName.split(' ').filter(Boolean).map(n => n[0]).join('').slice(0,2)}
                       </Avatar>
                       <Typography variant="body2" fontWeight="medium">
-                        {report.patient}
+                        {patientName}
                       </Typography>
                     </Box>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2">{report.drug}</Typography>
+                    <Typography variant="body2">{drugName}</Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2">{report.symptom}</Typography>
+                    <Typography variant="body2">{symptom}</Typography>
                   </TableCell>
                   <TableCell>
                     <Chip
-                      label={report.severity}
-                      color={getSeverityColor(report.severity)}
+                      label={severity}
+                      color={getSeverityColor(severity)}
                       size="small"
                       sx={{ fontWeight: 'medium' }}
                     />
+                    {hasAIAnalysis(report) && report.metadata?.aiAnalysis?.severity?.level !== severity && (
+                      <Chip
+                        label={`AI: ${report.metadata.aiAnalysis.severity.level}`}
+                        size="small"
+                        variant="outlined"
+                        color={getSeverityColor(report.metadata.aiAnalysis.severity.level)}
+                        sx={{ ml: 0.5, fontWeight: 'medium', fontSize: '0.7rem' }}
+                      />
+                    )}
                   </TableCell>
                   <TableCell>
                     <Chip
-                      label={report.status}
+                      label={report.status || 'Submitted'}
                       color={getStatusColor(report.status)}
                       variant="outlined"
                       size="small"
@@ -492,30 +531,31 @@ export default function Dashboard() {
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <CalendarToday sx={{ fontSize: 16, color: 'text.secondary', mr: 1 }} />
                       <Typography variant="body2" color="text.secondary">
-                        {new Date(report.date).toLocaleDateString('en-US', {
+                        {report.createdAt ? new Date(report.createdAt).toLocaleDateString('en-US', {
                           year: 'numeric',
                           month: 'short',
                           day: 'numeric'
-                        })}
+                        }) : 'N/A'}
                       </Typography>
                     </Box>
                   </TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={1}>
                       <Tooltip title="View Details">
-                        <IconButton size="small" color="primary">
+                        <IconButton size="small" color="primary" onClick={(e) => { e.stopPropagation(); navigate(`/reports/${report._id}`); }}>
                           <Visibility fontSize="small" />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Download Report">
-                        <IconButton size="small" color="secondary">
+                        <IconButton size="small" color="secondary" onClick={(e) => { e.stopPropagation(); exportClientJSON([report]); }}>
                           <GetApp fontSize="small" />
                         </IconButton>
                       </Tooltip>
                     </Stack>
                   </TableCell>
                 </TableRow>
-              ))}
+              );
+              })}
             </TableBody>
           </Table>
         </TableContainer>
@@ -537,12 +577,25 @@ export default function Dashboard() {
         <Grid item xs={12} md={6}>
           <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
-              Severity Distribution
+              {t('dashboard.severityDistribution')}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+              {dashboardStats?.aiProcessedCount > 0 
+                ? `AI-assessed severity (${dashboardStats.aiProcessedCount} reports analyzed)`
+                : 'Based on patient-reported severity'}
             </Typography>
             <Stack spacing={2}>
-              {['Critical', 'High', 'Medium', 'Low'].map((severity) => {
-                const count = reports.filter(r => r.severity === severity).length;
-                const percentage = (count / reports.length) * 100;
+              {['Life-threatening', 'Severe', 'Moderate', 'Mild'].map((severity) => {
+                // Use AI severity distribution from backend if available, otherwise fall back to client-side
+                const aiDist = dashboardStats?.aiSeverityDistribution || [];
+                const aiItem = aiDist.find(d => d._id === severity);
+                const aiCount = aiItem?.count || 0;
+                const clientCount = reports.filter(r => getSeverity(r) === severity).length;
+                const count = aiDist.length > 0 ? aiCount : clientCount;
+                const total = aiDist.length > 0 
+                  ? aiDist.reduce((sum, d) => sum + d.count, 0) 
+                  : reports.length;
+                const percentage = total > 0 ? (count / total) * 100 : 0;
                 return (
                   <Box key={severity}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -565,32 +618,41 @@ export default function Dashboard() {
         <Grid item xs={12} md={6}>
           <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
-              Recent Activity
+              {t('dashboard.recentActivity')}
             </Typography>
             <Stack spacing={2}>
-              {reports.slice(0, 4).map((report) => (
-                <Box key={report.id} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar sx={{ width: 24, height: 24, bgcolor: getSeverityColor(report.severity) + '.main' }}>
-                    <Typography variant="caption" fontWeight="bold">
-                      {report.id}
-                    </Typography>
+              {reports.slice(0, 4).map((report) => {
+                const patientName = getPatientName(report);
+                const symptom = getSymptom(report);
+                const drugName = getDrugName(report);
+                const severity = getSeverity(report);
+                return (
+                <Box key={report._id} sx={{ display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover', borderRadius: 1 } }} onClick={() => navigate(`/reports/${report._id}`)}>
+                  <Avatar sx={{ width: 28, height: 28, bgcolor: `${getSeverityColor(severity)}.main`, fontSize: 12 }}>
+                    {patientName.charAt(0)}
                   </Avatar>
                   <Box sx={{ flex: 1 }}>
                     <Typography variant="body2" fontWeight="medium">
-                      {report.patient} reported {report.symptom}
+                      {patientName} reported {symptom}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {report.drug} • {new Date(report.date).toLocaleDateString()}
+                      {drugName} • {report.createdAt ? new Date(report.createdAt).toLocaleDateString() : ''}
                     </Typography>
                   </Box>
                   <Chip 
-                    label={report.severity} 
+                    label={severity} 
                     size="small" 
-                    color={getSeverityColor(report.severity)}
+                    color={getSeverityColor(severity)}
                     variant="outlined"
                   />
                 </Box>
-              ))}
+                );
+              })}
+              {reports.length === 0 && !isLoading && (
+                <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
+                  No reports yet
+                </Typography>
+              )}
             </Stack>
           </Paper>
         </Grid>
@@ -626,13 +688,20 @@ export default function Dashboard() {
           <ListItemIcon>
             <TableChart fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Export as CSV</ListItemText>
+          <ListItemText>{t('export.csv')}</ListItemText>
         </MenuItem>
-        <MenuItem onClick={() => handleExport('pdf')}>
+        <MenuItem onClick={() => handleExport('json')}>
           <ListItemIcon>
-            <PictureAsPdf fontSize="small" />
+            <JsonIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Export as PDF</ListItemText>
+          <ListItemText>{t('export.json')}</ListItemText>
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={() => handleExport('print')}>
+          <ListItemIcon>
+            <PrintIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>{t('export.print')}</ListItemText>
         </MenuItem>
       </Menu>
 

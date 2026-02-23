@@ -1,6 +1,8 @@
 const express = require('express');
 const { body, query } = require('express-validator');
 const reportController = require('../controllers/reportController');
+const aiReportController = require('../controllers/aiReportController');
+const { uploadAIReportFiles, handleUploadErrors, validateUploadedFiles } = require('../middleware/fileUpload');
 const { protect, restrictTo, requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
@@ -1449,5 +1451,49 @@ router.post('/:id/submit-review', reportController.submitDoctorReview);
  *         description: Report assigned to doctor successfully
  */
 router.post('/:id/assign-doctor', reportController.assignToDoctor);
+
+// ========================================
+// AI-Powered Report Routes
+// ========================================
+
+/**
+ * @swagger
+ * /api/reports/aisubmit:
+ *   post:
+ *     summary: Submit a report via AI multimodal processing
+ *     description: Processes text, images, and audio using AI to automatically extract and fill report fields
+ *     tags: [AI Reports]
+ */
+router.post('/aisubmit', 
+  uploadAIReportFiles, 
+  handleUploadErrors, 
+  validateUploadedFiles, 
+  aiReportController.submitAIReport
+);
+
+/**
+ * @swagger
+ * /api/reports/aipreview:
+ *   post:
+ *     summary: Preview AI-extracted report data before confirmation
+ *     description: Processes input and returns extracted data for user review without saving
+ *     tags: [AI Reports]
+ */
+router.post('/aipreview', 
+  uploadAIReportFiles, 
+  handleUploadErrors, 
+  validateUploadedFiles, 
+  aiReportController.previewAIReport
+);
+
+/**
+ * @swagger
+ * /api/reports/aiconfirm:
+ *   post:
+ *     summary: Confirm and save an AI-processed report
+ *     description: Saves the confirmed AI-extracted report data
+ *     tags: [AI Reports]
+ */
+router.post('/aiconfirm', aiReportController.submitConfirmedAIReport);
 
 module.exports = router;

@@ -127,7 +127,7 @@ services:
       - /app/node_modules
     networks:
       - adr-network
-    command: npm run dev
+    command: /bin/sh -c "npm run seed:demo-users && npm run dev"
 
   # Consumer Service (AI Processing)
   consumer:

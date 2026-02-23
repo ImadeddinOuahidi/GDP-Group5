@@ -1,76 +1,24 @@
 /**
  * Seed Demo Users
- * Creates consistent demo users for testing and demonstration
- * 
- * Demo Credentials:
+ *
+ * Demo credentials:
  * - Patient: patient@demo.com / Demo@123
- * - Doctor: doctor@demo.com / Demo@123
+ * - Doctor:  doctor@demo.com / Demo@123
  */
 
 require('dotenv').config();
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const User = require('../models/User');
 
-// Get MongoDB URI from config (same as main app)
 const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/healthcare_app';
 
-// Define User schema directly to avoid model conflicts
-const userSchema = new mongoose.Schema({
-  firstName: { type: String, required: true },
-  lastName: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true, select: false },
-  phone: String,
-  dateOfBirth: Date,
-  gender: { type: String, enum: ['male', 'female', 'other'] },
-  address: {
-    street: String,
-    city: String,
-    state: String,
-    zipCode: String,
-    country: { type: String, default: 'USA' }
-  },
-  role: { type: String, enum: ['patient', 'doctor', 'admin'], default: 'patient' },
-  patientInfo: {
-    emergencyContact: {
-      name: String,
-      relationship: String,
-      phone: String
-    },
-    bloodGroup: String,
-    allergies: [String],
-    chronicConditions: [String]
-  },
-  doctorInfo: {
-    licenseNumber: String,
-    specialization: String,
-    yearsOfExperience: Number,
-    consultationFee: Number,
-    biography: String
-  },
-  isEmailVerified: { type: Boolean, default: true },
-  isActive: { type: Boolean, default: true },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
-
-// Hash password before saving
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 12);
-  next();
-});
-
-const User = mongoose.model('DemoUser', userSchema, 'users');
-
-// Demo users to create
 const demoUsers = [
   {
     firstName: 'Demo',
     lastName: 'Patient',
     email: 'patient@demo.com',
     password: 'Demo@123',
-    phone: '555-PATIENT',
+    phone: '+1-555-100-0001',
     dateOfBirth: new Date('1990-01-15'),
     gender: 'other',
     address: {
@@ -85,7 +33,7 @@ const demoUsers = [
       emergencyContact: {
         name: 'Emergency Contact',
         relationship: 'Family',
-        phone: '555-EMERGENCY'
+        phone: '+1-555-100-0099'
       },
       bloodGroup: 'O+',
       allergies: ['None'],
@@ -95,11 +43,11 @@ const demoUsers = [
     isActive: true
   },
   {
-    firstName: 'Dr. Demo',
+    firstName: 'Demo',
     lastName: 'Doctor',
     email: 'doctor@demo.com',
     password: 'Demo@123',
-    phone: '555-DOCTOR',
+    phone: '+1-555-200-0001',
     dateOfBirth: new Date('1980-05-20'),
     gender: 'other',
     address: {
@@ -122,6 +70,33 @@ const demoUsers = [
   }
 ];
 
+async function upsertDemoUser(userData) {
+  const existing = await User.findOne({ email: userData.email }).select('+password');
+
+  if (existing) {
+    existing.firstName = userData.firstName;
+    existing.lastName = userData.lastName;
+    existing.email = userData.email;
+    existing.password = userData.password; // pre-save hook hashes this
+    existing.phone = userData.phone;
+    existing.dateOfBirth = userData.dateOfBirth;
+    existing.gender = userData.gender;
+    existing.address = userData.address;
+    existing.role = userData.role;
+    existing.patientInfo = userData.patientInfo || existing.patientInfo;
+    existing.doctorInfo = userData.doctorInfo || existing.doctorInfo;
+    existing.isEmailVerified = true;
+    existing.isActive = true;
+
+    await existing.save();
+    return 'updated';
+  }
+
+  const created = new User(userData);
+  await created.save();
+  return 'created';
+}
+
 async function seedDemoUsers() {
   try {
     console.log('Connecting to MongoDB...');
@@ -131,29 +106,8 @@ async function seedDemoUsers() {
     console.log('\n=== Seeding Demo Users ===\n');
 
     for (const userData of demoUsers) {
-      // Check if user already exists
-      const existingUser = await User.findOne({ email: userData.email });
-      
-      if (existingUser) {
-        // Update existing user with new password
-        console.log(`Updating existing user: ${userData.email}`);
-        const hashedPassword = await bcrypt.hash(userData.password, 12);
-        await User.updateOne(
-          { email: userData.email },
-          { 
-            ...userData,
-            password: hashedPassword,
-            updatedAt: new Date()
-          }
-        );
-        console.log(`  ✅ Updated: ${userData.email} (${userData.role})`);
-      } else {
-        // Create new user
-        console.log(`Creating new user: ${userData.email}`);
-        const newUser = new User(userData);
-        await newUser.save();
-        console.log(`  ✅ Created: ${userData.email} (${userData.role})`);
-      }
+      const action = await upsertDemoUser(userData);
+      console.log(`  ✅ ${action === 'created' ? 'Created' : 'Updated'}: ${userData.email} (${userData.role})`);
     }
 
     console.log('\n=== Demo Users Summary ===');
@@ -164,7 +118,6 @@ async function seedDemoUsers() {
     console.log('│  Doctor   │  doctor@demo.com    │  Demo@123         │');
     console.log('└─────────────────────────────────────────────────────┘');
     console.log('\nDemo users seeded successfully!');
-
   } catch (error) {
     console.error('Error seeding demo users:', error);
   } finally {
@@ -173,5 +126,4 @@ async function seedDemoUsers() {
   }
 }
 
-// Run the seed function
 seedDemoUsers();

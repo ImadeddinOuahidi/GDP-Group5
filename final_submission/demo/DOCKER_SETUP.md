@@ -66,6 +66,10 @@ The system consists of the following services:
    docker-compose up -d
    ```
 
+   The backend now automatically seeds demo login users on startup:
+   - Patient: `patient@demo.com` / `Demo@123`
+   - Doctor: `doctor@demo.com` / `Demo@123`
+
 4. **Check service status:**
    ```bash
    docker-compose ps
@@ -86,8 +90,8 @@ The system consists of the following services:
 | Service | URL |
 |---------|-----|
 | Frontend | http://localhost:3000 |
-| Backend API | http://localhost:5000 |
-| API Documentation | http://localhost:5000/api-docs |
+| Backend API | http://localhost:5001 |
+| API Documentation | http://localhost:5001/api-docs |
 | RabbitMQ Management | http://localhost:15672 (adr_user/adr_pass123) |
 | MinIO Console | http://localhost:9001 (minioadmin/minioadmin123) |
 
@@ -184,6 +188,21 @@ docker-compose logs rabbitmq | grep "Server startup complete"
 ```bash
 # Check MongoDB is healthy
 docker-compose exec mongodb mongosh --eval "db.adminCommand('ping')"
+```
+
+### Demo login says "Invalid email or password":
+```bash
+# Reseed demo users manually
+docker-compose exec backend npm run seed:demo-users
+
+# If you hit auth rate limiting during repeated attempts, restart backend
+docker-compose restart backend
+```
+
+### Refresh curated medication catalog:
+```bash
+# Replace predefined medications with curated real-world seed data
+docker-compose exec backend npm run seed:medications -- --force
 ```
 
 ### Clearing all data:

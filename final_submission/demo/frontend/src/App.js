@@ -23,6 +23,8 @@ import {
 import AuthContainer from "./store/containers/AuthContainer";
 import { CustomThemeProvider } from "./styles/theme/ThemeProvider";
 import { CustomAppBar, Navigation } from "./components";
+import { I18nProvider } from "./i18n";
+import { NotificationProvider } from "./contexts/NotificationContext";
 
 function AppContent() {
   const theme = useTheme();
@@ -202,11 +204,15 @@ function AppContent() {
 export default function App() {
   return (
     <CustomThemeProvider>
-      <AuthContainer.Provider>
-        <Router>
-          <AppContent />
-        </Router>
-      </AuthContainer.Provider>
+      <I18nProvider>
+        <AuthContainer.Provider>
+          <NotificationProvider>
+            <Router>
+              <AppContent />
+            </Router>
+          </NotificationProvider>
+        </AuthContainer.Provider>
+      </I18nProvider>
     </CustomThemeProvider>
   );
 }

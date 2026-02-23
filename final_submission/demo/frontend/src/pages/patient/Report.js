@@ -175,6 +175,7 @@ export default function Report() {
     startDate: '',
     additionalInfo: '',
     photo: null,
+    attachments: [],  // Support multiple images/videos
   });
 
   // Update symptoms when transcript changes
@@ -339,12 +340,29 @@ export default function Report() {
   };
 
   const handleFileUpload = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setFormData({
-        ...formData,
-        photo: file,
+    const files = Array.from(event.target.files);
+    if (files.length > 0) {
+      // Validate file types and sizes
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime'];
+      const maxSize = 50 * 1024 * 1024; // 50MB max per file
+      
+      const validFiles = files.filter(file => {
+        if (!allowedTypes.includes(file.type)) {
+          setSubmissionError(`File "${file.name}" has unsupported format. Allowed: JPEG, PNG, GIF, WebP, MP4, WebM, MOV`);
+          return false;
+        }
+        if (file.size > maxSize) {
+          setSubmissionError(`File "${file.name}" is too large. Maximum 50MB per file.`);
+          return false;
+        }
+        return true;
       });
+
+      setFormData(prev => ({
+        ...prev,
+        photo: validFiles[0] || prev.photo,  // Keep backward compat
+        attachments: [...prev.attachments, ...validFiles].slice(0, 5),  // Max 5 files
+      }));
     }
   };
 
@@ -352,6 +370,7 @@ export default function Report() {
     setFormData({
       ...formData,
       photo: null,
+      attachments: [],
     });
   };
 
@@ -403,7 +422,47 @@ export default function Report() {
     setLoading(true);
     
     try {
-      // Prepare report data for API submission matching backend schema
+      // Step 1: Upload files to MinIO if any attachments exist
+      let uploadedAttachments = [];
+      const filesToUpload = formData.attachments || [];
+      
+      if (filesToUpload.length > 0) {
+        try {
+          const uploadFormData = new FormData();
+          filesToUpload.forEach((file) => {
+            uploadFormData.append('files', file);
+          });
+          
+          const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+          const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+          const uploadResponse = await fetch(`${baseURL}/uploads/multiple`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            },
+            body: uploadFormData
+          });
+          
+          if (uploadResponse.ok) {
+            const uploadResult = await uploadResponse.json();
+            const uploaded = uploadResult.data?.files || uploadResult.files || [];
+            uploadedAttachments = uploaded.map(f => ({
+              key: f.key || f.objectName,
+              originalName: f.originalName || f.originalname,
+              mimeType: f.mimeType || f.mimetype || f.contentType,
+              size: f.size,
+              url: f.url || f.location || ''
+            }));
+            console.log(`Uploaded ${uploadedAttachments.length} file(s) successfully`);
+          } else {
+            console.warn('File upload failed, continuing without attachments');
+          }
+        } catch (uploadError) {
+          console.warn('File upload error, continuing without attachments:', uploadError.message);
+        }
+      }
+
+      // Step 2: Prepare report data for API submission matching backend schema
       // Note: Backend expects 'medicine' not 'medication'
       const reportData = {
         // Don't send reportedBy - backend gets it from authenticated user
@@ -434,6 +493,11 @@ export default function Report() {
           gender: user.gender || 'other'
         }
       };
+
+      // Include attachments if files were uploaded
+      if (uploadedAttachments.length > 0) {
+        reportData.attachments = uploadedAttachments;
+      }
 
       console.log('Submitting report data:', reportData);
       

@@ -94,10 +94,10 @@ class GeminiService {
     
     // Model configurations for different use cases
     this.models = {
-      // For text analysis
-      text: 'gemini-2.5-flash',
+      // For text analysis (with Google Search grounding)
+      text: 'gemini-3.1-pro-preview',
       // For multimodal (text + images/video)
-      multimodal: 'gemini-2.5-flash'
+      multimodal: 'gemini-3.1-pro-preview'
     };
   }
 
@@ -111,15 +111,23 @@ class GeminiService {
     }
 
     try {
-      const modelName = mediaFiles.length > 0 ? this.models.multimodal : this.models.text;
+      const hasMedia = mediaFiles.length > 0;
+      const modelName = hasMedia ? this.models.multimodal : this.models.text;
+      
+      // Configure model with Google Search grounding enabled
       const model = this.genAI.getGenerativeModel({ 
         model: modelName,
         generationConfig: {
           temperature: 0.3,
           topP: 0.8,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 4096,
           responseMimeType: 'application/json'
-        }
+        },
+        // Enable Google Search for grounding — lets the model verify medication
+        // info, known ADRs, and reference real pharmaceutical documentation
+        tools: [{
+          googleSearch: {}
+        }]
       });
 
       // Build the prompt
@@ -128,31 +136,62 @@ class GeminiService {
       // Prepare content parts
       const parts = [{ text: prompt }];
       
-      // Add media files if present
+      // Add media files if present (images, videos, audio)
       for (const media of mediaFiles) {
         if (media.data && media.mimeType) {
+          // Supported types: image/*, video/mp4, video/webm, audio/*
           parts.push({
             inlineData: {
               mimeType: media.mimeType,
-              data: media.data
+              data: media.data  // base64
             }
           });
+          console.log(`[GeminiService] Added media: ${media.mimeType} (${Math.round((media.data.length * 3 / 4) / 1024)}KB)`);
         }
       }
 
-      console.log('[GeminiService] Sending analysis request...');
+      console.log('[GeminiService] Sending analysis request with Google Search grounding...');
       const result = await model.generateContent(parts);
       const response = await result.response;
       const text = response.text();
 
+      // Extract grounding metadata (search references) if available
+      const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
+      const searchSuggestions = groundingMetadata?.searchEntryPoint?.renderedContent;
+      const groundingChunks = groundingMetadata?.groundingChunks || [];
+      const webSources = groundingChunks
+        .filter(chunk => chunk.web)
+        .map(chunk => ({
+          title: chunk.web.title || '',
+          uri: chunk.web.uri || ''
+        }));
+
       // Parse JSON response
-      const analysis = JSON.parse(text);
+      let analysis;
+      try {
+        analysis = JSON.parse(text);
+      } catch (parseError) {
+        // Try to extract JSON from mixed response (grounding can add text around JSON)
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          analysis = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('Failed to parse AI response as JSON');
+        }
+      }
       
-      console.log('[GeminiService] Analysis completed successfully');
+      // Attach source references from Google Search grounding
+      if (webSources.length > 0) {
+        analysis.references = webSources;
+      }
+      
+      console.log(`[GeminiService] Analysis completed. ${webSources.length} references found.`);
       return {
         success: true,
         analysis: this.validateAndEnhanceAnalysis(analysis, reportData),
         modelUsed: modelName,
+        groundingUsed: webSources.length > 0,
+        references: webSources,
         processedAt: new Date().toISOString()
       };
 
@@ -176,8 +215,15 @@ class GeminiService {
   buildAnalysisPrompt(reportData) {
     const { medication, sideEffects, patientInfo, medicationUsage, reportDetails } = reportData;
 
-    return `You are a medical AI assistant specialized in adverse drug reaction (ADR) analysis. 
-Analyze the following side effect report and provide a structured assessment with patient-friendly guidance.
+    return `You are a clinical pharmacovigilance AI assistant specializing in adverse drug reaction (ADR) analysis.
+
+You have access to Google Search. USE IT to:
+1. Verify this medication is a real pharmaceutical product — find its official prescribing information, drug label, or monograph
+2. Cross-reference the reported side effects against known ADRs in medical literature, FDA/EMA databases, and drug documentation (e.g. DailyMed, Drugs.com, RxList)
+3. Check for relevant safety alerts, black box warnings, or recent recalls for this medication
+4. Find authoritative references (FDA, EMA, WHO-UMC, PubMed, pharmaceutical manufacturer documents) to support your severity and causality assessment
+
+Analyze the following report and provide a structured, evidence-based assessment.
 
 ## REPORT INFORMATION
 
@@ -214,38 +260,52 @@ ${idx + 1}. Effect: ${se.effect}
 
 ## ANALYSIS INSTRUCTIONS
 
-Based on the above information, provide a comprehensive analysis in the following JSON structure:
+SEVERITY CLASSIFICATION (use exactly these values):
+- "Mild" — Minor side effect, generally tolerable, does not interfere with daily activities
+- "Moderate" — Noticeable side effect, may interfere with daily activities, may require treatment
+- "Severe" — Significant side effect, interferes with daily activities, requires medical intervention
+- "Life-threatening" — Immediately dangerous, requires emergency intervention, could result in death
+
+PRIORITY LEVELS: "Low" | "Medium" | "High" | "Critical"
+
+If images or videos are attached, analyze them for visible symptoms (rashes, swelling, discoloration, inflammation, skin reactions, etc.) and incorporate visual findings into your severity and causality assessment.
+
+Provide your analysis in the following JSON structure:
 
 {
   "severity": {
     "level": "Mild|Moderate|Severe|Life-threatening",
     "confidence": 0.0-1.0,
-    "reasoning": "Brief explanation of severity assessment"
+    "reasoning": "Evidence-based explanation referencing drug documentation"
   },
   "priority": "Low|Medium|High|Critical",
   "seriousness": {
     "classification": "Serious|Non-serious",
-    "reasons": ["List of reasons if serious"]
+    "reasons": ["List of reasons if serious, referencing regulatory criteria"]
   },
-  "bodySystemsAffected": ["List of body systems affected"],
-  "riskFactors": ["Identified risk factors"],
-  "recommendedActions": ["List of recommended actions for medical professionals"],
+  "bodySystemsAffected": ["List of body systems affected using MedDRA SOC terms"],
+  "riskFactors": ["Identified risk factors from patient history and medication profile"],
+  "recommendedActions": ["Specific actions for medical professionals based on evidence"],
   "causalityAssessment": {
     "likelihood": "Certain|Probable|Possible|Unlikely|Unassessable",
-    "reasoning": "Explanation of causality assessment"
+    "reasoning": "WHO-UMC causality assessment reasoning referencing drug documentation"
   },
   "keywords": ["Relevant medical keywords for indexing"],
-  "summary": "Brief 2-3 sentence clinical summary of the case",
+  "summary": "Brief 2-3 sentence clinical summary including whether this is a known ADR per the drug's documentation",
   "medicalTerminology": [
-    {
-      "term": "MedDRA or medical term",
-      "code": "If known",
-      "system": "MedDRA|SNOMED|ICD-10"
-    }
+    { "term": "MedDRA preferred term", "code": "PT code if known", "system": "MedDRA" }
   ],
+  "medicationVerification": {
+    "isVerifiedMedication": true|false,
+    "drugClass": "Pharmacological class of the medication",
+    "knownADR": true|false,
+    "knownADRFrequency": "Very common|Common|Uncommon|Rare|Very rare|Not documented",
+    "labelWarnings": ["Relevant warnings from the drug label/prescribing information"],
+    "sources": ["URLs or names of reference documents consulted"]
+  },
   "patientGuidance": {
     "urgencyLevel": "routine|soon|urgent|emergency",
-    "recommendation": "A clear, patient-friendly message explaining what this side effect means and what they should do. Use simple language. Examples: 'This appears to be a common and expected side effect. Continue your medication as prescribed and monitor symptoms.' OR 'This is a concerning reaction. Please stop taking the medication and contact your doctor within 24 hours.' OR 'This is a medical emergency. Stop the medication immediately and seek emergency care.'",
+    "recommendation": "Clear, empathetic patient-friendly message. Reference whether this is a known/expected side effect per the drug's documentation. Use simple language.",
     "nextSteps": ["Step-by-step actions for the patient in plain language"],
     "warningSignsToWatch": ["Specific symptoms that should prompt immediate medical attention"],
     "canContinueMedication": true|false,
@@ -253,21 +313,22 @@ Based on the above information, provide a comprehensive analysis in the followin
   }
 }
 
-PATIENT GUIDANCE RULES:
-- urgencyLevel "routine": Common side effect, no action needed except monitoring
-- urgencyLevel "soon": Should see a doctor within a few days
-- urgencyLevel "urgent": Should see a doctor within 24-48 hours
-- urgencyLevel "emergency": Seek immediate medical care (ER/call emergency services)
+PATIENT GUIDANCE URGENCY RULES:
+- "routine": Known common side effect per drug documentation, monitoring only needed
+- "soon": Uncommon or concerning side effect, should see doctor within a few days
+- "urgent": Serious reaction, should see doctor within 24-48 hours
+- "emergency": Life-threatening reaction, seek immediate emergency care (ER/call 911)
 
 For Life-threatening or Severe reactions: urgencyLevel should be "emergency" or "urgent"
-For known/expected side effects: urgencyLevel can be "routine" with reassuring guidance
+For known/expected common side effects: urgencyLevel can be "routine" with reassuring guidance
 
-IMPORTANT: 
-- Respond ONLY with valid JSON, no additional text.
-- Base severity on clinical significance, not just patient perception.
-- The patientGuidance.recommendation should be empathetic and in plain language.
-- Be specific in warningSignsToWatch - these help patients know when to escalate.
-- If images are provided, incorporate visual findings into the analysis.`;
+CRITICAL RULES:
+- Respond ONLY with valid JSON, no additional text
+- Base severity on clinical significance and drug documentation, not just patient perception
+- The medicalVerification section MUST include whether this is a known ADR for this specific medication
+- Include source URLs in medicationVerification.sources when possible
+- If images/videos show visible symptoms, describe them in your reasoning
+- patientGuidance.recommendation should be empathetic and reference the drug's known side effect profile`;
   }
 
   /**
@@ -300,6 +361,15 @@ IMPORTANT:
       keywords: analysis.keywords || [],
       summary: analysis.summary || 'Side effect report requires clinical review.',
       medicalTerminology: analysis.medicalTerminology || [],
+      medicationVerification: analysis.medicationVerification || {
+        isVerifiedMedication: false,
+        drugClass: 'Unknown',
+        knownADR: false,
+        knownADRFrequency: 'Not documented',
+        labelWarnings: [],
+        sources: []
+      },
+      references: analysis.references || [],
       patientGuidance: analysis.patientGuidance || this.generateDefaultPatientGuidance(analysis, reportData),
       aiProcessed: true,
       aiProcessedAt: new Date().toISOString()

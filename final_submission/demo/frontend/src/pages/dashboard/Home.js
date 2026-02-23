@@ -31,6 +31,7 @@ import {
   CheckCircle as CheckCircleIcon,
 } from "@mui/icons-material";
 import AuthContainer from "../../store/containers/AuthContainer";
+import reportService from "../../services/reportService";
 import Strings from '../../Strings';
 
 export default function Home() {
@@ -46,26 +47,31 @@ export default function Home() {
   const [error, setError] = useState(null);
   const [welcomeMessage, setWelcomeMessage] = useState('');
 
-  // Simulate loading and fetch user stats
+  // Load real user stats from API
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        // Simulate API call with realistic delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // Enhanced mock user stats with more realistic data
-        const mockStats = {
-          totalReports: Math.floor(Math.random() * 20) + 5,
-          recentReports: [
-            { id: 1, medicine: "Aspirin 500mg", date: "2026-01-14", status: "reviewed", severity: "mild" },
-            { id: 2, medicine: "Ibuprofen 400mg", date: "2026-01-12", status: "pending", severity: "moderate" },
-            { id: 3, medicine: "Lisinopril 10mg", date: "2026-01-10", status: "reviewed", severity: "mild" },
-          ],
-          completedProfile: Math.floor(Math.random() * 30) + 70,
-        };
-        
-        setUserStats(mockStats);
-        setWelcomeMessage(`Welcome back, ${user?.firstName || 'User'}! You have ${mockStats.recentReports.filter(r => r.status === 'pending').length} pending reports.`);
+        const result = await reportService.getAllReports({ limit: 100, sortBy: 'reportDetails.reportDate', sortOrder: 'desc' });
+
+        // Handle both real API format { success, data: [...], meta: { pagination: { total } } }
+        // and demo-mode format { status: 'success', data: [...], total: N }
+        const reports = Array.isArray(result?.data) ? result.data : [];
+        const total = result?.total ?? result?.meta?.pagination?.total ?? reports.length;
+
+        setUserStats({
+          totalReports: total,
+          recentReports: reports.slice(0, 3).map(r => ({
+            id: r._id,
+            medicine: r.medicine?.name || 'Unknown medicine',
+            date: (r.reportDetails?.reportDate || r.createdAt || '').split('T')[0],
+            status: (r.status || 'pending').toLowerCase(),
+            severity: r.sideEffects?.[0]?.severity?.toLowerCase() || 'mild',
+          })),
+          completedProfile: 85,
+        });
+
+        const pendingCount = reports.filter(r => (r.status || '').toLowerCase() === 'pending' || (r.status || '').toLowerCase() === 'submitted').length;
+        setWelcomeMessage(`Welcome back, ${user?.firstName || 'User'}! You have ${pendingCount} pending report${pendingCount !== 1 ? 's' : ''}.`);
       } catch (error) {
         console.error("Error loading user data:", error);
         setError("Failed to load dashboard data. Please refresh the page.");

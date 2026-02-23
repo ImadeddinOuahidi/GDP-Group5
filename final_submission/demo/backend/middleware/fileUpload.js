@@ -19,6 +19,7 @@ const storage = multer.memoryStorage(); // Store files in memory for AI processi
 const fileFilter = (req, file, cb) => {
   // Define allowed file types
   const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
   const allowedAudioTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/m4a', 'audio/ogg', 'audio/webm'];
   
   if (file.fieldname === 'images') {
@@ -27,11 +28,24 @@ const fileFilter = (req, file, cb) => {
     } else {
       cb(new Error('Invalid image format. Allowed formats: JPEG, PNG, GIF, WebP'), false);
     }
+  } else if (file.fieldname === 'videos') {
+    if (allowedVideoTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid video format. Allowed formats: MP4, WebM, MOV'), false);
+    }
   } else if (file.fieldname === 'audio') {
     if (allowedAudioTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
       cb(new Error('Invalid audio format. Allowed formats: MP3, WAV, M4A, OGG, WebM'), false);
+    }
+  } else if (file.fieldname === 'attachments') {
+    // Generic attachments field — accept images and videos
+    if ([...allowedImageTypes, ...allowedVideoTypes].includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file format. Allowed: JPEG, PNG, GIF, WebP, MP4, WebM, MOV'), false);
     }
   } else {
     cb(new Error('Unexpected field name'), false);
@@ -50,8 +64,14 @@ const upload = multer({
 
 // Middleware for AI report submission
 const uploadAIReportFiles = upload.fields([
-  { name: 'images', maxCount: 5 }, // Up to 5 images
-  { name: 'audio', maxCount: 1 }   // Up to 1 audio file
+  { name: 'images', maxCount: 5 },    // Up to 5 images
+  { name: 'videos', maxCount: 2 },    // Up to 2 videos
+  { name: 'audio', maxCount: 1 }      // Up to 1 audio file
+]);
+
+// Middleware for standard report file attachments (photos/videos from patient)
+const uploadReportAttachments = upload.fields([
+  { name: 'attachments', maxCount: 5 } // Up to 5 images/videos
 ]);
 
 // Error handling middleware for file uploads
@@ -97,12 +117,14 @@ const validateUploadedFiles = (req, res, next) => {
     // Check if at least one input type is provided
     const hasText = req.body.text && req.body.text.trim().length > 0;
     const hasImages = req.files && req.files.images && req.files.images.length > 0;
+    const hasVideos = req.files && req.files.videos && req.files.videos.length > 0;
     const hasAudio = req.files && req.files.audio && req.files.audio.length > 0;
+    const hasAttachments = req.files && req.files.attachments && req.files.attachments.length > 0;
     
-    if (!hasText && !hasImages && !hasAudio) {
+    if (!hasText && !hasImages && !hasVideos && !hasAudio && !hasAttachments) {
       return res.status(400).json({
         status: 'error',
-        message: 'At least one input (text, image, or audio) is required.'
+        message: 'At least one input (text, image, video, or audio) is required.'
       });
     }
     
@@ -159,6 +181,7 @@ const validateUploadedFiles = (req, res, next) => {
 
 module.exports = {
   uploadAIReportFiles,
+  uploadReportAttachments,
   handleUploadErrors,
   validateUploadedFiles
 };

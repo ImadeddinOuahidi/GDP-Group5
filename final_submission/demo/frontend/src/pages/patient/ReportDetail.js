@@ -42,8 +42,11 @@ import {
   MonitorHeart as MonitorIcon,
   Phone as PhoneIcon,
   Schedule as ScheduleIcon,
+  Print as PrintIcon,
+  FileDownload as DownloadIcon,
 } from '@mui/icons-material';
 import { reportService } from '../../services';
+import { printReport, exportClientJSON } from '../../utils/exportUtils';
 
 // Urgency level configurations
 const urgencyConfig = {
@@ -170,18 +173,35 @@ export default function ReportDetail() {
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* Header */}
-      <Box display="flex" alignItems="center" mb={3}>
+      <Box display="flex" alignItems="center" mb={3} flexWrap="wrap" gap={1}>
         <Button startIcon={<BackIcon />} onClick={() => navigate(-1)} sx={{ mr: 2 }}>
           Back
         </Button>
-        <Typography variant="h4" fontWeight="bold">
+        <Typography variant="h4" fontWeight="bold" sx={{ flexGrow: 1 }}>
           Report Details
         </Typography>
         <Chip 
           label={report.status} 
           color={report.status === 'Reviewed' ? 'success' : 'warning'}
-          sx={{ ml: 2 }}
+          sx={{ mr: 1 }}
         />
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<PrintIcon />}
+          onClick={() => printReport(report)}
+          sx={{ mr: 1 }}
+        >
+          Print
+        </Button>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<DownloadIcon />}
+          onClick={() => exportClientJSON([report], `report-${report._id}`)}
+        >
+          Export
+        </Button>
       </Box>
 
       <Grid container spacing={3}>

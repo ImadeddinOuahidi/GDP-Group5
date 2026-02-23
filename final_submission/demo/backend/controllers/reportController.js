@@ -3,10 +3,12 @@ const ReportSideEffect = require('../models/ReportSideEffect');
 const Medication = require('../models/Medication');
 const User = require('../models/User');
 const rabbitmqService = require('../services/rabbitmqService');
+const notificationService = require('../services/notificationService');
 const { sendSuccess, sendCreated, sendNotFound, sendForbidden, sendValidationError, sendError } = require('../utils/responseHelper');
 const { validateObjectId } = require('../utils/validationHelper');
 const { USER_ROLES, SUCCESS_MESSAGES, ERROR_MESSAGES } = require('../utils/constants');
 const AppError = require('../utils/appError');
+const DuplicateDetectionService = require('../services/duplicateDetectionService');
 
 // Submit a new side effect report
 exports.submitReport = async (req, res) => {
@@ -61,6 +63,21 @@ exports.submitReport = async (req, res) => {
       } catch (publishError) {
         console.error('[Report Controller] Failed to publish event:', publishError);
         // Non-blocking - report is still saved successfully
+      }
+    });
+
+    // Notify staff if the report has serious/critical severity indicators
+    setImmediate(async () => {
+      try {
+        const hasSeriousIndicators = report.sideEffects?.some(
+          (e) => e.severity === 'Severe' || e.severity === 'Life-threatening'
+        ) || report.reportDetails?.seriousness === 'serious' || report.reportDetails?.seriousness === 'life-threatening';
+
+        if (hasSeriousIndicators) {
+          await notificationService.notifyStaffUrgentReport(report);
+        }
+      } catch (notifyError) {
+        console.error('[Report Controller] Failed to send notifications:', notifyError);
       }
     });
 
@@ -121,13 +138,8 @@ exports.getAllReports = async (req, res) => {
         { patient: req.user._id }
       ];
     } else if (req.user.role === 'doctor') {
-      // Doctors can see reports they submitted or for their patients
-      if (!req.user.hasPermission || !req.user.hasPermission('view_all_reports')) {
-        filter.$or = [
-          { reportedBy: req.user._id },
-          { patient: { $in: await getPatientIds(req.user._id) } }
-        ];
-      }
+      // Doctors can see ALL reports for review/monitoring purposes
+      // No additional filter needed - doctors have full visibility
     }
     // Admins can see all reports (no additional filter)
 
@@ -197,7 +209,7 @@ exports.getReportById = async (req, res) => {
     if (error.statusCode) {
       return sendError(res, error.message, error.statusCode);
     }
-    return sendServerError(res, 'Failed to fetch report');
+    return sendError(res, 'Failed to fetch report', 500);
   }
 };
 
@@ -242,6 +254,15 @@ exports.updateReportStatus = async (req, res) => {
 
     const { sendUpdated } = require('../utils/responseHelper');
     sendUpdated(res, { report }, 'Report status updated successfully');
+
+    // Notify patient of status change (non-blocking)
+    setImmediate(async () => {
+      try {
+        await notificationService.notifyReportStatusUpdate(report, status);
+      } catch (err) {
+        console.error('[Report Controller] Failed to send status notification:', err);
+      }
+    });
 
   } catch (error) {
     console.error('Update report status error:', error);
@@ -404,6 +425,9 @@ exports.getSeriousReports = async (req, res) => {
 // Get dashboard statistics
 exports.getDashboardStats = async (req, res) => {
   try {
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    
     const stats = await Promise.all([
       // Total reports
       ReportSideEffect.countDocuments({ isActive: true, isDeleted: false }),
@@ -449,7 +473,54 @@ exports.getDashboardStats = async (req, res) => {
             reportCount: '$count'
           }
         }
-      ])
+      ]),
+      
+      // AI severity distribution (from AI analysis)
+      ReportSideEffect.aggregate([
+        { $match: { isActive: true, isDeleted: false, 'metadata.aiProcessed': true } },
+        { $group: { _id: '$metadata.aiAnalysis.severity.level', count: { $sum: 1 } } }
+      ]),
+      
+      // Patient-reported severity distribution (from sideEffects)
+      ReportSideEffect.aggregate([
+        { $match: { isActive: true, isDeleted: false } },
+        { $unwind: '$sideEffects' },
+        { $group: { _id: '$sideEffects.severity', count: { $sum: 1 } } }
+      ]),
+      
+      // Reports this week
+      ReportSideEffect.countDocuments({ 
+        isActive: true, isDeleted: false, 
+        createdAt: { $gte: weekAgo } 
+      }),
+      
+      // AI processed count
+      ReportSideEffect.countDocuments({ 
+        isActive: true, isDeleted: false, 
+        'metadata.aiProcessed': true 
+      }),
+      
+      // Pending review requests
+      ReportSideEffect.countDocuments({
+        isActive: true, isDeleted: false,
+        'doctorReview.requested': true,
+        'doctorReview.status': { $in: ['pending', 'in_review'] }
+      }),
+      
+      // Severe + Life-threatening (AI-detected OR patient-reported)
+      ReportSideEffect.countDocuments({
+        isActive: true, isDeleted: false,
+        $or: [
+          { 'metadata.aiAnalysis.severity.level': { $in: ['Severe', 'Life-threatening'] } },
+          { 'sideEffects.severity': { $in: ['Severe', 'Life-threatening'] } }
+        ]
+      }),
+      
+      // High + Critical priority
+      ReportSideEffect.countDocuments({
+        isActive: true, isDeleted: false,
+        priority: { $in: ['High', 'Critical'] }
+      })
     ]);
 
     sendSuccess(res, {
@@ -457,7 +528,14 @@ exports.getDashboardStats = async (req, res) => {
       seriousReports: stats[1],
       reportsByStatus: stats[2],
       reportsByPriority: stats[3],
-      mostReportedMedicines: stats[4]
+      mostReportedMedicines: stats[4],
+      aiSeverityDistribution: stats[5],
+      patientSeverityDistribution: stats[6],
+      reportsThisWeek: stats[7],
+      aiProcessedCount: stats[8],
+      pendingReviewCount: stats[9],
+      severeCaseCount: stats[10],
+      highPriorityCount: stats[11]
     });
 
   } catch (error) {
@@ -820,6 +898,15 @@ exports.submitDoctorReview = async (req, res) => {
       { path: 'patient', select: 'firstName lastName' },
       { path: 'doctorReview.reviewedBy', select: 'firstName lastName' }
     ]);
+
+    // Notify patient that review is complete
+    setImmediate(async () => {
+      try {
+        await notificationService.notifyReviewComplete(report);
+      } catch (err) {
+        console.error('[Report Controller] Failed to send review notification:', err);
+      }
+    });
 
     sendSuccess(res, { data: { report }, message: 'Doctor review submitted successfully' });
   } catch (error) {

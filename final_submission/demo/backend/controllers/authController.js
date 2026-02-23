@@ -188,10 +188,39 @@ exports.signin = async (req, res) => {
       });
     }
 
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const rawIdentifier = (req.body.identifier || req.body.email || '').trim();
+    const normalizedIdentifier = rawIdentifier.toLowerCase();
+
+    if (!normalizedIdentifier) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email or username is required'
+      });
+    }
+
+    const loginQuery = normalizedIdentifier.includes('@')
+      ? { email: normalizedIdentifier }
+      : {
+          $or: [
+            { email: normalizedIdentifier },
+            {
+              $expr: {
+                $eq: [
+                  {
+                    $toLower: {
+                      $arrayElemAt: [{ $split: ['$email', '@'] }, 0]
+                    }
+                  },
+                  normalizedIdentifier
+                ]
+              }
+            }
+          ]
+        };
 
     // Find user and include password field
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne(loginQuery).select('+password');
     
     if (!user) {
       return res.status(401).json({
@@ -218,9 +247,10 @@ exports.signin = async (req, res) => {
       });
     }
 
-    // Update last login
-    user.lastLogin = new Date();
-    await user.save({ validateBeforeSave: false });
+    // Update last login with an atomic write to avoid version conflicts on concurrent sign-ins.
+    const lastLogin = new Date();
+    await User.updateOne({ _id: user._id }, { $set: { lastLogin } });
+    user.lastLogin = lastLogin;
 
     // Generate JWT token
     const token = generateToken(user._id);

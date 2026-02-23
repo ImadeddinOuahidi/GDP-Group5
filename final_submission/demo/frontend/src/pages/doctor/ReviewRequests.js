@@ -42,6 +42,9 @@ import {
   LocalHospital as MedicineIcon,
   Psychology as AIIcon,
   Schedule as ScheduleIcon,
+  VerifiedUser as VerifiedIcon,
+  Link as LinkIcon,
+  Science as ScienceIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import AuthContainer from '../../store/containers/AuthContainer';
@@ -121,7 +124,7 @@ export default function ReviewRequests() {
 
   const getUrgencyColor = (urgency) => {
     switch (urgency?.toLowerCase()) {
-      case 'urgent': return 'error';
+      case 'emergency': case 'urgent': return 'error';
       case 'soon': return 'warning';
       case 'routine': return 'success';
       default: return 'info';
@@ -314,6 +317,86 @@ export default function ReviewRequests() {
                                     <ListItemText 
                                       primary={`• ${action}`}
                                       primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}
+                                    />
+                                  </ListItem>
+                                ))}
+                              </List>
+                            </Box>
+                          )}
+
+                          {/* Medication Verification from AI + Google Search */}
+                          {aiAnalysis.medicationVerification && (
+                            <Box sx={{ mb: 2, p: 2, bgcolor: alpha(theme.palette.info.main, 0.05), borderRadius: 1, border: `1px solid ${alpha(theme.palette.info.main, 0.2)}` }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                <VerifiedIcon color={aiAnalysis.medicationVerification.isVerifiedMedication ? 'success' : 'warning'} fontSize="small" />
+                                <Typography variant="subtitle2">
+                                  Medication Verification
+                                  {aiAnalysis.medicationVerification.isVerifiedMedication && (
+                                    <Chip label="Verified" size="small" color="success" sx={{ ml: 1 }} />
+                                  )}
+                                </Typography>
+                              </Box>
+                              <Grid container spacing={1}>
+                                {aiAnalysis.medicationVerification.drugClass && aiAnalysis.medicationVerification.drugClass !== 'Unknown' && (
+                                  <Grid item xs={12} sm={6}>
+                                    <Typography variant="caption" color="text.secondary">Drug Class</Typography>
+                                    <Typography variant="body2">{aiAnalysis.medicationVerification.drugClass}</Typography>
+                                  </Grid>
+                                )}
+                                {aiAnalysis.medicationVerification.knownADR && (
+                                  <Grid item xs={12} sm={6}>
+                                    <Typography variant="caption" color="text.secondary">Known ADR Match</Typography>
+                                    <Typography variant="body2" color={aiAnalysis.medicationVerification.knownADR ? 'error.main' : 'text.primary'}>
+                                      {aiAnalysis.medicationVerification.knownADR ? 'Yes - This is a known adverse reaction' : 'Not a commonly known ADR'}
+                                    </Typography>
+                                  </Grid>
+                                )}
+                                {aiAnalysis.medicationVerification.knownADRFrequency && (
+                                  <Grid item xs={12} sm={6}>
+                                    <Typography variant="caption" color="text.secondary">ADR Frequency</Typography>
+                                    <Typography variant="body2">{aiAnalysis.medicationVerification.knownADRFrequency}</Typography>
+                                  </Grid>
+                                )}
+                                {aiAnalysis.medicationVerification.labelWarnings && (
+                                  <Grid item xs={12}>
+                                    <Typography variant="caption" color="text.secondary">Label Warnings</Typography>
+                                    <Typography variant="body2">{aiAnalysis.medicationVerification.labelWarnings}</Typography>
+                                  </Grid>
+                                )}
+                                {aiAnalysis.medicationVerification.sources?.length > 0 && (
+                                  <Grid item xs={12}>
+                                    <Typography variant="caption" color="text.secondary">Verification Sources</Typography>
+                                    <Typography variant="body2">
+                                      {aiAnalysis.medicationVerification.sources.join(', ')}
+                                    </Typography>
+                                  </Grid>
+                                )}
+                              </Grid>
+                            </Box>
+                          )}
+
+                          {/* References from Google Search Grounding */}
+                          {aiAnalysis.references?.length > 0 && (
+                            <Box sx={{ mb: 2 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                <ScienceIcon color="primary" fontSize="small" />
+                                <Typography variant="subtitle2">References & Sources</Typography>
+                              </Box>
+                              <List dense>
+                                {aiAnalysis.references.map((ref, idx) => (
+                                  <ListItem key={idx} sx={{ py: 0.5 }}>
+                                    <LinkIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                                    <ListItemText
+                                      primary={
+                                        ref.uri ? (
+                                          <a href={ref.uri} target="_blank" rel="noopener noreferrer" style={{ color: theme.palette.primary.main, textDecoration: 'none' }}>
+                                            {ref.title || ref.uri}
+                                          </a>
+                                        ) : (
+                                          ref.title || 'Reference'
+                                        )
+                                      }
+                                      primaryTypographyProps={{ variant: 'body2' }}
                                     />
                                   </ListItem>
                                 ))}

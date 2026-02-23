@@ -393,7 +393,21 @@ const reportSideEffectSchema = new mongoose.Schema({
         }
       },
       model: String,
-      processedAt: Date
+      processedAt: Date,
+      // Medication verification from Google Search grounding
+      medicationVerification: {
+        isVerifiedMedication: { type: Boolean, default: false },
+        drugClass: String,
+        knownADR: Boolean,
+        knownADRFrequency: String,
+        labelWarnings: String,
+        sources: [String]
+      },
+      // References from Google Search grounding
+      references: [{
+        title: String,
+        uri: String
+      }]
     },
     aiModelUsed: String,
     aiRiskScore: Number
@@ -441,7 +455,7 @@ const reportSideEffectSchema = new mongoose.Schema({
       recommendation: String,
       actionRequired: {
         type: String,
-        enum: ['none', 'monitor', 'adjust_dosage', 'stop_medication', 'seek_emergency', 'schedule_appointment'],
+        enum: ['none', 'monitor', 'adjust_dosage', 'adjust_medication', 'stop_medication', 'discontinue', 'seek_emergency', 'emergency', 'schedule_appointment'],
         default: 'none'
       },
       followUpRequired: {
@@ -452,6 +466,19 @@ const reportSideEffectSchema = new mongoose.Schema({
       additionalNotes: String
     }
   },
+  
+  // File attachments (images, videos uploaded to MinIO)
+  attachments: [{
+    key: String,           // MinIO object key
+    originalName: String,  // Original filename
+    mimeType: String,      // MIME type (image/jpeg, video/mp4, etc.)
+    size: Number,          // File size in bytes
+    url: String,           // Presigned URL or path
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   
   // System fields
   isActive: {
