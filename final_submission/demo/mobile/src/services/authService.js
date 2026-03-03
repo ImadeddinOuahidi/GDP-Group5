@@ -57,30 +57,17 @@ export const authService = {
   },
 
   /**
-   * Request password reset
+   * Change password (authenticated)
    */
-  forgotPassword: async (email) => {
+  changePassword: async ({ currentPassword, newPassword }) => {
     try {
-      const response = await apiClient.post(ENDPOINTS.FORGOT_PASSWORD, { email });
-      return response.data;
-    } catch (error) {
-      console.error('Forgot password error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Reset password with token
-   */
-  resetPassword: async (token, newPassword) => {
-    try {
-      const response = await apiClient.post(ENDPOINTS.RESET_PASSWORD, { 
-        token, 
-        password: newPassword 
+      const response = await apiClient.put(ENDPOINTS.CHANGE_PASSWORD, {
+        currentPassword,
+        newPassword,
       });
       return response.data;
     } catch (error) {
-      console.error('Reset password error:', error);
+      console.error('Change password error:', error);
       throw error;
     }
   },

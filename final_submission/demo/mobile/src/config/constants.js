@@ -1,35 +1,51 @@
 // API Configuration
+import Constants from 'expo-constants';
+
+const getBaseUrl = () => {
+  if (!__DEV__) return 'https://your-production-api.com/api';
+  // Auto-detect dev machine IP from Expo dev server
+  const debuggerHost = Constants.expoConfig?.hostUri || Constants.manifest?.debuggerHost;
+  if (debuggerHost) {
+    const host = debuggerHost.split(':')[0];
+    return `http://${host}:5001/api`;
+  }
+  return 'http://localhost:5001/api';
+};
+
 export const API_CONFIG = {
-  // Update this to your backend URL
-  BASE_URL: __DEV__ 
-    ? 'http://localhost:5001/api'  // Development
-    : 'https://your-production-api.com/api', // Production
-  
-  TIMEOUT: 30000, // 30 seconds
+  BASE_URL: getBaseUrl(),
+  TIMEOUT: 30000,
   
   ENDPOINTS: {
     // Auth
     LOGIN: '/auth/signin',
     REGISTER: '/auth/signup',
     PROFILE: '/auth/profile',
-    FORGOT_PASSWORD: '/auth/forgot-password',
-    RESET_PASSWORD: '/auth/reset-password',
+    CHANGE_PASSWORD: '/auth/change-password',
+    PROFILE_PICTURE: '/auth/profile-picture',
     
     // Reports
     REPORTS: '/reports',
+    PENDING_REVIEWS: '/reports/pending-reviews',
     AI_SUBMIT: '/reports/aisubmit',
+    AI_PREVIEW: '/reports/aipreview',
     AI_CONFIRM: '/reports/aiconfirm',
     
     // Medications
     MEDICATIONS: '/medications',
-    FUZZY_SEARCH: '/medications/fuzzy-search',
-    SUGGESTIONS: '/medications/suggestions',
+    MEDICATION_SEARCH: '/medications/search',
+    MEDICATION_PATIENT: '/medications/patient',
+    MEDICATION_POPULAR: '/medications/popular',
+    MEDICATION_CATEGORIES: '/medications/categories',
     
     // Symptom Progression
     SYMPTOM_PROGRESSION: '/symptom-progression',
     
     // Uploads
     UPLOADS: '/uploads',
+    
+    // Notifications
+    NOTIFICATIONS: '/notifications',
   },
 };
 
@@ -131,9 +147,10 @@ export const ADMINISTRATION_ROUTES = [
 
 // Report Status
 export const REPORT_STATUS = {
-  PENDING: 'pending',
-  UNDER_REVIEW: 'under_review',
-  CONFIRMED: 'confirmed',
-  RESOLVED: 'resolved',
-  CLOSED: 'closed',
+  DRAFT: 'Draft',
+  SUBMITTED: 'Submitted',
+  UNDER_REVIEW: 'Under Review',
+  REVIEWED: 'Reviewed',
+  CLOSED: 'Closed',
+  REJECTED: 'Rejected',
 };

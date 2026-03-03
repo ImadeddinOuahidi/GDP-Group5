@@ -111,6 +111,58 @@ export const reportService = {
       throw error;
     }
   },
+
+  /**
+   * Get pending review requests
+   */
+  getPendingReviews: async (params = {}) => {
+    try {
+      const response = await apiClient.get(ENDPOINTS.PENDING_REVIEWS, { params });
+      return response.data;
+    } catch (error) {
+      console.error('Get pending reviews error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update report status (Doctor/Admin)
+   */
+  updateReportStatus: async (id, statusData) => {
+    try {
+      const response = await apiClient.put(`${ENDPOINTS.REPORTS}/${id}/status`, statusData);
+      return response.data;
+    } catch (error) {
+      console.error('Update report status error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Submit doctor review for a report
+   */
+  submitReview: async (id, reviewData) => {
+    try {
+      const response = await apiClient.post(`${ENDPOINTS.REPORTS}/${id}/submit-review`, reviewData);
+      return response.data;
+    } catch (error) {
+      console.error('Submit review error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Request doctor review
+   */
+  requestReview: async (id, data = {}) => {
+    try {
+      const response = await apiClient.post(`${ENDPOINTS.REPORTS}/${id}/request-review`, data);
+      return response.data;
+    } catch (error) {
+      console.error('Request review error:', error);
+      throw error;
+    }
+  },
 };
 
 export default reportService;

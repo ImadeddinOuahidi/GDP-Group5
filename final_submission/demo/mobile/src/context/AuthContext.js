@@ -45,12 +45,12 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(true);
       const response = await authService.login(email, password);
       
-      if (response.success && response.token) {
-        await SecureStore.setItemAsync('token', response.token);
-        await SecureStore.setItemAsync('user', JSON.stringify(response.user));
+      if (response.success && response.data?.token) {
+        await SecureStore.setItemAsync('token', response.data.token);
+        await SecureStore.setItemAsync('user', JSON.stringify(response.data.user));
         
-        setToken(response.token);
-        setUser(response.user);
+        setToken(response.data.token);
+        setUser(response.data.user);
         setIsAuthenticated(true);
         
         return { success: true };
@@ -73,12 +73,12 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(true);
       const response = await authService.register(userData);
       
-      if (response.success && response.token) {
-        await SecureStore.setItemAsync('token', response.token);
-        await SecureStore.setItemAsync('user', JSON.stringify(response.user));
+      if (response.success && response.data?.token) {
+        await SecureStore.setItemAsync('token', response.data.token);
+        await SecureStore.setItemAsync('user', JSON.stringify(response.data.user));
         
-        setToken(response.token);
-        setUser(response.user);
+        setToken(response.data.token);
+        setUser(response.data.user);
         setIsAuthenticated(true);
         
         return { success: true };

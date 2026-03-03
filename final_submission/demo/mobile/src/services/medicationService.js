@@ -33,29 +33,27 @@ export const medicationService = {
   /**
    * Fuzzy search medications
    */
-  fuzzySearch: async (query, options = {}) => {
+  searchMedications: async (query, options = {}) => {
     try {
-      const response = await apiClient.get(ENDPOINTS.FUZZY_SEARCH, {
-        params: { query, ...options },
+      const response = await apiClient.get(ENDPOINTS.MEDICATION_SEARCH, {
+        params: { q: query, ...options },
       });
       return response.data;
     } catch (error) {
-      console.error('Fuzzy search error:', error);
+      console.error('Search medications error:', error);
       throw error;
     }
   },
 
   /**
-   * Get medication suggestions
+   * Get popular medications
    */
-  getSuggestions: async (query) => {
+  getPopularMedications: async () => {
     try {
-      const response = await apiClient.get(ENDPOINTS.SUGGESTIONS, {
-        params: { query },
-      });
+      const response = await apiClient.get(ENDPOINTS.MEDICATION_POPULAR);
       return response.data;
     } catch (error) {
-      console.error('Get suggestions error:', error);
+      console.error('Get popular medications error:', error);
       throw error;
     }
   },
@@ -102,14 +100,12 @@ export const medicationService = {
   /**
    * Search medications by category
    */
-  searchByCategory: async (category, params = {}) => {
+  createPatientMedication: async (medicationData) => {
     try {
-      const response = await apiClient.get(`${ENDPOINTS.FUZZY_SEARCH}/category/${category}`, {
-        params,
-      });
+      const response = await apiClient.post(ENDPOINTS.MEDICATION_PATIENT, medicationData);
       return response.data;
     } catch (error) {
-      console.error('Search by category error:', error);
+      console.error('Create patient medication error:', error);
       throw error;
     }
   },

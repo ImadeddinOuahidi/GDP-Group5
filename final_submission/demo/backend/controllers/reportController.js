@@ -524,18 +524,21 @@ exports.getDashboardStats = async (req, res) => {
     ]);
 
     sendSuccess(res, {
-      totalReports: stats[0],
-      seriousReports: stats[1],
-      reportsByStatus: stats[2],
-      reportsByPriority: stats[3],
-      mostReportedMedicines: stats[4],
-      aiSeverityDistribution: stats[5],
-      patientSeverityDistribution: stats[6],
-      reportsThisWeek: stats[7],
-      aiProcessedCount: stats[8],
-      pendingReviewCount: stats[9],
-      severeCaseCount: stats[10],
-      highPriorityCount: stats[11]
+      data: {
+        totalReports: stats[0],
+        seriousReports: stats[1],
+        reportsByStatus: stats[2],
+        reportsByPriority: stats[3],
+        mostReportedMedicines: stats[4],
+        aiSeverityDistribution: stats[5],
+        patientSeverityDistribution: stats[6],
+        reportsThisWeek: stats[7],
+        aiProcessedCount: stats[8],
+        pendingReviewCount: stats[9],
+        severeCaseCount: stats[10],
+        highPriorityCount: stats[11]
+      },
+      message: 'Dashboard statistics retrieved successfully'
     });
 
   } catch (error) {
