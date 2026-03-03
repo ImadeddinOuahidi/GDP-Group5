@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Base API URL - adjust based on your backend configuration
-const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+// Base API URL - uses REACT_APP_API_URL env var, defaults to docker-compose backend port
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 // Create axios instance with base configuration
 const apiClient = axios.create({
@@ -14,13 +14,13 @@ const apiClient = axios.create({
 
 // Token management utilities
 export const tokenManager = {
-  getToken: () => localStorage.getItem('token') || localStorage.getItem('authToken'), // Check both keys
+  getToken: () => localStorage.getItem('token'),
   setToken: (token) => {
     localStorage.setItem('token', token);
-    localStorage.setItem('authToken', token); // Set both for compatibility
   },
   removeToken: () => {
     localStorage.removeItem('token');
+    // Clean up legacy keys if they exist
     localStorage.removeItem('authToken');
   },
   getRefreshToken: () => localStorage.getItem('refreshToken'),
@@ -41,8 +41,7 @@ export const tokenManager = {
 export const userManager = {
   getUser: () => {
     try {
-      // Check both 'user' and 'userProfile' for compatibility
-      const userProfile = localStorage.getItem('user') || localStorage.getItem('userProfile');
+      const userProfile = localStorage.getItem('user');
       return userProfile ? JSON.parse(userProfile) : null;
     } catch (error) {
       console.error('Error parsing user profile:', error);
@@ -51,12 +50,10 @@ export const userManager = {
   },
   setUser: (user) => {
     localStorage.setItem('user', JSON.stringify(user));
-    localStorage.setItem('userProfile', JSON.stringify(user)); // Set both for compatibility
-    localStorage.setItem('userRole', user.role);
-    localStorage.setItem('username', user.email);
   },
   removeUser: () => {
     localStorage.removeItem('user');
+    // Clean up legacy keys
     localStorage.removeItem('userProfile');
     localStorage.removeItem('userRole');
     localStorage.removeItem('username');
@@ -176,6 +173,7 @@ export const api = {
     getProfile: () => apiClient.get('/auth/profile'),
     updateProfile: (profileData) => apiClient.put('/auth/profile', profileData),
     changePassword: (passwordData) => apiClient.put('/auth/change-password', passwordData),
+    updateProfilePicture: (data) => apiClient.put('/auth/profile-picture', data),
     verifyEmail: (token) => apiClient.get(`/auth/verify-email?token=${token}`),
     resendVerification: (email) => apiClient.post('/auth/resend-verification', { email }),
     deactivateAccount: (password) => apiClient.delete('/auth/deactivate', { data: { password } })

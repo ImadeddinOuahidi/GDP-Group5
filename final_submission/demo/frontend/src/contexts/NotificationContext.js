@@ -3,13 +3,14 @@ import { tokenManager } from '../services/apiClient';
 
 const NotificationContext = createContext(null);
 
-const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 export function NotificationProvider({ children }) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [connected, setConnected] = useState(false);
-  const eventSourceRef = useRef(null);
+  const abortControllerRef = useRef(null);
+  const reconnectTimeoutRef = useRef(null);
 
   // Fetch existing notifications from API
   const fetchNotifications = useCallback(async () => {
@@ -32,73 +33,97 @@ export function NotificationProvider({ children }) {
     }
   }, []);
 
-  // Connect to SSE stream
-  const connectSSE = useCallback(() => {
+  // Connect to SSE stream using fetch (supports auth headers)
+  const connectSSE = useCallback(async () => {
     const token = tokenManager.getToken();
     if (!token || token.startsWith('demo-token')) return;
 
     // Close existing connection
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
 
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     try {
-      // Use EventSource with token in URL (SSE doesn't support custom headers)
-      const url = `${BASE_URL}/notifications/stream`;
-      const eventSource = new EventSource(url, { withCredentials: false });
-      
-      // Note: Standard EventSource doesn't support auth headers.
-      // For production, use a polyfill or fetch-based SSE.
-      // For this implementation, we'll use polling as a fallback.
-      
-      eventSource.addEventListener('connected', () => {
-        setConnected(true);
-        console.log('[Notifications] SSE connected');
+      const response = await fetch(`${BASE_URL}/notifications/stream`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: abortController.signal,
       });
 
-      eventSource.addEventListener('notification', (event) => {
-        try {
-          const notification = JSON.parse(event.data);
-          setNotifications((prev) => [notification, ...prev.slice(0, 19)]);
-          setUnreadCount((prev) => prev + 1);
+      if (!response.ok || !response.body) {
+        throw new Error(`SSE connection failed: ${response.status}`);
+      }
 
-          // Show browser notification if permitted
-          if (Notification.permission === 'granted') {
-            new Notification(notification.title, {
-              body: notification.message,
-              icon: '/logo192.png',
-              tag: notification.id,
-            });
+      setConnected(true);
+      console.log('[Notifications] SSE connected via fetch');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        let eventType = '';
+        for (const line of lines) {
+          if (line.startsWith('event:')) {
+            eventType = line.slice(6).trim();
+          } else if (line.startsWith('data:')) {
+            const dataStr = line.slice(5).trim();
+            if (eventType === 'notification' && dataStr) {
+              try {
+                const notification = JSON.parse(dataStr);
+                setNotifications((prev) => [notification, ...prev.slice(0, 19)]);
+                setUnreadCount((prev) => prev + 1);
+
+                // Show browser notification if permitted
+                if ('Notification' in window && Notification.permission === 'granted') {
+                  new window.Notification(notification.title || 'New Notification', {
+                    body: notification.message,
+                    icon: '/logo192.png',
+                    tag: notification._id || notification.id,
+                  });
+                }
+              } catch (err) {
+                // ignore non-JSON heartbeat data
+              }
+            }
+            eventType = '';
           }
-        } catch (err) {
-          console.error('[Notifications] Parse error:', err);
         }
-      });
-
-      eventSource.onerror = () => {
-        setConnected(false);
-        eventSource.close();
-        // Reconnect after 5 seconds
-        setTimeout(connectSSE, 5000);
-      };
-
-      eventSourceRef.current = eventSource;
+      }
     } catch (err) {
-      console.error('[Notifications] SSE connection failed:', err);
-      // Fallback: poll every 30 seconds
+      if (err.name === 'AbortError') return; // intentional disconnect
+      console.warn('[Notifications] SSE error, falling back to polling:', err.message);
       setConnected(false);
+      // Reconnect after 10 seconds
+      reconnectTimeoutRef.current = setTimeout(connectSSE, 10000);
     }
   }, []);
 
-  // Polling fallback for notifications (every 30 seconds)
+  // Start SSE connection + polling fallback
   useEffect(() => {
     const token = tokenManager.getToken();
     if (!token || token.startsWith('demo-token')) return;
 
     fetchNotifications();
+    connectSSE();
+
+    // Polling fallback as a safety net (every 30 seconds)
     const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
-  }, [fetchNotifications]);
+    return () => {
+      clearInterval(interval);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+    };
+  }, [fetchNotifications, connectSSE]);
 
   // Request browser notification permission
   useEffect(() => {
@@ -107,14 +132,7 @@ export function NotificationProvider({ children }) {
     }
   }, []);
 
-  // Cleanup SSE on unmount
-  useEffect(() => {
-    return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
-    };
-  }, []);
+  // Cleanup on unmount is handled by the useEffect above
 
   const markAsRead = useCallback(async (notificationId) => {
     try {

@@ -25,6 +25,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AuthContainer from '../../store/containers/AuthContainer';
+import { useNotifications } from '../../contexts/NotificationContext';
 
 const drawerWidth = 240;
 
@@ -34,11 +35,12 @@ const Navigation = ({ mobileOpen, handleDrawerToggle }) => {
   const location = useLocation();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { user, isPatient, isDoctor } = AuthContainer.useContainer();
+  const { unreadCount } = useNotifications();
 
   const patientNavItems = [
     { text: 'Home', icon: <HomeIcon />, path: '/', badge: null },
     { text: 'Report Side Effect', icon: <ReportIcon />, path: '/report', badge: 'New' },
-    { text: 'My Reports', icon: <HistoryIcon />, path: '/reports', badge: '3' },
+    { text: 'My Reports', icon: <HistoryIcon />, path: '/reports', badge: unreadCount > 0 ? String(unreadCount) : null },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings', badge: null },
   ];
 
