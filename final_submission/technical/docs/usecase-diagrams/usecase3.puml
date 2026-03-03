@@ -1,0 +1,35 @@
+@startuml usecase3
+!theme plain
+title Use Case 3: Submit a Side Effect Report with Photo
+
+left to right direction
+
+actor "Patient" as Patient
+rectangle "ADR Reporting System" {
+    usecase "Submit Photo Report" as UC3
+    usecase "Validate and Upload Image" as UC3_1
+    usecase "Store Image Securely" as UC3_2
+    usecase "Run AI Image Analysis" as UC3_3
+    usecase "Send Confirmation" as UC3_4
+    usecase "Prompt Re-upload" as UC3_5
+}
+
+Patient --> UC3 : Photo/image of\nside effect
+
+UC3 .> UC3_1 : <<include>>
+UC3 .> UC3_2 : <<include>>
+UC3 .> UC3_3 : <<include>>
+UC3 .> UC3_4 : <<include>>
+UC3 .> UC3_5 : <<extend>>\n(if invalid format/quality)
+
+note right of UC3
+  **Inputs:**
+  - Photo showing side effect
+  (e.g., rash, swelling)
+  
+  **Outputs:**
+  - Confirmation message
+  - Re-upload prompt if invalid
+end note
+
+@enduml

@@ -1,0 +1,35 @@
+@startuml usecase4
+!theme plain
+title Use Case 4: Review ADR Reports
+
+left to right direction
+
+actor "Healthcare Staff" as Staff
+rectangle "ADR Reporting System" {
+    usecase "Review ADR Reports" as UC4
+    usecase "Authenticate Staff Login" as UC4_1
+    usecase "Search/Filter Reports" as UC4_2
+    usecase "Retrieve Reports" as UC4_3
+    usecase "Highlight Urgent/Duplicates" as UC4_4
+    usecase "Take Further Action" as UC4_5
+}
+
+Staff --> UC4 : Search/filter request\n(by severity, date, drug name)
+
+UC4 .> UC4_1 : <<include>>
+UC4 .> UC4_2 : <<include>>
+UC4 .> UC4_3 : <<include>>
+UC4 .> UC4_4 : <<include>>
+UC4 .> UC4_5 : <<extend>>
+
+note right of UC4
+  **Inputs:**
+  - Search or filter criteria
+  
+  **Outputs:**
+  - Reports displayed for review
+  - Staff can prioritize urgent cases
+  - Staff can confirm duplicates
+end note
+
+@enduml
