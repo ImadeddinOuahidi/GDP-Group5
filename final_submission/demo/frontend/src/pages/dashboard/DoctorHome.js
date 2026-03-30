@@ -41,6 +41,11 @@ import AuthContainer from '../../store/containers/AuthContainer';
 import Strings from '../../Strings';
 import { useThemeMode } from '../../styles/theme/ThemeProvider';
 import { reportService } from '../../services';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip as RechartsTooltip, ResponsiveContainer, Cell,
+  PieChart, Pie, Legend
+} from 'recharts';
 
 export default function DoctorHome() {
   const theme = useTheme();
@@ -360,66 +365,95 @@ export default function DoctorHome() {
         </Grid>
       </Grid>
 
-      {/* AI Severity Distribution + Top Medicines */}
+      {/* AI Severity Distribution + Top Medicines Charts */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        {aiSeverity.length > 0 && (
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-                  AI Severity Assessment
+        {/* Severity Distribution - Pie Chart */}
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                AI Severity Assessment
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+                {aiSeverity.length > 0 ? `${aiSeverity.reduce((s, i) => s + i.count, 0)} reports analyzed` : 'No AI-analyzed reports yet'}
+              </Typography>
+              {aiSeverity.length === 0 ? (
+                <Typography variant="body2" color="text.secondary" textAlign="center" py={4}>
+                  No AI severity data available
                 </Typography>
-                {aiSeverity.map((item) => {
-                  const level = item._id || 'Unknown';
-                  const colorMap = { 'Mild': 'success', 'Moderate': 'warning', 'Severe': 'error', 'Life-threatening': 'error' };
-                  const total = aiSeverity.reduce((sum, s) => sum + s.count, 0);
-                  return (
-                    <Box key={level} sx={{ mb: 1.5 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                        <Chip 
-                          label={level} 
-                          size="small" 
-                          color={colorMap[level] || 'default'}
-                          variant={level === 'Life-threatening' ? 'filled' : 'outlined'}
-                        />
-                        <Typography variant="body2" fontWeight={600}>{item.count}</Typography>
-                      </Box>
-                      <LinearProgress
-                        variant="determinate"
-                        value={total > 0 ? (item.count / total) * 100 : 0}
-                        color={colorMap[level] || 'primary'}
-                        sx={{ height: 8, borderRadius: 4 }}
-                      />
-                    </Box>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          </Grid>
-        )}
+              ) : (() => {
+                const PIE_COLORS = { 'Life-threatening': '#d32f2f', Severe: '#f57c00', Moderate: '#1976d2', Mild: '#388e3c' };
+                const pieData = aiSeverity
+                  .filter(item => item._id && item.count > 0)
+                  .map(item => ({ name: item._id || 'Unknown', value: item.count }));
+                return (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={85}
+                        paddingAngle={3}
+                        dataKey="value"
+                      >
+                        {pieData.map((entry) => (
+                          <Cell key={entry.name} fill={PIE_COLORS[entry.name] || '#9e9e9e'} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip formatter={(val, name) => [`${val} reports`, name]} />
+                      <Legend iconSize={10} wrapperStyle={{ fontSize: 12 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                );
+              })()}
+            </CardContent>
+          </Card>
+        </Grid>
 
-        {topMedicines.length > 0 && (
-          <Grid item xs={12} md={aiSeverity.length > 0 ? 6 : 12}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-                  Most Reported Medications
+        {/* Top Medications - Bar Chart */}
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                Most Reported Medications
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+                Top 5 medications by ADR report count
+              </Typography>
+              {topMedicines.length === 0 ? (
+                <Typography variant="body2" color="text.secondary" textAlign="center" py={4}>
+                  No medication data available
                 </Typography>
-                {topMedicines.map((med, i) => (
-                  <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, borderBottom: i < topMedicines.length - 1 ? '1px solid' : 'none', borderColor: 'divider' }}>
-                    <Box>
-                      <Typography variant="body1" fontWeight={500}>{med.medicineName}</Typography>
-                      {med.medicineGeneric && (
-                        <Typography variant="caption" color="text.secondary">{med.medicineGeneric}</Typography>
-                      )}
-                    </Box>
-                    <Chip label={`${med.reportCount} reports`} size="small" color="primary" variant="outlined" />
-                  </Box>
-                ))}
-              </CardContent>
-            </Card>
-          </Grid>
-        )}
+              ) : (() => {
+                const barColors = ['#1976d2', '#388e3c', '#f57c00', '#7b1fa2', '#0288d1'];
+                const barData = topMedicines.map(m => ({
+                  name: m.medicineName?.slice(0, 14) || 'Unknown',
+                  reports: m.reportCount,
+                  full: m.medicineName
+                }));
+                return (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={barData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />
+                      <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                      <RechartsTooltip
+                        formatter={(val, _, props) => [`${val} reports`, props.payload.full || props.payload.name]}
+                      />
+                      <Bar dataKey="reports" radius={[4, 4, 0, 0]}>
+                        {barData.map((_, i) => (
+                          <Cell key={i} fill={barColors[i % barColors.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                );
+              })()}
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
 
       {/* Quick Actions */}

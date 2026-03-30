@@ -520,7 +520,26 @@ exports.getDashboardStats = async (req, res) => {
       ReportSideEffect.countDocuments({
         isActive: true, isDeleted: false,
         priority: { $in: ['High', 'Critical'] }
-      })
+      }),
+
+      // Reports over last 30 days (grouped by day for trend chart)
+      ReportSideEffect.aggregate([
+        {
+          $match: {
+            isActive: true,
+            isDeleted: false,
+            createdAt: { $gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) }
+          }
+        },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { _id: 1 } },
+        { $project: { date: '$_id', count: 1, _id: 0 } }
+      ])
     ]);
 
     sendSuccess(res, {
@@ -536,7 +555,8 @@ exports.getDashboardStats = async (req, res) => {
         aiProcessedCount: stats[8],
         pendingReviewCount: stats[9],
         severeCaseCount: stats[10],
-        highPriorityCount: stats[11]
+        highPriorityCount: stats[11],
+        reportsOverTime: stats[12]
       },
       message: 'Dashboard statistics retrieved successfully'
     });

@@ -152,6 +152,11 @@ export default function Report() {
     resetTranscript 
   } = useSpeechToText();
   
+  // Duplicate check state
+  const [duplicateWarningOpen, setDuplicateWarningOpen] = useState(false);
+  const [potentialDuplicates, setPotentialDuplicates] = useState([]);
+  const [pendingReportData, setPendingReportData] = useState(null);
+
   // New medication dialog state
   const [newMedicationDialog, setNewMedicationDialog] = useState(false);
   const [newMedicationData, setNewMedicationData] = useState({
@@ -405,22 +410,51 @@ export default function Report() {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
 
+  // Actually submit the report after optional duplicate confirmation
+  const doSubmitReport = async (reportData) => {
+    const response = await reportService.submitReport(reportData);
+    if (response.status === 'success' || response.success) {
+      setSubmitted(true);
+      setSuccessMessage('Your adverse drug reaction report has been submitted successfully. Our medical team will review it shortly.');
+    } else {
+      throw new Error(response.message || 'Failed to submit report');
+    }
+  };
+
+  // Proceed with submission after user dismisses duplicate warning
+  const handleProceedDespiteDuplicates = async () => {
+    setDuplicateWarningOpen(false);
+    if (pendingReportData) {
+      try {
+        await doSubmitReport(pendingReportData);
+      } catch (error) {
+        let errorMessage = 'Failed to submit report. Please try again.';
+        if (error.response?.data?.message) errorMessage = error.response.data.message;
+        else if (error.message) errorMessage = error.message;
+        setSubmissionError(errorMessage);
+      } finally {
+        setLoading(false);
+        setPendingReportData(null);
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmissionError('');
-    
+
     if (!isAuthenticated || !user) {
       setSubmissionError('You must be logged in to submit a report.');
       return;
     }
-    
+
     if (!selectedMedication) {
       setSubmissionError('Please select a medication from the list or create a new one.');
       return;
     }
-    
+
     setLoading(true);
-    
+
     try {
       // Step 1: Upload files to MinIO if any attachments exist
       let uploadedAttachments = [];
@@ -499,17 +533,24 @@ export default function Report() {
         reportData.attachments = uploadedAttachments;
       }
 
-      console.log('Submitting report data:', reportData);
-      
-      const response = await reportService.submitReport(reportData);
-      
-      if (response.status === 'success' || response.success) {
-        setSubmitted(true);
-        setSuccessMessage('Your adverse drug reaction report has been submitted successfully. Our medical team will review it shortly.');
-        console.log('Report submitted successfully:', response);
-      } else {
-        throw new Error(response.message || 'Failed to submit report');
+      // Step 3: Check for potential duplicates before submitting
+      const dupCheckData = {
+        medicine: reportData.medicine,
+        sideEffects: reportData.sideEffects,
+        reportDetails: reportData.reportDetails,
+      };
+      const dupResult = await reportService.checkDuplicates(dupCheckData);
+      if (dupResult?.success && dupResult?.data?.hasDuplicates && dupResult?.data?.duplicates?.length > 0) {
+        // Store the report data and show warning dialog
+        setPendingReportData(reportData);
+        setPotentialDuplicates(dupResult.data.duplicates);
+        setDuplicateWarningOpen(true);
+        setLoading(false);
+        return; // Don't submit yet — wait for user confirmation
       }
+
+      // No duplicates found — proceed with submission
+      await doSubmitReport(reportData);
     } catch (error) {
       console.error('Error submitting report:', error);
       // Extract detailed error message
@@ -1060,6 +1101,49 @@ export default function Report() {
             disabled={!newMedicationData.name.trim() || newMedicationLoading}
           >
             {newMedicationLoading ? 'Adding...' : 'Add Medication'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Duplicate Warning Dialog */}
+      <Dialog
+        open={duplicateWarningOpen}
+        onClose={() => { setDuplicateWarningOpen(false); setLoading(false); setPendingReportData(null); }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'warning.main' }}>
+          <Tooltip title="Possible Duplicate"><span>⚠️</span></Tooltip>
+          Possible Duplicate Report Detected
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            We found {potentialDuplicates.length} similar report{potentialDuplicates.length > 1 ? 's' : ''} already submitted for this medication.
+            Please review before proceeding.
+          </Alert>
+          {potentialDuplicates.slice(0, 3).map((dup, i) => (
+            <Box key={i} sx={{ p: 1.5, mb: 1, border: '1px solid', borderColor: 'warning.light', borderRadius: 1, bgcolor: 'warning.50' }}>
+              <Typography variant="body2" fontWeight={600}>
+                {dup.medicine?.name || 'Same medication'} — {dup.sideEffects?.[0]?.effect || 'Similar symptoms'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Submitted: {dup.createdAt ? new Date(dup.createdAt).toLocaleDateString() : 'Unknown date'} •
+                Similarity: {dup.similarityScore ? `${Math.round(dup.similarityScore * 100)}%` : 'High'}
+              </Typography>
+            </Box>
+          ))}
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            You can still submit if this is a new or different reaction. Our team will review for duplicates.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => { setDuplicateWarningOpen(false); setLoading(false); setPendingReportData(null); }}
+          >
+            Go Back and Edit
+          </Button>
+          <Button variant="contained" color="warning" onClick={handleProceedDespiteDuplicates}>
+            Submit Anyway
           </Button>
         </DialogActions>
       </Dialog>

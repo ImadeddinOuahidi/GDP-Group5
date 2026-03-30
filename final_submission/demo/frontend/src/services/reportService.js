@@ -192,6 +192,17 @@ class ReportService {
     return formData;
   }
 
+  // Check for potential duplicate reports before submission
+  async checkDuplicates(reportData) {
+    try {
+      const response = await apiClient.post(`${ROUTES.API.REPORTS}/check-duplicates`, reportData);
+      return response.data;
+    } catch (error) {
+      // Non-blocking: if check fails, allow submission to proceed
+      return { success: false, data: { hasDuplicates: false } };
+    }
+  }
+
   // ==================== Doctor Review Methods ====================
 
   // Request a doctor review for a report

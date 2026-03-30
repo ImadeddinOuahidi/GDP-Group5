@@ -61,6 +61,11 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../services/apiClient';
 import { exportReportsCSV, exportReportsJSON, exportClientCSV, exportClientJSON } from '../../utils/exportUtils';
 import { useI18n } from '../../i18n';
+import {
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
+  ResponsiveContainer, Legend
+} from 'recharts';
 
 export default function Dashboard() {
   const theme = useTheme();
@@ -71,6 +76,8 @@ export default function Dashboard() {
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [severityFilter, setSeverityFilter] = React.useState('');
+  const [dateFrom, setDateFrom] = React.useState('');
+  const [dateTo, setDateTo] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(true);
   const [lastUpdated, setLastUpdated] = React.useState(new Date());
   const [snackbar, setSnackbar] = React.useState({ open: false, message: '', severity: 'success' });
@@ -141,7 +148,7 @@ export default function Dashboard() {
   // Helper: check if AI analysis exists
   const hasAIAnalysis = (report) => !!report.metadata?.aiProcessed;
 
-  // Filter reports based on search and severity
+  // Filter reports based on search, severity, and date range
   const filteredReports = reports.filter(report => {
     const patientName = getPatientName(report).toLowerCase();
     const drugName = getDrugName(report).toLowerCase();
@@ -149,7 +156,10 @@ export default function Dashboard() {
     const search = searchTerm.toLowerCase();
     const matchesSearch = !searchTerm || patientName.includes(search) || drugName.includes(search) || symptom.includes(search);
     const matchesSeverity = !severityFilter || getSeverity(report) === severityFilter || report.priority === severityFilter;
-    return matchesSearch && matchesSeverity;
+    const reportDate = report.createdAt ? new Date(report.createdAt) : null;
+    const matchesDateFrom = !dateFrom || (reportDate && reportDate >= new Date(dateFrom));
+    const matchesDateTo = !dateTo || (reportDate && reportDate <= new Date(dateTo + 'T23:59:59'));
+    return matchesSearch && matchesSeverity && matchesDateFrom && matchesDateTo;
   });
 
   // Computed stats from real data
@@ -213,6 +223,9 @@ export default function Dashboard() {
   const handleChangeRowsPerPage = (event) => { setRowsPerPage(parseInt(event.target.value, 10)); setPage(0); };
   const handleSearchChange = (event) => { setSearchTerm(event.target.value); setPage(0); };
   const handleSeverityFilterChange = (event) => { setSeverityFilter(event.target.value); setPage(0); };
+  const handleDateFromChange = (event) => { setDateFrom(event.target.value); setPage(0); };
+  const handleDateToChange = (event) => { setDateTo(event.target.value); setPage(0); };
+  const handleClearFilters = () => { setSearchTerm(''); setSeverityFilter(''); setDateFrom(''); setDateTo(''); setPage(0); };
 
   const handleRefresh = async () => {
     await fetchData();
@@ -411,37 +424,64 @@ export default function Dashboard() {
               </Typography>
             </Box>
             
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ minWidth: { sm: 'auto' } }}>
-              <TextField
-                size="small"
-                placeholder="Search patients, drugs, symptoms..."
-                value={searchTerm}
-                onChange={handleSearchChange}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Search fontSize="small" />
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{ minWidth: 250 }}
-              />
-              
-              <FormControl size="small" sx={{ minWidth: 120 }}>
-                <InputLabel>Severity</InputLabel>
-                <Select
-                  value={severityFilter}
-                  label="Severity"
-                  onChange={handleSeverityFilterChange}
-                  startAdornment={<FilterList fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />}
-                >
-                  <MenuItem value="">All</MenuItem>
-                  <MenuItem value="Critical">Critical</MenuItem>
-                  <MenuItem value="High">High</MenuItem>
-                  <MenuItem value="Medium">Medium</MenuItem>
-                  <MenuItem value="Low">Low</MenuItem>
-                </Select>
-              </FormControl>
+            <Stack direction="column" spacing={1.5}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <TextField
+                  size="small"
+                  placeholder="Search patients, drugs, symptoms..."
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Search fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{ minWidth: 250 }}
+                />
+
+                <FormControl size="small" sx={{ minWidth: 120 }}>
+                  <InputLabel>Severity</InputLabel>
+                  <Select
+                    value={severityFilter}
+                    label="Severity"
+                    onChange={handleSeverityFilterChange}
+                    startAdornment={<FilterList fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />}
+                  >
+                    <MenuItem value="">All</MenuItem>
+                    <MenuItem value="Life-threatening">Life-threatening</MenuItem>
+                    <MenuItem value="Severe">Severe</MenuItem>
+                    <MenuItem value="Moderate">Moderate</MenuItem>
+                    <MenuItem value="Mild">Mild</MenuItem>
+                  </Select>
+                </FormControl>
+              </Stack>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+                <TextField
+                  size="small"
+                  label="Date From"
+                  type="date"
+                  value={dateFrom}
+                  onChange={handleDateFromChange}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ minWidth: 150 }}
+                />
+                <TextField
+                  size="small"
+                  label="Date To"
+                  type="date"
+                  value={dateTo}
+                  onChange={handleDateToChange}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ minWidth: 150 }}
+                />
+                {(searchTerm || severityFilter || dateFrom || dateTo) && (
+                  <Button size="small" variant="outlined" color="inherit" onClick={handleClearFilters}>
+                    Clear Filters
+                  </Button>
+                )}
+              </Stack>
             </Stack>
           </Stack>
           <Divider />
@@ -572,49 +612,107 @@ export default function Dashboard() {
         />
       </Paper>
 
-      {/* Quick Insights Section */}
+      {/* Charts & Insights Section */}
       <Grid container spacing={3} sx={{ mt: 4 }}>
-        <Grid item xs={12} md={6}>
+        {/* Trend Chart: Reports Over Time */}
+        <Grid item xs={12} md={8}>
+          <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+            <Typography variant="h6" fontWeight="bold" gutterBottom>
+              Reports Over Time (Last 30 Days)
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+              Daily ADR report submissions trend
+            </Typography>
+            {(() => {
+              const rawData = dashboardStats?.reportsOverTime || [];
+              // Fill in missing days with 0
+              const today = new Date();
+              const chartData = [];
+              for (let i = 29; i >= 0; i--) {
+                const d = new Date(today);
+                d.setDate(d.getDate() - i);
+                const key = d.toISOString().split('T')[0];
+                const found = rawData.find(r => r.date === key);
+                chartData.push({ date: key.slice(5), count: found ? found.count : 0 });
+              }
+              return (
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="colorReports" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={theme.palette.primary.main} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={theme.palette.primary.main} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} interval={4} />
+                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <RechartsTooltip
+                      contentStyle={{ borderRadius: 8, fontSize: 13 }}
+                      formatter={(val) => [`${val} report${val !== 1 ? 's' : ''}`, 'Reports']}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      stroke={theme.palette.primary.main}
+                      strokeWidth={2}
+                      fill="url(#colorReports)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              );
+            })()}
+          </Paper>
+        </Grid>
+
+        {/* Severity Distribution Pie Chart */}
+        <Grid item xs={12} md={4}>
           <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               {t('dashboard.severityDistribution')}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
-              {dashboardStats?.aiProcessedCount > 0 
-                ? `AI-assessed severity (${dashboardStats.aiProcessedCount} reports analyzed)`
-                : 'Based on patient-reported severity'}
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+              {dashboardStats?.aiProcessedCount > 0
+                ? `AI-assessed (${dashboardStats.aiProcessedCount} analyzed)`
+                : 'Patient-reported severity'}
             </Typography>
-            <Stack spacing={2}>
-              {['Life-threatening', 'Severe', 'Moderate', 'Mild'].map((severity) => {
-                // Use AI severity distribution from backend if available, otherwise fall back to client-side
-                const aiDist = dashboardStats?.aiSeverityDistribution || [];
-                const aiItem = aiDist.find(d => d._id === severity);
-                const aiCount = aiItem?.count || 0;
-                const clientCount = reports.filter(r => getSeverity(r) === severity).length;
-                const count = aiDist.length > 0 ? aiCount : clientCount;
-                const total = aiDist.length > 0 
-                  ? aiDist.reduce((sum, d) => sum + d.count, 0) 
-                  : reports.length;
-                const percentage = total > 0 ? (count / total) * 100 : 0;
-                return (
-                  <Box key={severity}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography variant="body2">{severity}</Typography>
-                      <Typography variant="body2" fontWeight="medium">{count} ({percentage.toFixed(1)}%)</Typography>
-                    </Box>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={percentage} 
-                      color={getSeverityColor(severity)}
-                      sx={{ height: 8, borderRadius: 4 }}
-                    />
-                  </Box>
-                );
-              })}
-            </Stack>
+            {(() => {
+              const PIE_COLORS = { 'Life-threatening': '#d32f2f', Severe: '#f57c00', Moderate: '#1976d2', Mild: '#388e3c' };
+              const aiDist = dashboardStats?.aiSeverityDistribution || [];
+              const pieData = ['Life-threatening', 'Severe', 'Moderate', 'Mild'].map(sev => {
+                const item = aiDist.find(d => d._id === sev);
+                const count = item?.count || reports.filter(r => getSeverity(r) === sev).length;
+                return { name: sev, value: count };
+              }).filter(d => d.value > 0);
+              if (pieData.length === 0) {
+                return <Typography variant="body2" color="text.secondary" textAlign="center" py={4}>No data yet</Typography>;
+              }
+              return (
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={80}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {pieData.map((entry) => (
+                        <Cell key={entry.name} fill={PIE_COLORS[entry.name] || '#9e9e9e'} />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip formatter={(val, name) => [`${val} reports`, name]} />
+                    <Legend iconSize={10} wrapperStyle={{ fontSize: 12 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              );
+            })()}
           </Paper>
         </Grid>
-        
+
+        {/* Recent Activity */}
         <Grid item xs={12} md={6}>
           <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
@@ -639,9 +737,9 @@ export default function Dashboard() {
                       {drugName} • {report.createdAt ? new Date(report.createdAt).toLocaleDateString() : ''}
                     </Typography>
                   </Box>
-                  <Chip 
-                    label={severity} 
-                    size="small" 
+                  <Chip
+                    label={severity}
+                    size="small"
                     color={getSeverityColor(severity)}
                     variant="outlined"
                   />
@@ -654,6 +752,36 @@ export default function Dashboard() {
                 </Typography>
               )}
             </Stack>
+          </Paper>
+        </Grid>
+
+        {/* Top Reported Medications Bar Chart */}
+        <Grid item xs={12} md={6}>
+          <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+            <Typography variant="h6" fontWeight="bold" gutterBottom>
+              Top Reported Medications
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+              Medications with highest ADR report counts
+            </Typography>
+            {(() => {
+              const meds = dashboardStats?.mostReportedMedicines || [];
+              if (meds.length === 0) {
+                return <Typography variant="body2" color="text.secondary" textAlign="center" py={4}>No data yet</Typography>;
+              }
+              const barData = meds.map(m => ({ name: m.medicineName?.slice(0, 12) || 'Unknown', reports: m.reportCount }));
+              return (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={barData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <RechartsTooltip formatter={(val) => [`${val} reports`, 'Reports']} />
+                    <Bar dataKey="reports" fill={theme.palette.secondary.main} radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              );
+            })()}
           </Paper>
         </Grid>
       </Grid>

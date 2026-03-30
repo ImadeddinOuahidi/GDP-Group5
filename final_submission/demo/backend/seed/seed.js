@@ -1,13 +1,33 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const path = require('path');
+const dotenv = require('dotenv');
 const { users, medicines, reports, symptomProgressions } = require('./data');
 const User = require('../models/User');
 const Medication = require('../models/Medication');
 const ReportSideEffect = require('../models/ReportSideEffect');
 const SymptomProgression = require('../models/SymptomProgression');
 
-// MongoDB Connection URI - use the same logic as in your app.js
-const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/healthcare_app';
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
+const getMongoUri = () => {
+  if (process.env.MONGODB_URI) {
+    return process.env.MONGODB_URI;
+  }
+
+  const username = process.env.MONGO_ROOT_USER;
+  const password = process.env.MONGO_ROOT_PASSWORD;
+  const database = process.env.MONGO_DB_NAME || 'healthcare_app';
+
+  if (username && password) {
+    return `mongodb://${encodeURIComponent(username)}:${encodeURIComponent(password)}@localhost:27017/${database}?authSource=admin`;
+  }
+
+  return 'mongodb://localhost:27017/healthcare_app';
+};
+
+const mongoURI = getMongoUri();
 
 const seedDatabase = async () => {
   try {
@@ -49,6 +69,9 @@ const seedDatabase = async () => {
     console.log('\n✅ Database has been successfully seeded!');
 
   } catch (error) {
+    if (error?.code === 13) {
+      console.error('❌ MongoDB authentication failed while seeding. Set MONGODB_URI or MONGO_ROOT_USER/MONGO_ROOT_PASSWORD in .env.');
+    }
     console.error('❌ Error seeding the database:', error);
   } finally {
     // 4. Close the connection
