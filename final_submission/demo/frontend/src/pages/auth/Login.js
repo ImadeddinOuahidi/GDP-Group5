@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   Box,
-  Card,
   CardContent,
   TextField,
   Button,
@@ -13,7 +12,8 @@ import {
   Divider,
   InputAdornment,
   IconButton,
-  Link,
+  useTheme,
+  alpha,
 } from "@mui/material";
 import {
   Person as PersonIcon,
@@ -25,9 +25,11 @@ import {
 } from "@mui/icons-material";
 import { ButtonLoading } from "../../components/ui/Loading";
 import AuthContainer from "../../store/containers/AuthContainer";
-import Strings from '../../Strings';
+import { useI18n } from '../../i18n';
 
 export default function Login({ onShowRegistration }) {
+  const theme = useTheme();
+  const { t } = useI18n();
   const [emailOrUsername, setEmailOrUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -54,57 +56,55 @@ export default function Login({ onShowRegistration }) {
   };
 
   const demoCredentials = [
-    { role: "Patient", email: "patient@demo.com", password: "Demo@123", color: "primary" },
-    { role: "Doctor", email: "doctor@demo.com", password: "Demo@123", color: "secondary" },
+    { role: t('common.patient'), email: "patient@demo.com", password: "Demo@123", color: "primary" },
+    { role: t('common.doctor'), email: "doctor@demo.com", password: "Demo@123", color: "secondary" },
   ];
 
   return (
-    <Container component="main" maxWidth="sm">
+    <Container component="main" maxWidth="md">
       <Box
         sx={{
           minHeight: '100vh',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
-          py: 4,
+          py: 6,
         }}
       >
         <Paper
-          elevation={8}
+          elevation={0}
           sx={{
-            borderRadius: 3,
+            borderRadius: 3.5,
             overflow: 'hidden',
-            background: (theme) => 
-              theme.palette.mode === 'dark' 
-                ? 'linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%)'
-                : 'linear-gradient(135deg, #ffffff 0%, #f5f7fa 100%)',
+            border: 1,
+            borderColor: 'divider',
+            backgroundColor: 'background.paper',
           }}
         >
           {/* Header */}
           <Box
             sx={{
-              bgcolor: 'primary.main',
-              color: 'primary.contrastText',
-              p: 4,
+              p: { xs: 3, md: 4 },
               textAlign: 'center',
-              background: (theme) => 
-                `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.light} 90%)`,
+              borderBottom: 1,
+              borderColor: 'divider',
+              backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.12 : 0.04),
             }}
           >
-            <MedicalIcon sx={{ fontSize: 48, mb: 2 }} />
-            <Typography variant="h4" component="h1" gutterBottom fontWeight="600">
-              {Strings.appName}
+            <MedicalIcon sx={{ fontSize: 42, mb: 1.5 }} />
+            <Typography variant="h4" component="h1" gutterBottom fontWeight="700">
+              {t('common.appName')}
             </Typography>
-            <Typography variant="body1" sx={{ opacity: 0.9 }}>
-              {Strings.subtitle}
+            <Typography variant="body2" color="text.secondary">
+              {t('common.subtitle')}
             </Typography>
           </Box>
 
-          <CardContent sx={{ p: 4 }}>
+          <CardContent sx={{ p: { xs: 2.5, md: 4 } }}>
             {/* Demo Credentials */}
             <Box sx={{ mb: 3 }}>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                {Strings.demoCredentialsTitle}
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                {t('auth.demoCredentials')}
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                 {demoCredentials.map((cred) => (
@@ -119,11 +119,10 @@ export default function Login({ onShowRegistration }) {
                       setPassword(cred.password);
                     }}
                     sx={{ 
-                      fontSize: '0.75rem',
+                      fontSize: '0.72rem',
                       cursor: 'pointer',
                       '&:hover': {
-                        backgroundColor: cred.color === 'primary' ? 'primary.light' : 'secondary.light',
-                        color: 'white'
+                        backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.28 : 0.08),
                       }
                     }}
                   />
@@ -140,7 +139,7 @@ export default function Login({ onShowRegistration }) {
                 required
                 fullWidth
                 id="emailOrUsername"
-                label={Strings.emailOrUsername}
+                label={t('auth.emailOrUsername')}
                 name="emailOrUsername"
                 autoComplete="email"
                 autoFocus
@@ -154,13 +153,13 @@ export default function Login({ onShowRegistration }) {
                     </InputAdornment>
                   ),
                 }}
-                helperText={Strings.emailOrUsernameHelper}
+                helperText={t('auth.emailOrUsernameHelper')}
               />              <TextField
                 margin="normal"
                 required
                 fullWidth
                 name="password"
-                label={Strings.password}
+                label={t('auth.password')}
                 type={showPassword ? 'text' : 'password'}
                 id="password"
                 autoComplete="current-password"
@@ -176,7 +175,7 @@ export default function Login({ onShowRegistration }) {
                   endAdornment: (
                     <InputAdornment position="end">
                       <IconButton
-                        aria-label={Strings.togglePasswordVisibilityAria}
+                        aria-label={t('auth.togglePasswordVisibility')}
                         onClick={togglePasswordVisibility}
                         edge="end"
                       >
@@ -203,17 +202,17 @@ export default function Login({ onShowRegistration }) {
                   mb: 2,
                   py: 1.5,
                   fontSize: '1rem',
-                  fontWeight: 500,
+                  fontWeight: 650,
                 }}
               >
-                <ButtonLoading loading={loading} loadingText={Strings.signingIn}>
-                  {Strings.signIn}
+                <ButtonLoading loading={loading} loadingText={t('auth.signingIn')}>
+                  {t('auth.signIn')}
                 </ButtonLoading>
               </Button>
 
               <Divider sx={{ my: 2 }}>
                 <Typography variant="body2" color="text.secondary">
-                  {Strings.newToApp}
+                  {t('auth.newToApp')}
                 </Typography>
               </Divider>
 
@@ -224,11 +223,11 @@ export default function Login({ onShowRegistration }) {
                 startIcon={<SignUpIcon />}
                 sx={{
                   py: 1.5,
-                  fontSize: '1rem',
-                  fontWeight: 500,
+                  fontSize: '0.95rem',
+                  fontWeight: 650,
                 }}
               >
-                {Strings.createAccount}
+                {t('auth.createAccount')}
               </Button>
             </Box>
           </CardContent>
@@ -240,7 +239,7 @@ export default function Login({ onShowRegistration }) {
           align="center"
           sx={{ mt: 2 }}
         >
-          {Strings.footerCopyright}
+          {t('auth.footerCopyright')}
         </Typography>
       </Box>
     </Container>

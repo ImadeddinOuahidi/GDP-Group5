@@ -180,13 +180,16 @@ async function findDuplicates(reportId) {
     
     return {
       reportId: candidate._id,
+      createdAt: candidate.createdAt,
       medicine: candidate.medicine,
       patient: candidate.patient,
       reportedBy: candidate.reportedBy,
       reportDate: candidate.reportDetails?.reportDate,
       incidentDate: candidate.reportDetails?.incidentDate,
+      sideEffects: candidate.sideEffects,
       sideEffectsCount: candidate.sideEffects?.length || 0,
-      ...analysis
+      ...analysis,
+      similarityScore: analysis.score
     };
   });
   
@@ -247,10 +250,13 @@ async function checkForDuplicatesBeforeSubmission(reportData) {
       const analysis = calculateDuplicateScore(reportData, candidate);
       return {
         reportId: candidate._id,
+        createdAt: candidate.createdAt,
         medicine: candidate.medicine,
         patient: candidate.patient,
         reportDate: candidate.reportDetails?.reportDate,
-        ...analysis
+        sideEffects: candidate.sideEffects,
+        ...analysis,
+        similarityScore: analysis.score
       };
     })
     .filter(d => d.isPotentialDuplicate)
@@ -261,6 +267,120 @@ async function checkForDuplicatesBeforeSubmission(reportData) {
     duplicateCount: potentialDuplicates.length,
     duplicates: potentialDuplicates
   };
+}
+
+/**
+ * Merge a duplicate report into an original report.
+ * Keeps the original report active and archives the duplicate.
+ * @param {string} duplicateReportId - Report to merge from
+ * @param {string} originalReportId - Report to merge into
+ * @param {string} mergedBy - User ID performing the merge
+ * @returns {Promise<Object>} Merge result summary
+ */
+async function mergeDuplicateIntoOriginal(duplicateReportId, originalReportId, mergedBy) {
+  if (duplicateReportId.toString() === originalReportId.toString()) {
+    throw new Error('A report cannot be merged into itself');
+  }
+
+  const [duplicateReport, originalReport] = await Promise.all([
+    ReportSideEffect.findById(duplicateReportId),
+    ReportSideEffect.findById(originalReportId)
+  ]);
+
+  if (!duplicateReport || !originalReport) {
+    throw new Error('Report not found');
+  }
+
+  if (duplicateReport.isDeleted || !duplicateReport.isActive) {
+    throw new Error('Duplicate report is not active');
+  }
+
+  const originalSideEffectCount = originalReport.sideEffects?.length || 0;
+  const mergedSideEffects = mergeUniqueSideEffects(
+    originalReport.sideEffects || [],
+    duplicateReport.sideEffects || []
+  );
+  const mergedFollowUps = [
+    ...(originalReport.followUp || []),
+    ...(duplicateReport.followUp || [])
+  ];
+  const mergedAttachments = mergeUniqueAttachments(
+    originalReport.attachments || [],
+    duplicateReport.attachments || []
+  );
+
+  originalReport.sideEffects = mergedSideEffects;
+  originalReport.followUp = mergedFollowUps;
+  originalReport.attachments = mergedAttachments;
+  originalReport.lastModifiedBy = mergedBy;
+  originalReport.version += 1;
+  await originalReport.save();
+
+  duplicateReport.set('metadata.isDuplicate', true);
+  duplicateReport.set('metadata.duplicateOf', originalReport._id);
+  duplicateReport.set('metadata.duplicateFlaggedBy', mergedBy);
+  duplicateReport.set('metadata.duplicateFlaggedAt', new Date());
+  duplicateReport.set('metadata.mergedInto', originalReport._id);
+  duplicateReport.set('metadata.mergedBy', mergedBy);
+  duplicateReport.set('metadata.mergedAt', new Date());
+  duplicateReport.status = 'Closed';
+  duplicateReport.isActive = false;
+  duplicateReport.lastModifiedBy = mergedBy;
+  duplicateReport.version += 1;
+  await duplicateReport.save();
+
+  return {
+    originalReportId: originalReport._id,
+    mergedReportId: duplicateReport._id,
+    mergeSummary: {
+      addedSideEffects: Math.max(mergedSideEffects.length - originalSideEffectCount, 0),
+      totalSideEffects: mergedSideEffects.length,
+      totalFollowUps: mergedFollowUps.length,
+      totalAttachments: mergedAttachments.length
+    }
+  };
+}
+
+function mergeUniqueSideEffects(primaryEffects, additionalEffects) {
+  const combined = [...primaryEffects, ...additionalEffects];
+  const seen = new Set();
+  const merged = [];
+
+  for (const effect of combined) {
+    const key = [
+      (effect.effect || '').trim().toLowerCase(),
+      effect.severity || '',
+      effect.onset || ''
+    ].join('|');
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      merged.push(effect);
+    }
+  }
+
+  return merged;
+}
+
+function mergeUniqueAttachments(primaryAttachments, additionalAttachments) {
+  const combined = [...primaryAttachments, ...additionalAttachments];
+  const seen = new Set();
+  const merged = [];
+
+  for (const attachment of combined) {
+    const key = [
+      attachment.key || '',
+      attachment.originalName || '',
+      attachment.size || ''
+    ].join('|');
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      merged.push(attachment);
+    }
+  }
+
+  return merged;
 }
 
 /**
@@ -336,6 +456,7 @@ module.exports = {
   findDuplicates,
   checkForDuplicatesBeforeSubmission,
   flagAsDuplicate,
+  mergeDuplicateIntoOriginal,
   getDuplicateStats,
   calculateDuplicateScore,
   DUPLICATE_CONFIG

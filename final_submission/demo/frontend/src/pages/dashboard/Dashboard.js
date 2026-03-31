@@ -21,7 +21,6 @@ import {
   TablePagination,
   alpha,
   Stack,
-  LinearProgress,
   useTheme,
   useMediaQuery,
   Button,
@@ -121,14 +120,14 @@ export default function Dashboard() {
   // Helper: get patient name from populated report
   const getPatientName = (report) => {
     if (report.patient?.firstName) return `${report.patient.firstName} ${report.patient.lastName || ''}`.trim();
-    return 'Anonymous';
+    return t('common.anonymous');
   };
 
   // Helper: get drug name from populated report
-  const getDrugName = (report) => report.medicine?.name || 'Unknown';
+  const getDrugName = (report) => report.medicine?.name || t('common.unknown');
 
   // Helper: get primary symptom
-  const getSymptom = (report) => (report.sideEffects || [])[0]?.effect || 'N/A';
+  const getSymptom = (report) => (report.sideEffects || [])[0]?.effect || t('common.notAvailable');
 
   // Helper: get highest severity — prefers AI-detected severity, falls back to patient-reported
   const getSeverity = (report) => {
@@ -142,7 +141,7 @@ export default function Dashboard() {
     for (const level of levels) {
       if (effects.some((e) => e.severity === level)) return level;
     }
-    return report.priority || 'N/A';
+    return report.priority || t('common.notAvailable');
   };
 
   // Helper: check if AI analysis exists
@@ -255,7 +254,7 @@ export default function Dashboard() {
       }
       setSnackbar({ open: true, message: t('dashboard.exportSuccess', { format: format.toUpperCase() }), severity: 'success' });
     } catch (err) {
-      setSnackbar({ open: true, message: 'Export failed. Please try again.', severity: 'error' });
+      setSnackbar({ open: true, message: t('dashboard.exportFailed'), severity: 'error' });
     }
   };
 
@@ -271,28 +270,28 @@ export default function Dashboard() {
       <td>${r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ''}</td>
     </tr>`).join('');
 
-    return `<!DOCTYPE html><html><head><title>ADR Reports Summary</title>
-      <style>body{font-family:Arial,sans-serif;padding:30px;color:#333}
-      h1{color:#1976d2;border-bottom:2px solid #1976d2;padding-bottom:8px}
+    return `<!DOCTYPE html><html><head><title>${t('dashboard.printTitle')}</title>
+      <style>body{font-family:Arial,sans-serif;padding:30px;color:#111}
+      h1{color:#111;border-bottom:2px solid #111;padding-bottom:8px}
       table{width:100%;border-collapse:collapse;margin-top:16px}
       th,td{border:1px solid #ddd;padding:8px;text-align:left;font-size:13px}
       th{background:#f5f5f5;font-weight:600}
       .stats{display:flex;gap:20px;margin:16px 0}
       .stat{padding:12px;border:1px solid #ddd;border-radius:8px;text-align:center;flex:1}
-      .stat-value{font-size:24px;font-weight:bold;color:#1976d2}
+      .stat-value{font-size:24px;font-weight:bold;color:#111}
       .footer{margin-top:24px;text-align:center;font-size:11px;color:#999;border-top:1px solid #ddd;padding-top:12px}
       @media print{body{padding:10px}}</style></head><body>
-      <h1>SafeMed ADR - Reports Summary</h1>
-      <p>Generated: ${new Date().toLocaleString()} | Total Reports: ${data.length}</p>
+      <h1>${t('dashboard.printHeading')}</h1>
+      <p>${t('dashboard.generatedAt', { date: new Date().toLocaleString() })} | ${t('dashboard.totalReports')}: ${data.length}</p>
       <div class="stats">
-        <div class="stat"><div class="stat-value">${reports.length}</div>Total Reports</div>
-        <div class="stat"><div class="stat-value">${criticalCount}</div>Critical</div>
-        <div class="stat"><div class="stat-value">${uniquePatients}</div>Patients</div>
-        <div class="stat"><div class="stat-value">${uniqueDrugs}</div>Medications</div>
+        <div class="stat"><div class="stat-value">${reports.length}</div>${t('dashboard.totalReports')}</div>
+        <div class="stat"><div class="stat-value">${criticalCount}</div>${t('dashboard.criticalCases')}</div>
+        <div class="stat"><div class="stat-value">${uniquePatients}</div>${t('dashboard.activePatients')}</div>
+        <div class="stat"><div class="stat-value">${uniqueDrugs}</div>${t('dashboard.monitoredDrugs')}</div>
       </div>
-      <table><thead><tr><th>ID</th><th>Patient</th><th>Medication</th><th>Symptom</th><th>Severity</th><th>Status</th><th>Date</th></tr></thead>
+      <table><thead><tr><th>${t('common.id')}</th><th>${t('reports.patient')}</th><th>${t('reports.drug')}</th><th>${t('reports.symptoms')}</th><th>${t('reports.severity')}</th><th>${t('reports.status')}</th><th>${t('reports.reportDate')}</th></tr></thead>
       <tbody>${rows}</tbody></table>
-      <div class="footer">SafeMed ADR - Adverse Drug Reaction Reporting System | CONFIDENTIAL</div>
+      <div class="footer">${t('dashboard.printFooter')}</div>
       </body></html>`;
   };
 
@@ -312,14 +311,13 @@ export default function Dashboard() {
             <Typography 
               variant={isMobile ? "h5" : "h4"} 
               component="h1" 
-              fontWeight="bold" 
-              color="primary" 
+              fontWeight="bold"
               gutterBottom
             >
-              Doctor Dashboard
+              {t('doctor.analyticsDashboard')}
             </Typography>
             <Typography variant="body1" color="text.secondary">
-              Monitor and review patient adverse drug reaction reports with comprehensive analytics
+              {t('dashboard.comprehensiveAnalytics')}
             </Typography>
           </Box>
           
@@ -330,7 +328,7 @@ export default function Dashboard() {
               onClick={handleExportClick}
               sx={{ display: { xs: 'none', sm: 'flex' } }}
             >
-              Export Data
+              {t('dashboard.exportData')}
             </Button>
             <Button
               variant="contained"
@@ -338,7 +336,7 @@ export default function Dashboard() {
               onClick={handleRefresh}
               disabled={isLoading}
             >
-              {isLoading ? 'Refreshing...' : 'Refresh'}
+              {isLoading ? t('dashboard.refreshing') : t('dashboard.refresh')}
             </Button>
           </Stack>
         </Stack>
@@ -414,13 +412,13 @@ export default function Dashboard() {
           >
             <Box>
               <Typography variant="h6" component="h2" fontWeight="bold" gutterBottom>
-                Recent ADR Reports
+                {t('dashboard.recentReports')}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                Comprehensive list of adverse drug reactions sorted by severity and date
+                {t('dashboard.comprehensiveList')}
               </Typography>
               <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
-                Last updated: {lastUpdated.toLocaleTimeString()} • {filteredReports.length} of {reports.length} reports shown
+                {t('dashboard.lastUpdated', { time: lastUpdated.toLocaleTimeString() })} • {t('reports.reportsShown', { filtered: filteredReports.length, total: reports.length })}
               </Typography>
             </Box>
             
@@ -428,7 +426,7 @@ export default function Dashboard() {
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                 <TextField
                   size="small"
-                  placeholder="Search patients, drugs, symptoms..."
+                  placeholder={t('dashboard.searchPlaceholder')}
                   value={searchTerm}
                   onChange={handleSearchChange}
                   InputProps={{
@@ -442,25 +440,25 @@ export default function Dashboard() {
                 />
 
                 <FormControl size="small" sx={{ minWidth: 120 }}>
-                  <InputLabel>Severity</InputLabel>
+                  <InputLabel>{t('reports.severity')}</InputLabel>
                   <Select
                     value={severityFilter}
-                    label="Severity"
+                    label={t('reports.severity')}
                     onChange={handleSeverityFilterChange}
                     startAdornment={<FilterList fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />}
                   >
-                    <MenuItem value="">All</MenuItem>
-                    <MenuItem value="Life-threatening">Life-threatening</MenuItem>
-                    <MenuItem value="Severe">Severe</MenuItem>
-                    <MenuItem value="Moderate">Moderate</MenuItem>
-                    <MenuItem value="Mild">Mild</MenuItem>
+                    <MenuItem value="">{t('common.all')}</MenuItem>
+                    <MenuItem value="Life-threatening">{t('severity.lifeThreatening')}</MenuItem>
+                    <MenuItem value="Severe">{t('severity.severe')}</MenuItem>
+                    <MenuItem value="Moderate">{t('severity.moderate')}</MenuItem>
+                    <MenuItem value="Mild">{t('severity.mild')}</MenuItem>
                   </Select>
                 </FormControl>
               </Stack>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
                 <TextField
                   size="small"
-                  label="Date From"
+                  label={t('dashboard.dateFrom')}
                   type="date"
                   value={dateFrom}
                   onChange={handleDateFromChange}
@@ -469,7 +467,7 @@ export default function Dashboard() {
                 />
                 <TextField
                   size="small"
-                  label="Date To"
+                  label={t('dashboard.dateTo')}
                   type="date"
                   value={dateTo}
                   onChange={handleDateToChange}
@@ -478,7 +476,7 @@ export default function Dashboard() {
                 />
                 {(searchTerm || severityFilter || dateFrom || dateTo) && (
                   <Button size="small" variant="outlined" color="inherit" onClick={handleClearFilters}>
-                    Clear Filters
+                    {t('doctor.clearFilters')}
                   </Button>
                 )}
               </Stack>
@@ -491,14 +489,14 @@ export default function Dashboard() {
           <Table sx={{ minWidth: 650 }}>
             <TableHead>
               <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
-                <TableCell sx={{ fontWeight: 'bold', color: 'primary.main' }}>Report ID</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: 'primary.main' }}>Patient</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: 'primary.main' }}>Drug</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: 'primary.main' }}>Symptom</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: 'primary.main' }}>Severity</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: 'primary.main' }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: 'primary.main' }}>Date</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: 'primary.main' }}>Actions</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>{t('reports.reportId')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>{t('reports.patient')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>{t('reports.drug')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>{t('reports.symptoms')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>{t('reports.severity')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>{t('reports.status')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>{t('reports.reportDate')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>{t('reports.actions')}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -550,7 +548,7 @@ export default function Dashboard() {
                     />
                     {hasAIAnalysis(report) && report.metadata?.aiAnalysis?.severity?.level !== severity && (
                       <Chip
-                        label={`AI: ${report.metadata.aiAnalysis.severity.level}`}
+                        label={t('doctor.aiSeverityLabel', { severity: report.metadata.aiAnalysis.severity.level })}
                         size="small"
                         variant="outlined"
                         color={getSeverityColor(report.metadata.aiAnalysis.severity.level)}
@@ -560,7 +558,7 @@ export default function Dashboard() {
                   </TableCell>
                   <TableCell>
                     <Chip
-                      label={report.status || 'Submitted'}
+                      label={report.status || t('status.submitted')}
                       color={getStatusColor(report.status)}
                       variant="outlined"
                       size="small"
@@ -575,18 +573,18 @@ export default function Dashboard() {
                           year: 'numeric',
                           month: 'short',
                           day: 'numeric'
-                        }) : 'N/A'}
+                        }) : t('common.notAvailable')}
                       </Typography>
                     </Box>
                   </TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={1}>
-                      <Tooltip title="View Details">
+                      <Tooltip title={t('reports.viewDetails')}>
                         <IconButton size="small" color="primary" onClick={(e) => { e.stopPropagation(); navigate(`/reports/${report._id}`); }}>
                           <Visibility fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Download Report">
+                      <Tooltip title={t('reports.exportReport')}>
                         <IconButton size="small" color="secondary" onClick={(e) => { e.stopPropagation(); exportClientJSON([report]); }}>
                           <GetApp fontSize="small" />
                         </IconButton>
@@ -618,10 +616,10 @@ export default function Dashboard() {
         <Grid item xs={12} md={8}>
           <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
-              Reports Over Time (Last 30 Days)
+              {t('dashboard.reportsOverTime')}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
-              Daily ADR report submissions trend
+              {t('dashboard.dailyTrend')}
             </Typography>
             {(() => {
               const rawData = dashboardStats?.reportsOverTime || [];
@@ -649,7 +647,7 @@ export default function Dashboard() {
                     <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                     <RechartsTooltip
                       contentStyle={{ borderRadius: 8, fontSize: 13 }}
-                      formatter={(val) => [`${val} report${val !== 1 ? 's' : ''}`, 'Reports']}
+                      formatter={(val) => [t('dashboard.reportCountLabel', { count: val }), t('dashboard.reports')]} 
                     />
                     <Area
                       type="monotone"
@@ -673,8 +671,8 @@ export default function Dashboard() {
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
               {dashboardStats?.aiProcessedCount > 0
-                ? `AI-assessed (${dashboardStats.aiProcessedCount} analyzed)`
-                : 'Patient-reported severity'}
+                ? t('dashboard.aiAssessedCount', { count: dashboardStats.aiProcessedCount })
+                : t('dashboard.patientReportedSeverity')}
             </Typography>
             {(() => {
               const PIE_COLORS = { 'Life-threatening': '#d32f2f', Severe: '#f57c00', Moderate: '#1976d2', Mild: '#388e3c' };
@@ -685,7 +683,7 @@ export default function Dashboard() {
                 return { name: sev, value: count };
               }).filter(d => d.value > 0);
               if (pieData.length === 0) {
-                return <Typography variant="body2" color="text.secondary" textAlign="center" py={4}>No data yet</Typography>;
+                return <Typography variant="body2" color="text.secondary" textAlign="center" py={4}>{t('common.noData')}</Typography>;
               }
               return (
                 <ResponsiveContainer width="100%" height={200}>
@@ -703,7 +701,7 @@ export default function Dashboard() {
                         <Cell key={entry.name} fill={PIE_COLORS[entry.name] || '#9e9e9e'} />
                       ))}
                     </Pie>
-                    <RechartsTooltip formatter={(val, name) => [`${val} reports`, name]} />
+                    <RechartsTooltip formatter={(val, name) => [t('dashboard.reportCountLabel', { count: val }), name]} />
                     <Legend iconSize={10} wrapperStyle={{ fontSize: 12 }} />
                   </PieChart>
                 </ResponsiveContainer>
@@ -731,7 +729,7 @@ export default function Dashboard() {
                   </Avatar>
                   <Box sx={{ flex: 1 }}>
                     <Typography variant="body2" fontWeight="medium">
-                      {patientName} reported {symptom}
+                      {t('dashboard.patientReportedSymptom', { patientName, symptom })}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
                       {drugName} • {report.createdAt ? new Date(report.createdAt).toLocaleDateString() : ''}
@@ -748,7 +746,7 @@ export default function Dashboard() {
               })}
               {reports.length === 0 && !isLoading && (
                 <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
-                  No reports yet
+                  {t('dashboard.noReportsYet')}
                 </Typography>
               )}
             </Stack>
@@ -759,24 +757,24 @@ export default function Dashboard() {
         <Grid item xs={12} md={6}>
           <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
-              Top Reported Medications
+              {t('doctor.topMedicationsByReportCount')}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
-              Medications with highest ADR report counts
+              {t('dashboard.medicationsHighestCount')}
             </Typography>
             {(() => {
               const meds = dashboardStats?.mostReportedMedicines || [];
               if (meds.length === 0) {
-                return <Typography variant="body2" color="text.secondary" textAlign="center" py={4}>No data yet</Typography>;
+                return <Typography variant="body2" color="text.secondary" textAlign="center" py={4}>{t('common.noData')}</Typography>;
               }
-              const barData = meds.map(m => ({ name: m.medicineName?.slice(0, 12) || 'Unknown', reports: m.reportCount }));
+              const barData = meds.map(m => ({ name: m.medicineName?.slice(0, 12) || t('common.unknown'), reports: m.reportCount }));
               return (
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={barData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                    <RechartsTooltip formatter={(val) => [`${val} reports`, 'Reports']} />
+                    <RechartsTooltip formatter={(val) => [t('dashboard.reportCountLabel', { count: val }), t('dashboard.reports')]} />
                     <Bar dataKey="reports" fill={theme.palette.secondary.main} radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -794,10 +792,10 @@ export default function Dashboard() {
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <CircularProgress color="inherit" size={60} />
           <Typography variant="h6" sx={{ mt: 2 }}>
-            Refreshing Dashboard Data...
+            {t('dashboard.refreshingData')}
           </Typography>
           <Typography variant="body2" sx={{ mt: 1, opacity: 0.8 }}>
-            Please wait while we fetch the latest reports
+            {t('dashboard.refreshingDataDescription')}
           </Typography>
         </Box>
       </Backdrop>

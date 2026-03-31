@@ -6,6 +6,7 @@ import { View, Text, StyleSheet } from 'react-native';
 
 // Context
 import { useAuth } from '../context/AuthContext';
+import { useI18n } from '../context/I18nContext';
 
 // Patient Screens
 import HomeScreen from '../screens/patient/HomeScreen';
@@ -39,68 +40,100 @@ const headerOptions = {
 };
 
 // Patient Home Stack
-const PatientHomeStack = () => (
-  <Stack.Navigator screenOptions={headerOptions}>
-    <Stack.Screen name="HomeScreen" component={HomeScreen} options={{ title: 'SafeMed' }} />
-    <Stack.Screen name="ReportDetail" component={ReportDetailScreen} options={{ title: 'Report Details' }} />
-  </Stack.Navigator>
-);
+const PatientHomeStack = () => {
+  const { t } = useI18n();
+
+  return (
+    <Stack.Navigator screenOptions={headerOptions}>
+      <Stack.Screen name="HomeScreen" component={HomeScreen} options={{ title: t('nav.appTitle') }} />
+      <Stack.Screen name="ReportDetail" component={ReportDetailScreen} options={{ title: t('nav.reportDetails') }} />
+    </Stack.Navigator>
+  );
+};
 
 // Patient Reports Stack
-const PatientReportsStack = () => (
-  <Stack.Navigator screenOptions={headerOptions}>
-    <Stack.Screen name="ReportsList" component={ReportsListScreen} options={{ title: 'My Reports' }} />
-    <Stack.Screen name="ReportDetail" component={ReportDetailScreen} options={{ title: 'Report Details' }} />
-  </Stack.Navigator>
-);
+const PatientReportsStack = () => {
+  const { t } = useI18n();
+
+  return (
+    <Stack.Navigator screenOptions={headerOptions}>
+      <Stack.Screen name="ReportsList" component={ReportsListScreen} options={{ title: t('nav.myReports') }} />
+      <Stack.Screen name="ReportDetail" component={ReportDetailScreen} options={{ title: t('nav.reportDetails') }} />
+    </Stack.Navigator>
+  );
+};
 
 // Report Submission Stack
-const ReportStack = () => (
-  <Stack.Navigator screenOptions={headerOptions}>
-    <Stack.Screen name="NewReport" component={ReportScreen} options={{ title: 'Report Side Effect' }} />
-  </Stack.Navigator>
-);
+const ReportStack = () => {
+  const { t } = useI18n();
+
+  return (
+    <Stack.Navigator screenOptions={headerOptions}>
+      <Stack.Screen name="NewReport" component={ReportScreen} options={{ title: t('nav.reportSideEffect') }} />
+    </Stack.Navigator>
+  );
+};
 
 // Profile Stack — includes Settings and ChangePassword
-const ProfileStack = () => (
-  <Stack.Navigator screenOptions={headerOptions}>
-    <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ title: 'Profile' }} />
-    <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
-    <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Change Password' }} />
-  </Stack.Navigator>
-);
+const ProfileStack = () => {
+  const { t } = useI18n();
+
+  return (
+    <Stack.Navigator screenOptions={headerOptions}>
+      <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ title: t('nav.profile') }} />
+      <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: t('nav.settings') }} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: t('nav.changePassword') }} />
+    </Stack.Navigator>
+  );
+};
 
 // Notifications Stack
-const NotificationsStack = () => (
-  <Stack.Navigator screenOptions={headerOptions}>
-    <Stack.Screen name="NotificationsList" component={NotificationsScreen} options={{ title: 'Notifications' }} />
-    <Stack.Screen name="ReportDetail" component={ReportDetailScreen} options={{ title: 'Report Details' }} />
-  </Stack.Navigator>
-);
+const NotificationsStack = () => {
+  const { t } = useI18n();
+
+  return (
+    <Stack.Navigator screenOptions={headerOptions}>
+      <Stack.Screen name="NotificationsList" component={NotificationsScreen} options={{ title: t('nav.notifications') }} />
+      <Stack.Screen name="ReportDetail" component={ReportDetailScreen} options={{ title: t('nav.reportDetails') }} />
+    </Stack.Navigator>
+  );
+};
 
 // Doctor Home Stack
-const DoctorHomeStack = () => (
-  <Stack.Navigator screenOptions={headerOptions}>
-    <Stack.Screen name="DoctorHomeScreen" component={DoctorHomeScreen} options={{ title: 'Dashboard' }} />
-    <Stack.Screen name="ReportDetail" component={ReportDetailScreen} options={{ title: 'Report Details' }} />
-  </Stack.Navigator>
-);
+const DoctorHomeStack = () => {
+  const { t } = useI18n();
+
+  return (
+    <Stack.Navigator screenOptions={headerOptions}>
+      <Stack.Screen name="DoctorHomeScreen" component={DoctorHomeScreen} options={{ title: t('nav.dashboard') }} />
+      <Stack.Screen name="ReportDetail" component={ReportDetailScreen} options={{ title: t('nav.reportDetails') }} />
+    </Stack.Navigator>
+  );
+};
 
 // Medications Stack
-const MedicationsStack = () => (
-  <Stack.Navigator screenOptions={headerOptions}>
-    <Stack.Screen name="MedicationsList" component={MedicationsScreen} options={{ title: 'Medications' }} />
-    <Stack.Screen name="AddMedication" component={AddMedicationScreen} options={{ title: 'Add Medication' }} />
-  </Stack.Navigator>
-);
+const MedicationsStack = () => {
+  const { t } = useI18n();
+
+  return (
+    <Stack.Navigator screenOptions={headerOptions}>
+      <Stack.Screen name="MedicationsList" component={MedicationsScreen} options={{ title: t('nav.medications') }} />
+      <Stack.Screen name="AddMedication" component={AddMedicationScreen} options={{ title: t('nav.addMedication') }} />
+    </Stack.Navigator>
+  );
+};
 
 // Review Stack
-const ReviewStack = () => (
-  <Stack.Navigator screenOptions={headerOptions}>
-    <Stack.Screen name="ReviewRequests" component={ReviewRequestsScreen} options={{ title: 'Review Requests' }} />
-    <Stack.Screen name="ReportDetail" component={ReportDetailScreen} options={{ title: 'Report Details' }} />
-  </Stack.Navigator>
-);
+const ReviewStack = () => {
+  const { t } = useI18n();
+
+  return (
+    <Stack.Navigator screenOptions={headerOptions}>
+      <Stack.Screen name="ReviewRequests" component={ReviewRequestsScreen} options={{ title: t('nav.reviewRequests') }} />
+      <Stack.Screen name="ReportDetail" component={ReportDetailScreen} options={{ title: t('nav.reportDetails') }} />
+    </Stack.Navigator>
+  );
+};
 
 // Badge component for tab icons
 const TabBarIconWithBadge = ({ iconName, color, size, badgeCount }) => (
@@ -160,6 +193,7 @@ const useUnreadCount = () => {
 
 // Patient Tab Navigator
 const PatientTabNavigator = () => {
+  const { t } = useI18n();
   const unreadCount = useUnreadCount();
   return (
     <Tab.Navigator
@@ -204,17 +238,18 @@ const PatientTabNavigator = () => {
         },
       })}
     >
-      <Tab.Screen name="Home" component={PatientHomeStack} />
-      <Tab.Screen name="Report" component={ReportStack} options={{ tabBarLabel: 'New Report' }} />
-      <Tab.Screen name="Reports" component={PatientReportsStack} options={{ tabBarLabel: 'My Reports' }} />
-      <Tab.Screen name="Notifications" component={NotificationsStack} />
-      <Tab.Screen name="Profile" component={ProfileStack} />
+      <Tab.Screen name="Home" component={PatientHomeStack} options={{ tabBarLabel: t('nav.tabs.home') }} />
+      <Tab.Screen name="Report" component={ReportStack} options={{ tabBarLabel: t('nav.tabs.report') }} />
+      <Tab.Screen name="Reports" component={PatientReportsStack} options={{ tabBarLabel: t('nav.tabs.reports') }} />
+      <Tab.Screen name="Notifications" component={NotificationsStack} options={{ tabBarLabel: t('nav.tabs.notifications') }} />
+      <Tab.Screen name="Profile" component={ProfileStack} options={{ tabBarLabel: t('nav.tabs.profile') }} />
     </Tab.Navigator>
   );
 };
 
 // Doctor Tab Navigator
 const DoctorTabNavigator = () => {
+  const { t } = useI18n();
   const unreadCount = useUnreadCount();
   return (
     <Tab.Navigator
@@ -259,11 +294,11 @@ const DoctorTabNavigator = () => {
         },
       })}
     >
-      <Tab.Screen name="Dashboard" component={DoctorHomeStack} />
-      <Tab.Screen name="Medications" component={MedicationsStack} />
-      <Tab.Screen name="Review" component={ReviewStack} />
-      <Tab.Screen name="Notifications" component={NotificationsStack} />
-      <Tab.Screen name="Profile" component={ProfileStack} />
+      <Tab.Screen name="Dashboard" component={DoctorHomeStack} options={{ tabBarLabel: t('nav.tabs.dashboard') }} />
+      <Tab.Screen name="Medications" component={MedicationsStack} options={{ tabBarLabel: t('nav.tabs.medications') }} />
+      <Tab.Screen name="Review" component={ReviewStack} options={{ tabBarLabel: t('nav.tabs.review') }} />
+      <Tab.Screen name="Notifications" component={NotificationsStack} options={{ tabBarLabel: t('nav.tabs.notifications') }} />
+      <Tab.Screen name="Profile" component={ProfileStack} options={{ tabBarLabel: t('nav.tabs.profile') }} />
     </Tab.Navigator>
   );
 };

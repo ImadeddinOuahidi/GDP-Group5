@@ -11,10 +11,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { colors, spacing, borderRadius, shadows } from '../../config/theme';
+import { useI18n } from '../../context/I18nContext';
 
 const SETTINGS_KEYS = ['pushNotifications', 'emailNotifications', 'biometricAuth', 'darkMode', 'autoSave'];
 
 const SettingsScreen = ({ navigation }) => {
+  const { t, locale, changeLanguage, supportedLanguages } = useI18n();
   const [settings, setSettings] = useState({
     pushNotifications: true,
     emailNotifications: false,
@@ -22,7 +24,6 @@ const SettingsScreen = ({ navigation }) => {
     darkMode: false,
     autoSave: true,
   });
-  const [loaded, setLoaded] = useState(false);
 
   // Load persisted settings on mount
   useEffect(() => {
@@ -36,8 +37,6 @@ const SettingsScreen = ({ navigation }) => {
         setSettings(prev => ({ ...prev, ...loaded }));
       } catch (error) {
         console.error('Error loading settings:', error);
-      } finally {
-        setLoaded(true);
       }
     };
     loadSettings();
@@ -54,10 +53,19 @@ const SettingsScreen = ({ navigation }) => {
   };
 
   const clearCache = () => {
-    Alert.alert('Clear Cache', 'This will clear cached data. Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Clear', style: 'destructive', onPress: () => Alert.alert('Success', 'Cache cleared successfully') },
+    Alert.alert(t('settings.messages.clearCacheTitle'), t('settings.messages.clearCacheDescription'), [
+      { text: t('settings.messages.cancel'), style: 'cancel' },
+      { text: t('settings.messages.clear'), style: 'destructive', onPress: () => Alert.alert(t('settings.messages.clearCacheTitle'), t('settings.messages.cacheCleared')) },
     ]);
+  };
+
+  const handleChangeLanguage = async (langCode) => {
+    if (langCode === locale) return;
+
+    const success = await changeLanguage(langCode);
+    if (success) {
+      Alert.alert(t('settings.sections.language'), t('settings.messages.languageUpdated'));
+    }
   };
 
   const SettingItem = ({ icon, title, description, value, onToggle }) => (
@@ -90,40 +98,61 @@ const SettingsScreen = ({ navigation }) => {
     </TouchableOpacity>
   );
 
+  const LanguageItem = ({ code, label }) => {
+    const isActive = locale === code;
+
+    return (
+      <TouchableOpacity style={styles.languageItem} onPress={() => handleChangeLanguage(code)}>
+        <Text style={[styles.languageLabel, isActive && styles.languageLabelActive]}>{label}</Text>
+        {isActive && <Ionicons name="checkmark-circle" size={18} color={colors.primary} />}
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <ScrollView style={styles.container}>
       {/* Profile */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Profile</Text>
+        <Text style={styles.sectionTitle}>{t('settings.sections.profile')}</Text>
         <View style={styles.card}>
           <ActionItem
             icon="person"
-            title="Edit Profile"
+            title={t('settings.actions.editProfile')}
             onPress={() => navigation.navigate('Profile')}
           />
           <ActionItem
             icon="lock-closed"
-            title="Change Password"
+            title={t('settings.actions.changePassword')}
             onPress={() => navigation.navigate('ChangePassword')}
           />
         </View>
       </View>
 
+      {/* Language */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{t('settings.sections.language')}</Text>
+        <View style={styles.card}>
+          {supportedLanguages.map((language) => (
+            <LanguageItem key={language.code} code={language.code} label={language.label} />
+          ))}
+        </View>
+      </View>
+
       {/* Notifications */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Notifications</Text>
+        <Text style={styles.sectionTitle}>{t('settings.sections.notifications')}</Text>
         <View style={styles.card}>
           <SettingItem
             icon="notifications"
-            title="Push Notifications"
-            description="Receive push notifications for report updates"
+            title={t('settings.toggles.pushTitle')}
+            description={t('settings.toggles.pushDescription')}
             value={settings.pushNotifications}
             onToggle={() => toggleSetting('pushNotifications')}
           />
           <SettingItem
             icon="mail"
-            title="Email Notifications"
-            description="Receive email updates and summaries"
+            title={t('settings.toggles.emailTitle')}
+            description={t('settings.toggles.emailDescription')}
             value={settings.emailNotifications}
             onToggle={() => toggleSetting('emailNotifications')}
           />
@@ -132,12 +161,12 @@ const SettingsScreen = ({ navigation }) => {
 
       {/* Security */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Security</Text>
+        <Text style={styles.sectionTitle}>{t('settings.sections.security')}</Text>
         <View style={styles.card}>
           <SettingItem
             icon="finger-print"
-            title="Biometric Authentication"
-            description="Use fingerprint or Face ID to unlock"
+            title={t('settings.toggles.biometricTitle')}
+            description={t('settings.toggles.biometricDescription')}
             value={settings.biometricAuth}
             onToggle={() => toggleSetting('biometricAuth')}
           />
@@ -146,12 +175,12 @@ const SettingsScreen = ({ navigation }) => {
 
       {/* Appearance */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Appearance</Text>
+        <Text style={styles.sectionTitle}>{t('settings.sections.appearance')}</Text>
         <View style={styles.card}>
           <SettingItem
             icon="moon"
-            title="Dark Mode"
-            description="Switch to dark theme"
+            title={t('settings.toggles.darkModeTitle')}
+            description={t('settings.toggles.darkModeDescription')}
             value={settings.darkMode}
             onToggle={() => toggleSetting('darkMode')}
           />
@@ -160,33 +189,33 @@ const SettingsScreen = ({ navigation }) => {
 
       {/* Data & Storage */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Data & Storage</Text>
+        <Text style={styles.sectionTitle}>{t('settings.sections.dataStorage')}</Text>
         <View style={styles.card}>
           <SettingItem
             icon="save"
-            title="Auto-save Drafts"
-            description="Automatically save incomplete reports"
+            title={t('settings.toggles.autoSaveTitle')}
+            description={t('settings.toggles.autoSaveDescription')}
             value={settings.autoSave}
             onToggle={() => toggleSetting('autoSave')}
           />
-          <ActionItem icon="trash" title="Clear Cache" onPress={clearCache} destructive />
+          <ActionItem icon="trash" title={t('settings.actions.clearCache')} onPress={clearCache} destructive />
         </View>
       </View>
 
       {/* About */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>About</Text>
+        <Text style={styles.sectionTitle}>{t('settings.sections.about')}</Text>
         <View style={styles.card}>
           <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Version</Text>
+            <Text style={styles.infoLabel}>{t('settings.about.version')}</Text>
             <Text style={styles.infoValue}>1.0.0</Text>
           </View>
           <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Build</Text>
+            <Text style={styles.infoLabel}>{t('settings.about.build')}</Text>
             <Text style={styles.infoValue}>2024.01.001</Text>
           </View>
           <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Platform</Text>
+            <Text style={styles.infoLabel}>{t('settings.about.platform')}</Text>
             <Text style={styles.infoValue}>Expo SDK 54</Text>
           </View>
         </View>
@@ -195,10 +224,10 @@ const SettingsScreen = ({ navigation }) => {
       <View style={styles.footer}>
         <View style={styles.footerBadge}>
           <Ionicons name="shield-checkmark" size={14} color={colors.primary} />
-          <Text style={styles.footerBadgeText}>HIPAA Compliant</Text>
+          <Text style={styles.footerBadgeText}>{t('settings.about.hipaa')}</Text>
         </View>
-        <Text style={styles.footerText}>SafeMed ADR © 2024</Text>
-        <Text style={styles.footerSubtext}>Adverse Drug Reaction Reporting Platform</Text>
+        <Text style={styles.footerText}>{t('settings.about.appName')} © 2024</Text>
+        <Text style={styles.footerSubtext}>{t('settings.about.appTagline')}</Text>
       </View>
     </ScrollView>
   );
@@ -229,6 +258,22 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: colors.divider,
   },
   actionTitle: { flex: 1, fontSize: 14, color: colors.text, fontWeight: '500' },
+  languageItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.base,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  languageLabel: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  languageLabelActive: {
+    color: colors.primary,
+  },
   destructiveText: { color: colors.error },
   infoItem: {
     flexDirection: 'row', justifyContent: 'space-between', padding: spacing.base,

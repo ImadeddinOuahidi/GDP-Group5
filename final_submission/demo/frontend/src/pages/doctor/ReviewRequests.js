@@ -11,13 +11,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
   TextField,
   MenuItem,
   Alert,
@@ -25,7 +18,6 @@ import {
   CircularProgress,
   useTheme,
   alpha,
-  Divider,
   List,
   ListItem,
   ListItemText,
@@ -47,13 +39,13 @@ import {
   Science as ScienceIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import AuthContainer from '../../store/containers/AuthContainer';
 import { reportService } from '../../services';
+import { useI18n } from '../../i18n';
 
 export default function ReviewRequests() {
   const theme = useTheme();
   const navigate = useNavigate();
-  const { user } = AuthContainer.useContainer();
+  const { t } = useI18n();
   const [pendingReviews, setPendingReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -83,7 +75,7 @@ export default function ReviewRequests() {
       }
     } catch (err) {
       console.error('Error loading pending reviews:', err);
-      setError('Failed to load review requests');
+      setError(t('doctor.loadReviewRequestsFailed'));
       setPendingReviews([]);
     } finally {
       setLoading(false);
@@ -116,7 +108,7 @@ export default function ReviewRequests() {
       await loadPendingReviews();
     } catch (err) {
       console.error('Error submitting review:', err);
-      alert(err.message || 'Failed to submit review');
+      alert(err.message || t('doctor.submitReviewFailed'));
     } finally {
       setSubmittingReview(false);
     }
@@ -142,7 +134,7 @@ export default function ReviewRequests() {
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
+    if (!dateString) return t('common.notAvailable');
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -161,15 +153,15 @@ export default function ReviewRequests() {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
       {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
           <ReviewIcon color="primary" />
-          Review Requests
+          {t('navigation.reviewRequests')}
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Patients have requested your review on these reports
+          {t('doctor.reviewRequestsSubtitle')}
         </Typography>
       </Box>
 
@@ -178,11 +170,11 @@ export default function ReviewRequests() {
       )}
 
       {pendingReviews.length === 0 ? (
-        <Card sx={{ p: 4, textAlign: 'center' }}>
+        <Card elevation={0} sx={{ p: 4, textAlign: 'center', border: 1, borderColor: 'divider' }}>
           <CheckIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
-          <Typography variant="h6" gutterBottom>No Pending Reviews</Typography>
+          <Typography variant="h6" gutterBottom>{t('doctor.noPendingReviews')}</Typography>
           <Typography color="text.secondary">
-            All review requests have been addressed. Great work!
+            {t('doctor.noPendingReviewsDescription')}
           </Typography>
         </Card>
       ) : (
@@ -192,7 +184,7 @@ export default function ReviewRequests() {
             const patientGuidance = aiAnalysis?.patientGuidance;
             const patientName = report.patient?.firstName && report.patient?.lastName 
               ? `${report.patient.firstName} ${report.patient.lastName}` 
-              : 'Anonymous';
+              : t('common.anonymous');
             const sideEffect = report.sideEffects?.[0];
 
             return (
@@ -203,7 +195,7 @@ export default function ReviewRequests() {
                     borderColor: patientGuidance?.urgencyLevel === 'urgent' ? 'error.main' 
                       : patientGuidance?.urgencyLevel === 'soon' ? 'warning.main' 
                       : 'success.main',
-                    '&:hover': { boxShadow: 6 },
+                    '&:hover': { boxShadow: 3 },
                     transition: 'box-shadow 0.2s'
                   }}
                 >
@@ -217,18 +209,18 @@ export default function ReviewRequests() {
                         <Box>
                           <Typography variant="h6">{patientName}</Typography>
                           <Typography variant="body2" color="text.secondary">
-                            Requested: {formatDate(report.doctorReview?.requestedAt)}
+                            {t('doctor.requestedAt', { date: formatDate(report.doctorReview?.requestedAt) })}
                           </Typography>
                         </Box>
                       </Box>
                       <Box sx={{ display: 'flex', gap: 1 }}>
                         <Chip 
-                          label={patientGuidance?.urgencyLevel || 'unknown'} 
+                          label={patientGuidance?.urgencyLevel || t('common.unknown')} 
                           color={getUrgencyColor(patientGuidance?.urgencyLevel)}
                           size="small"
                         />
                         <Chip 
-                          label={sideEffect?.severity || 'Unknown'} 
+                          label={sideEffect?.severity || t('common.unknown')} 
                           color={getSeverityColor(sideEffect?.severity)}
                           size="small"
                           variant="outlined"
@@ -240,7 +232,7 @@ export default function ReviewRequests() {
                     {report.doctorReview?.requestReason && (
                       <Alert severity="info" sx={{ mb: 2 }}>
                         <Typography variant="body2">
-                          <strong>Patient's reason:</strong> {report.doctorReview.requestReason}
+                          <strong>{t('doctor.patientReason')}</strong> {report.doctorReview.requestReason}
                         </Typography>
                       </Alert>
                     )}
@@ -251,9 +243,9 @@ export default function ReviewRequests() {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <MedicineIcon color="action" fontSize="small" />
                           <Box>
-                            <Typography variant="caption" color="text.secondary">Medication</Typography>
+                            <Typography variant="caption" color="text.secondary">{t('reports.drug')}</Typography>
                             <Typography variant="body2" fontWeight={500}>
-                              {report.medicine?.name || 'Unknown'}
+                              {report.medicine?.name || t('common.unknown')}
                             </Typography>
                           </Box>
                         </Box>
@@ -262,9 +254,9 @@ export default function ReviewRequests() {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <WarningIcon color="action" fontSize="small" />
                           <Box>
-                            <Typography variant="caption" color="text.secondary">Side Effect</Typography>
+                            <Typography variant="caption" color="text.secondary">{t('doctor.sideEffect')}</Typography>
                             <Typography variant="body2" fontWeight={500}>
-                              {sideEffect?.effect || 'Not specified'}
+                              {sideEffect?.effect || t('doctor.notSpecified')}
                             </Typography>
                           </Box>
                         </Box>
@@ -273,9 +265,9 @@ export default function ReviewRequests() {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <ScheduleIcon color="action" fontSize="small" />
                           <Box>
-                            <Typography variant="caption" color="text.secondary">Onset</Typography>
+                            <Typography variant="caption" color="text.secondary">{t('doctor.onset')}</Typography>
                             <Typography variant="body2" fontWeight={500}>
-                              {sideEffect?.onset || 'Unknown'}
+                              {sideEffect?.onset || t('common.unknown')}
                             </Typography>
                           </Box>
                         </Box>
@@ -288,20 +280,20 @@ export default function ReviewRequests() {
                         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <AIIcon color="primary" />
-                            <Typography fontWeight={500}>AI Analysis</Typography>
+                            <Typography fontWeight={500}>{t('reports.aiAnalysis')}</Typography>
                           </Box>
                         </AccordionSummary>
                         <AccordionDetails>
                           <Box sx={{ mb: 2 }}>
-                            <Typography variant="subtitle2" gutterBottom>Summary</Typography>
+                            <Typography variant="subtitle2" gutterBottom>{t('doctor.summary')}</Typography>
                             <Typography variant="body2" color="text.secondary">
-                              {aiAnalysis.summary || 'No summary available'}
+                              {aiAnalysis.summary || t('doctor.noSummaryAvailable')}
                             </Typography>
                           </Box>
                           
                           {patientGuidance?.recommendation && (
                             <Box sx={{ mb: 2 }}>
-                              <Typography variant="subtitle2" gutterBottom>Patient Guidance Given</Typography>
+                              <Typography variant="subtitle2" gutterBottom>{t('doctor.patientGuidanceGiven')}</Typography>
                               <Typography variant="body2" color="text.secondary">
                                 {patientGuidance.recommendation}
                               </Typography>
@@ -310,7 +302,7 @@ export default function ReviewRequests() {
 
                           {aiAnalysis.recommendedActions?.length > 0 && (
                             <Box sx={{ mb: 2 }}>
-                              <Typography variant="subtitle2" gutterBottom>Recommended Actions</Typography>
+                              <Typography variant="subtitle2" gutterBottom>{t('reports.recommendedSteps')}</Typography>
                               <List dense>
                                 {aiAnalysis.recommendedActions.map((action, idx) => (
                                   <ListItem key={idx} sx={{ py: 0 }}>
@@ -330,42 +322,42 @@ export default function ReviewRequests() {
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                                 <VerifiedIcon color={aiAnalysis.medicationVerification.isVerifiedMedication ? 'success' : 'warning'} fontSize="small" />
                                 <Typography variant="subtitle2">
-                                  Medication Verification
+                                  {t('doctor.medicationVerification')}
                                   {aiAnalysis.medicationVerification.isVerifiedMedication && (
-                                    <Chip label="Verified" size="small" color="success" sx={{ ml: 1 }} />
+                                    <Chip label={t('doctor.verified')} size="small" color="success" sx={{ ml: 1 }} />
                                   )}
                                 </Typography>
                               </Box>
                               <Grid container spacing={1}>
                                 {aiAnalysis.medicationVerification.drugClass && aiAnalysis.medicationVerification.drugClass !== 'Unknown' && (
                                   <Grid item xs={12} sm={6}>
-                                    <Typography variant="caption" color="text.secondary">Drug Class</Typography>
+                                    <Typography variant="caption" color="text.secondary">{t('doctor.drugClass')}</Typography>
                                     <Typography variant="body2">{aiAnalysis.medicationVerification.drugClass}</Typography>
                                   </Grid>
                                 )}
                                 {aiAnalysis.medicationVerification.knownADR && (
                                   <Grid item xs={12} sm={6}>
-                                    <Typography variant="caption" color="text.secondary">Known ADR Match</Typography>
+                                    <Typography variant="caption" color="text.secondary">{t('doctor.knownAdrMatch')}</Typography>
                                     <Typography variant="body2" color={aiAnalysis.medicationVerification.knownADR ? 'error.main' : 'text.primary'}>
-                                      {aiAnalysis.medicationVerification.knownADR ? 'Yes - This is a known adverse reaction' : 'Not a commonly known ADR'}
+                                      {aiAnalysis.medicationVerification.knownADR ? t('doctor.knownAdrYes') : t('doctor.knownAdrNo')}
                                     </Typography>
                                   </Grid>
                                 )}
                                 {aiAnalysis.medicationVerification.knownADRFrequency && (
                                   <Grid item xs={12} sm={6}>
-                                    <Typography variant="caption" color="text.secondary">ADR Frequency</Typography>
+                                    <Typography variant="caption" color="text.secondary">{t('doctor.adrFrequency')}</Typography>
                                     <Typography variant="body2">{aiAnalysis.medicationVerification.knownADRFrequency}</Typography>
                                   </Grid>
                                 )}
                                 {aiAnalysis.medicationVerification.labelWarnings && (
                                   <Grid item xs={12}>
-                                    <Typography variant="caption" color="text.secondary">Label Warnings</Typography>
+                                    <Typography variant="caption" color="text.secondary">{t('doctor.labelWarnings')}</Typography>
                                     <Typography variant="body2">{aiAnalysis.medicationVerification.labelWarnings}</Typography>
                                   </Grid>
                                 )}
                                 {aiAnalysis.medicationVerification.sources?.length > 0 && (
                                   <Grid item xs={12}>
-                                    <Typography variant="caption" color="text.secondary">Verification Sources</Typography>
+                                    <Typography variant="caption" color="text.secondary">{t('doctor.verificationSources')}</Typography>
                                     <Typography variant="body2">
                                       {aiAnalysis.medicationVerification.sources.join(', ')}
                                     </Typography>
@@ -380,7 +372,7 @@ export default function ReviewRequests() {
                             <Box sx={{ mb: 2 }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                                 <ScienceIcon color="primary" fontSize="small" />
-                                <Typography variant="subtitle2">References & Sources</Typography>
+                                <Typography variant="subtitle2">{t('doctor.referencesAndSources')}</Typography>
                               </Box>
                               <List dense>
                                 {aiAnalysis.references.map((ref, idx) => (
@@ -393,7 +385,7 @@ export default function ReviewRequests() {
                                             {ref.title || ref.uri}
                                           </a>
                                         ) : (
-                                          ref.title || 'Reference'
+                                          ref.title || t('doctor.reference')
                                         )
                                       }
                                       primaryTypographyProps={{ variant: 'body2' }}
@@ -406,17 +398,17 @@ export default function ReviewRequests() {
 
                           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                             <Chip 
-                              label={`Causality: ${aiAnalysis.causalityAssessment?.likelihood || 'Unknown'}`}
+                              label={t('doctor.causalityLabel', { value: aiAnalysis.causalityAssessment?.likelihood || t('common.unknown') })}
                               size="small"
                               variant="outlined"
                             />
                             <Chip 
-                              label={`Risk Score: ${aiAnalysis.overallRiskScore || 'N/A'}`}
+                              label={t('doctor.riskScoreLabel', { value: aiAnalysis.overallRiskScore || t('common.notAvailable') })}
                               size="small"
                               variant="outlined"
                             />
                             <Chip 
-                              label={`Priority: ${aiAnalysis.priority || 'Unknown'}`}
+                              label={t('doctor.priorityLabel', { value: aiAnalysis.priority || t('common.unknown') })}
                               size="small"
                               variant="outlined"
                             />
@@ -431,14 +423,14 @@ export default function ReviewRequests() {
                         variant="outlined" 
                         onClick={() => navigate(`/reports/${report._id}`)}
                       >
-                        View Full Report
+                        {t('doctor.viewFullReport')}
                       </Button>
                       <Button 
                         variant="contained" 
                         startIcon={<ReviewIcon />}
                         onClick={() => handleOpenReviewDialog(report)}
                       >
-                        Submit Review
+                        {t('doctor.submitReview')}
                       </Button>
                     </Box>
                   </CardContent>
@@ -452,14 +444,16 @@ export default function ReviewRequests() {
       {/* Review Dialog */}
       <Dialog open={reviewDialogOpen} onClose={() => setReviewDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>
-          Submit Review for {selectedReport?.patient?.firstName} {selectedReport?.patient?.lastName}
+          {t('doctor.submitReviewFor', {
+            name: `${selectedReport?.patient?.firstName || ''} ${selectedReport?.patient?.lastName || ''}`.trim(),
+          })}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
             {/* AI Summary */}
             {selectedReport?.metadata?.aiAnalysis && (
               <Alert severity="info">
-                <Typography variant="subtitle2" gutterBottom>AI Assessment Summary</Typography>
+                <Typography variant="subtitle2" gutterBottom>{t('doctor.aiAssessmentSummary')}</Typography>
                 <Typography variant="body2">
                   {selectedReport.metadata.aiAnalysis.summary}
                 </Typography>
@@ -468,55 +462,55 @@ export default function ReviewRequests() {
 
             <TextField
               select
-              label="Do you agree with AI assessment?"
+              label={t('doctor.agreeWithAiAssessment')}
               value={agreedWithAI}
               onChange={(e) => setAgreedWithAI(e.target.value === 'true')}
               fullWidth
             >
-              <MenuItem value="true">Yes, I agree with the AI assessment</MenuItem>
-              <MenuItem value="false">No, I have a different assessment</MenuItem>
+              <MenuItem value="true">{t('doctor.aiAgreeYes')}</MenuItem>
+              <MenuItem value="false">{t('doctor.aiAgreeNo')}</MenuItem>
             </TextField>
 
             <TextField
-              label="Your Remarks / Medical Opinion"
+              label={t('doctor.yourRemarks')}
               multiline
               rows={4}
               value={reviewRemarks}
               onChange={(e) => setReviewRemarks(e.target.value)}
-              placeholder="Provide your professional assessment and any additional observations..."
+              placeholder={t('doctor.remarksPlaceholder')}
               fullWidth
               required
             />
 
             <TextField
-              label="Recommendation for Patient"
+              label={t('doctor.recommendationForPatient')}
               multiline
               rows={3}
               value={reviewRecommendation}
               onChange={(e) => setReviewRecommendation(e.target.value)}
-              placeholder="What should the patient do next? Any specific instructions?"
+              placeholder={t('doctor.recommendationPlaceholder')}
               fullWidth
             />
 
             <TextField
               select
-              label="Action Required"
+              label={t('doctor.actionRequired')}
               value={reviewAction}
               onChange={(e) => setReviewAction(e.target.value)}
               fullWidth
             >
-              <MenuItem value="none">No immediate action needed</MenuItem>
-              <MenuItem value="monitor">Continue monitoring</MenuItem>
-              <MenuItem value="adjust_medication">Adjust medication dosage</MenuItem>
-              <MenuItem value="discontinue">Discontinue medication</MenuItem>
-              <MenuItem value="schedule_appointment">Schedule follow-up appointment</MenuItem>
-              <MenuItem value="emergency">Seek immediate medical attention</MenuItem>
+              <MenuItem value="none">{t('doctor.action.none')}</MenuItem>
+              <MenuItem value="monitor">{t('doctor.action.monitor')}</MenuItem>
+              <MenuItem value="adjust_medication">{t('doctor.action.adjustMedication')}</MenuItem>
+              <MenuItem value="discontinue">{t('doctor.action.discontinue')}</MenuItem>
+              <MenuItem value="schedule_appointment">{t('doctor.action.scheduleAppointment')}</MenuItem>
+              <MenuItem value="emergency">{t('doctor.action.emergency')}</MenuItem>
             </TextField>
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2, gap: 1 }}>
           <Button onClick={() => setReviewDialogOpen(false)} disabled={submittingReview}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button 
             variant="contained" 
@@ -524,7 +518,7 @@ export default function ReviewRequests() {
             disabled={submittingReview || !reviewRemarks.trim()}
             startIcon={submittingReview ? <CircularProgress size={20} /> : <CheckIcon />}
           >
-            {submittingReview ? 'Submitting...' : 'Submit Review'}
+            {submittingReview ? t('doctor.submitting') : t('doctor.submitReview')}
           </Button>
         </DialogActions>
       </Dialog>

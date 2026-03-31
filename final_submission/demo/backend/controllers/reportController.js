@@ -101,6 +101,7 @@ exports.getAllReports = async (req, res) => {
       status,
       priority,
       seriousness,
+      severity,
       medicine,
       reportedBy,
       patient,
@@ -119,6 +120,7 @@ exports.getAllReports = async (req, res) => {
     if (status) filter.status = status;
     if (priority) filter.priority = priority;
     if (seriousness) filter['reportDetails.seriousness'] = seriousness;
+    if (severity) filter['sideEffects.severity'] = severity;
     if (medicine) filter.medicine = medicine;
     if (reportedBy) filter.reportedBy = reportedBy;
     if (patient) filter.patient = patient;
@@ -190,7 +192,8 @@ exports.getReportById = async (req, res) => {
         { path: 'patient', select: 'firstName lastName email dateOfBirth gender' },
         { path: 'assignedTo', select: 'firstName lastName role' },
         { path: 'causalityAssessment.assessedBy', select: 'firstName lastName role' },
-        { path: 'followUp.reportedBy', select: 'firstName lastName role' }
+        { path: 'followUp.reportedBy', select: 'firstName lastName role' },
+        { path: 'statusHistory.changedBy', select: 'firstName lastName role' }
       ]);
 
     if (!report || !report.isActive || report.isDeleted) {
@@ -612,6 +615,27 @@ async function getPatientIds(doctorId) {
   return [];
 }
 
+function normalizeDuplicateCandidate(candidate = {}) {
+  return {
+    ...candidate,
+    similarityScore: candidate.similarityScore ?? candidate.score,
+    score: candidate.score ?? candidate.similarityScore
+  };
+}
+
+function normalizeDuplicatePayload(result = {}) {
+  const duplicates = (result.duplicates || []).map(normalizeDuplicateCandidate);
+  const hasPotentialDuplicates = Boolean(result.hasPotentialDuplicates ?? result.hasDuplicates);
+
+  return {
+    ...result,
+    hasPotentialDuplicates,
+    hasDuplicates: hasPotentialDuplicates,
+    duplicateCount: result.duplicateCount ?? duplicates.length,
+    duplicates
+  };
+}
+
 // ============================================
 // DUPLICATE DETECTION - Use Case 8 Implementation
 // ============================================
@@ -635,8 +659,12 @@ exports.findDuplicates = async (req, res) => {
     }
 
     const result = await DuplicateDetectionService.findDuplicates(id);
+    const payload = normalizeDuplicatePayload(result);
     
-    sendSuccess(res, result, 'Duplicate analysis completed successfully');
+    sendSuccess(res, {
+      data: payload,
+      message: 'Duplicate analysis completed successfully'
+    });
   } catch (error) {
     console.error('Find duplicates error:', error);
     if (error.message === 'Report not found') {
@@ -657,10 +685,11 @@ exports.checkDuplicatesBeforeSubmission = async (req, res) => {
     const reportData = req.body;
     
     const result = await DuplicateDetectionService.checkForDuplicatesBeforeSubmission(reportData);
+    const payload = normalizeDuplicatePayload(result);
     
     sendSuccess(res, {
-      ...result,
-      message: result.hasPotentialDuplicates 
+      data: payload,
+      message: payload.hasPotentialDuplicates
         ? 'Potential duplicate reports found. Please review before submitting.'
         : 'No duplicates detected.'
     });
@@ -718,6 +747,48 @@ exports.flagAsDuplicate = async (req, res) => {
 };
 
 /**
+ * Merge a duplicate report into the original report
+ * POST /api/reports/:id/merge-duplicate
+ */
+exports.mergeDuplicateReport = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { originalReportId } = req.body;
+
+    validateObjectId(id, 'Duplicate Report ID');
+    validateObjectId(originalReportId, 'Original Report ID');
+
+    if (req.user.role === USER_ROLES.PATIENT) {
+      return sendForbidden(res, 'Only healthcare staff can merge duplicate reports');
+    }
+
+    const mergeResult = await DuplicateDetectionService.mergeDuplicateIntoOriginal(
+      id,
+      originalReportId,
+      req.user._id
+    );
+
+    const { sendUpdated } = require('../utils/responseHelper');
+    sendUpdated(res, mergeResult, 'Duplicate report merged successfully');
+  } catch (error) {
+    console.error('Merge duplicate report error:', error);
+
+    if (error.message === 'Report not found') {
+      return sendNotFound(res, ERROR_MESSAGES.REPORT_NOT_FOUND);
+    }
+
+    if (
+      error.message === 'A report cannot be merged into itself' ||
+      error.message === 'Duplicate report is not active'
+    ) {
+      return sendError(res, error.message, 400);
+    }
+
+    throw error;
+  }
+};
+
+/**
  * Get duplicate detection statistics
  * GET /api/reports/duplicate-stats
  * 
@@ -732,7 +803,10 @@ exports.getDuplicateStats = async (req, res) => {
 
     const stats = await DuplicateDetectionService.getDuplicateStats();
     
-    sendSuccess(res, stats, 'Duplicate statistics retrieved successfully');
+    sendSuccess(res, {
+      data: stats,
+      message: 'Duplicate statistics retrieved successfully'
+    });
   } catch (error) {
     console.error('Get duplicate stats error:', error);
     throw error;

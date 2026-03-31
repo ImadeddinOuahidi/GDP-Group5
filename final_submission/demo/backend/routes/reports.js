@@ -297,6 +297,7 @@ router.get('/', [
   query('status').optional().isIn(['Draft', 'Submitted', 'Under Review', 'Reviewed', 'Closed', 'Rejected']),
   query('priority').optional().isIn(['Low', 'Medium', 'High', 'Critical']),
   query('seriousness').optional().isIn(['Serious', 'Non-serious']),
+  query('severity').optional().isIn(['Mild', 'Moderate', 'Severe', 'Life-threatening']),
   query('medicine').optional().isMongoId(),
   query('reportedBy').optional().isMongoId(),
   query('patient').optional().isMongoId(),
@@ -1080,6 +1081,49 @@ router.get('/:id/duplicates',
 router.post('/:id/flag-duplicate', 
   restrictTo('admin', 'doctor'),
   reportController.flagAsDuplicate
+);
+
+/**
+ * @swagger
+ * /api/reports/{id}/merge-duplicate:
+ *   post:
+ *     summary: Merge duplicate report into original (Doctor/Admin only)
+ *     description: Merges a duplicate report's information into the original report and closes the duplicate
+ *     tags: [Duplicate Detection]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Duplicate report ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - originalReportId
+ *             properties:
+ *               originalReportId:
+ *                 type: string
+ *                 description: ID of the original report to merge into
+ *     responses:
+ *       200:
+ *         description: Duplicate report merged successfully
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       404:
+ *         $ref: '#/components/responses/NotFoundError'
+ */
+router.post('/:id/merge-duplicate', 
+  restrictTo('admin', 'doctor'),
+  reportController.mergeDuplicateReport
 );
 
 /**

@@ -13,6 +13,7 @@ import {
   Alert,
   Chip,
   useTheme,
+  alpha,
   Skeleton,
   Divider,
   Stack,
@@ -32,11 +33,12 @@ import {
 } from "@mui/icons-material";
 import AuthContainer from "../../store/containers/AuthContainer";
 import reportService from "../../services/reportService";
-import Strings from '../../Strings';
+import { useI18n } from '../../i18n';
 
 export default function Home() {
   const theme = useTheme();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const { user, isLoading } = AuthContainer.useContainer();
   const [pageLoading, setPageLoading] = useState(true);
   const [userStats, setUserStats] = useState({
@@ -62,19 +64,22 @@ export default function Home() {
           totalReports: total,
           recentReports: reports.slice(0, 3).map(r => ({
             id: r._id,
-            medicine: r.medicine?.name || 'Unknown medicine',
+            medicine: r.medicine?.name || t('reports.unknownMedicine'),
             date: (r.reportDetails?.reportDate || r.createdAt || '').split('T')[0],
-            status: (r.status || 'pending').toLowerCase(),
-            severity: r.sideEffects?.[0]?.severity?.toLowerCase() || 'mild',
+            status: (r.status || t('status.submitted')).toLowerCase(),
+            severity: r.sideEffects?.[0]?.severity?.toLowerCase() || t('severity.mild').toLowerCase(),
           })),
           completedProfile: 85,
         });
 
         const pendingCount = reports.filter(r => (r.status || '').toLowerCase() === 'pending' || (r.status || '').toLowerCase() === 'submitted').length;
-        setWelcomeMessage(`Welcome back, ${user?.firstName || 'User'}! You have ${pendingCount} pending report${pendingCount !== 1 ? 's' : ''}.`);
+        setWelcomeMessage(t('home.welcomePendingReports', {
+          name: user?.firstName || t('common.user'),
+          count: pendingCount,
+        }));
       } catch (error) {
         console.error("Error loading user data:", error);
-        setError("Failed to load dashboard data. Please refresh the page.");
+        setError(t('home.loadDashboardError'));
       } finally {
         setPageLoading(false);
       }
@@ -85,7 +90,7 @@ export default function Home() {
     } else if (!isLoading) {
       setPageLoading(false);
     }
-  }, [user, isLoading]);
+  }, [user, isLoading, t]);
 
   if (isLoading || pageLoading) {
     return (
@@ -107,20 +112,20 @@ export default function Home() {
 
   const features = [
     {
-      title: Strings.quickReportingTitle,
-      description: Strings.quickReportingDesc,
+      title: t('home.quickReportingTitle'),
+      description: t('home.quickReportingDesc'),
       icon: <SpeedIcon color="primary" sx={{ fontSize: 40 }} />,
       color: "primary",
     },
     {
-      title: Strings.securePrivateTitle,
-      description: Strings.securePrivateDesc,
+      title: t('home.securePrivateTitle'),
+      description: t('home.securePrivateDesc'),
       icon: <SecurityIcon color="secondary" sx={{ fontSize: 40 }} />,
       color: "secondary",
     },
     {
-      title: Strings.realtimeAnalysisTitle,
-      description: Strings.realtimeAnalysisDesc,
+      title: t('home.realtimeAnalysisTitle'),
+      description: t('home.realtimeAnalysisDesc'),
       icon: <TimelineIcon color="success" sx={{ fontSize: 40 }} />,
       color: "success",
     },
@@ -128,8 +133,8 @@ export default function Home() {
 
   const quickActions = [
     {
-      title: Strings.reportSideEffect,
-      description: "Quickly report any adverse drug reactions you're experiencing",
+      title: t('reports.submitReport'),
+      description: t('home.quickActionReportDescription'),
       icon: <ReportIcon />,
       action: () => navigate("/report"),
       color: "primary",
@@ -137,8 +142,8 @@ export default function Home() {
       priority: true,
     },
     {
-      title: Strings.viewMyReports,
-      description: "Review your submitted reports and their status",
+      title: t('reports.viewMyReports'),
+      description: t('home.quickActionReportsDescription'),
       icon: <HistoryIcon />,
       action: () => navigate("/reports"),
       color: "info",
@@ -146,8 +151,8 @@ export default function Home() {
       badge: userStats.totalReports > 0 ? userStats.totalReports.toString() : null,
     },
     {
-      title: Strings.settings,
-      description: "Manage your profile and notification preferences",
+      title: t('navigation.settings'),
+      description: t('home.quickActionSettingsDescription'),
       icon: <SettingsIcon />,
       action: () => navigate("/settings"),
       color: "secondary",
@@ -174,24 +179,14 @@ export default function Home() {
 
         {/* Welcome Header */}
         <Paper
-          elevation={3}
+          elevation={0}
           sx={{
             p: 4,
             mb: 4,
-            background: `linear-gradient(135deg, ${theme.palette.primary.main}20 0%, ${theme.palette.secondary.main}20 100%)`,
+            backgroundColor: 'background.paper',
             borderRadius: 3,
-            position: 'relative',
-            overflow: 'hidden',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.05"%3E%3Ccircle cx="7" cy="7" r="1"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
-              pointerEvents: 'none',
-            },
+            border: 1,
+            borderColor: 'divider',
           }}
         >
           <Grid container spacing={3} alignItems="center">
@@ -201,6 +196,7 @@ export default function Home() {
                   <Avatar
                     sx={{
                       bgcolor: 'primary.main',
+                      color: 'primary.contrastText',
                       width: 60,
                       height: 60,
                     }}
@@ -209,10 +205,10 @@ export default function Home() {
                   </Avatar>
                   <Box>
                     <Typography variant="h4" component="h1" fontWeight="700">
-                      {Strings.welcomeBack(user?.name || 'Patient')}
+                      {t('dashboard.welcomeBack', { name: user?.name || t('common.patient') })}
                     </Typography>
                     <Chip 
-                      label={Strings.patientPortalTag} 
+                      label={t('home.patientPortalTag')} 
                       color="primary" 
                       size="small"
                       sx={{ mt: 0.5 }} 
@@ -220,19 +216,18 @@ export default function Home() {
                   </Box>
                 </Stack>
                 <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
-                  {`${Strings.appName} - ${Strings.subtitle}`}
+                  {`${t('common.appName')} - ${t('common.subtitle')}`}
                 </Typography>
                 <Typography variant="body1" sx={{ maxWidth: 600 }}>
-                  Report medicine side effects quickly and securely. 
-                  Help healthcare professionals identify urgent cases and keep patients safe.
+                  {t('home.heroDescription')}
                 </Typography>
               </Box>
             </Grid>
             <Grid item xs={12} md={4}>
-              <Card sx={{ bgcolor: 'background.paper', boxShadow: 2 }}>
+              <Card sx={{ bgcolor: 'background.paper', boxShadow: 0, border: 1, borderColor: 'divider' }}>
                 <CardContent sx={{ textAlign: 'center', py: 2 }}>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    {Strings.profileCompletion}
+                    {t('home.profileCompletion')}
                   </Typography>
                   <Box sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center', mb: 1 }}>
                     <Typography variant="h4" component="div" color="primary.main" fontWeight="bold">
@@ -252,7 +247,7 @@ export default function Home() {
                     }}
                   />
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                    {Strings.completeProfileHint}
+                    {t('home.completeProfileHint')}
                   </Typography>
                 </CardContent>
               </Card>
@@ -262,7 +257,7 @@ export default function Home() {
 
         {/* Quick Actions */}
         <Typography variant="h4" gutterBottom sx={{ mb: 3 }}>
-          {Strings.quickActionsTitle}
+          {t('home.quickActions')}
         </Typography>
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {quickActions.map((action, index) => (
@@ -275,10 +270,11 @@ export default function Home() {
                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   cursor: 'pointer',
                   position: 'relative',
-                  border: action.priority ? `2px solid ${theme.palette.primary.main}` : '1px solid transparent',
+                  border: 1,
+                  borderColor: action.priority ? 'primary.main' : 'divider',
                   '&:hover': {
-                    transform: 'translateY(-8px)',
-                    boxShadow: theme.shadows[8],
+                    transform: 'translateY(-5px)',
+                    boxShadow: theme.shadows[4],
                   },
                   '&:active': {
                     transform: 'translateY(-4px)',
@@ -297,7 +293,7 @@ export default function Home() {
               >
                 {action.priority && (
                   <Chip
-                    label="Priority"
+                    label={t('common.priority')}
                     color="primary"
                     size="small"
                     sx={{
@@ -365,7 +361,7 @@ export default function Home() {
         {userStats.recentReports.length > 0 && (
           <>
             <Typography variant="h4" gutterBottom sx={{ mb: 3 }}>
-              {Strings.recentActivityTitle}
+              {t('home.recentActivity')}
             </Typography>
             <Card sx={{ mb: 4 }}>
               <CardContent>
@@ -389,15 +385,15 @@ export default function Home() {
                           </Avatar>
                           <Box>
                             <Typography variant="body1" fontWeight="500">
-                              Side effect report for {report.medicine}
+                              {t('home.sideEffectReportFor', { medicine: report.medicine })}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                              Submitted on {new Date(report.date).toLocaleDateString()}
+                              {t('home.submittedOn', { date: new Date(report.date).toLocaleDateString() })}
                             </Typography>
                           </Box>
                         </Stack>
                         <Chip
-                          label={report.status === 'reviewed' ? Strings.reviewed : Strings.pending}
+                          label={report.status === 'reviewed' ? t('status.reviewed') : t('status.submitted')}
                           color={report.status === 'reviewed' ? 'success' : 'warning'}
                           size="small"
                           variant="outlined"
@@ -415,7 +411,7 @@ export default function Home() {
                     onClick={() => navigate("/reports")}
                     startIcon={<HistoryIcon />}
                   >
-                    View All Reports
+                    {t('home.viewAllReports')}
                   </Button>
                 </Box>
               </CardContent>
@@ -425,7 +421,7 @@ export default function Home() {
 
         {/* Features Section */}
         <Typography variant="h4" gutterBottom sx={{ mb: 3 }}>
-          Why Choose SafeMed ADR?
+          {t('home.whyChoose')}
         </Typography>
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {features.map((feature, index) => (
@@ -469,41 +465,32 @@ export default function Home() {
 
         {/* Important Notice */}
         <Paper
-          elevation={2}
+          elevation={0}
           sx={{
             p: 3,
-            bgcolor: 'error.main',
-            color: 'error.contrastText',
+            bgcolor: alpha(theme.palette.error.main, 0.1),
+            color: 'text.primary',
             borderRadius: 3,
-            border: `2px solid ${theme.palette.error.dark}`,
+            border: `1px solid ${alpha(theme.palette.error.main, 0.35)}`,
           }}
         >
           <Stack direction="row" spacing={2} alignItems="flex-start">
             <SecurityIcon sx={{ fontSize: 28, mt: 0.5, flexShrink: 0 }} />
             <Box>
               <Typography variant="h6" gutterBottom fontWeight="600">
-                Emergency Notice
+                {t('emergency.title')}
               </Typography>
               <Typography variant="body1" sx={{ lineHeight: 1.6 }}>
-                <strong>Important:</strong> If you're experiencing a medical emergency, 
-                call emergency services immediately (911). This system is designed for 
-                reporting non-emergency adverse drug reactions only.
+                {t('emergency.text')}
               </Typography>
               <Box sx={{ mt: 2 }}>
                 <Button
                   variant="contained"
-                  color="inherit"
+                  color="error"
                   size="small"
-                  sx={{
-                    bgcolor: 'rgba(255,255,255,0.2)',
-                    color: 'inherit',
-                    '&:hover': {
-                      bgcolor: 'rgba(255,255,255,0.3)',
-                    },
-                  }}
                   href="tel:911"
                 >
-                  Call 911
+                  {t('emergency.call911')}
                 </Button>
               </Box>
             </Box>

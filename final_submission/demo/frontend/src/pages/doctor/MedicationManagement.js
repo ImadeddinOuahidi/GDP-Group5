@@ -61,9 +61,9 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { medicationService } from '../../services';
-import { useAuth } from '../../hooks';
 import { MEDICATION_CATEGORIES } from '../../config/constants';
 import { InlineLoading } from '../../components/ui/Loading';
+import { useI18n } from '../../i18n';
 
 // Tab panel component
 function TabPanel({ children, value, index, ...props }) {
@@ -82,7 +82,7 @@ function TabPanel({ children, value, index, ...props }) {
 
 const MedicationManagement = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { t } = useI18n();
   
   // State
   const [medications, setMedications] = useState([]);
@@ -151,11 +151,11 @@ const MedicationManagement = () => {
       }
     } catch (err) {
       console.error('Load medications error:', err);
-      setError('Failed to load medications. Please try again.');
+      setError(t('doctor.loadMedicationsFailed'));
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, searchQuery, categoryFilter, sourceFilter, tabValue]);
+  }, [page, rowsPerPage, searchQuery, categoryFilter, sourceFilter, tabValue, t]);
 
   // Load statistics
   const loadStats = useCallback(async () => {
@@ -174,13 +174,13 @@ const MedicationManagement = () => {
     try {
       const response = await medicationService.delete(deleteDialog.medicationId);
       if (response.success) {
-        setSuccess('Medication deleted successfully');
+        setSuccess(t('doctor.medicationDeleted'));
         loadMedications();
         loadStats();
       }
     } catch (err) {
       console.error('Delete medication error:', err);
-      setError('Failed to delete medication. Please try again.');
+      setError(t('doctor.deleteMedicationFailed'));
     } finally {
       setDeleteDialog({ open: false, medicationId: null, medicationName: '' });
     }
@@ -191,13 +191,13 @@ const MedicationManagement = () => {
     try {
       const response = await medicationService.verify(verifyDialog.medicationId);
       if (response.success) {
-        setSuccess('Medication verified successfully');
+        setSuccess(t('doctor.medicationVerified'));
         loadMedications();
         loadStats();
       }
     } catch (err) {
       console.error('Verify medication error:', err);
-      setError('Failed to verify medication. Please try again.');
+      setError(t('doctor.verifyMedicationFailed'));
     } finally {
       setVerifyDialog({ open: false, medicationId: null, medicationName: '' });
     }
@@ -252,7 +252,7 @@ const MedicationManagement = () => {
       return (
         <Chip
           icon={<DoctorIcon />}
-          label="Predefined"
+          label={t('doctor.predefined')}
           size="small"
           color="primary"
           variant="outlined"
@@ -262,7 +262,7 @@ const MedicationManagement = () => {
     return (
       <Chip
         icon={isVerified ? <VerifyIcon /> : <PendingIcon />}
-        label={isVerified ? 'Patient (Verified)' : 'Patient (Pending)'}
+        label={isVerified ? t('doctor.patientVerified') : t('doctor.patientPending')}
         size="small"
         color={isVerified ? 'success' : 'warning'}
         variant="outlined"
@@ -276,27 +276,27 @@ const MedicationManagement = () => {
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell><strong>Name</strong></TableCell>
-            <TableCell><strong>Generic Name</strong></TableCell>
-            <TableCell><strong>Category</strong></TableCell>
-            <TableCell><strong>Dosage Form</strong></TableCell>
-            <TableCell><strong>Source</strong></TableCell>
-            <TableCell><strong>Usage</strong></TableCell>
-            <TableCell align="right"><strong>Actions</strong></TableCell>
+            <TableCell><strong>{t('doctor.name')}</strong></TableCell>
+            <TableCell><strong>{t('doctor.genericName')}</strong></TableCell>
+            <TableCell><strong>{t('medications.category')}</strong></TableCell>
+            <TableCell><strong>{t('medications.dosageForm')}</strong></TableCell>
+            <TableCell><strong>{t('doctor.source')}</strong></TableCell>
+            <TableCell><strong>{t('doctor.usage')}</strong></TableCell>
+            <TableCell align="right"><strong>{t('reports.actions')}</strong></TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {loading ? (
             <TableRow>
               <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                <InlineLoading message="Loading medications..." />
+                <InlineLoading message={t('doctor.loadingMedications')} />
               </TableCell>
             </TableRow>
           ) : medications.length === 0 ? (
             <TableRow>
               <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                 <Typography color="textSecondary">
-                  No medications found
+                  {t('doctor.noMedicationsFound')}
                 </Typography>
               </TableCell>
             </TableRow>
@@ -307,24 +307,24 @@ const MedicationManagement = () => {
                   <Typography fontWeight="medium">{medication.name}</Typography>
                 </TableCell>
                 <TableCell>
-                  {medication.genericName || <Typography color="textSecondary">—</Typography>}
+                  {medication.genericName || <Typography color="textSecondary">{t('common.noneSymbol')}</Typography>}
                 </TableCell>
                 <TableCell>
-                  <Chip label={medication.category || 'Other'} size="small" />
+                  <Chip label={medication.category || t('common.other')} size="small" />
                 </TableCell>
                 <TableCell>
-                  {medication.dosageForm || <Typography color="textSecondary">—</Typography>}
+                  {medication.dosageForm || <Typography color="textSecondary">{t('common.noneSymbol')}</Typography>}
                 </TableCell>
                 <TableCell>
                   {getSourceChip(medication.source, medication.isVerified)}
                 </TableCell>
                 <TableCell>
-                  <Typography variant="body2">{medication.usageCount || 0} reports</Typography>
+                  <Typography variant="body2">{t('doctor.reportsWithCount', { count: medication.usageCount || 0 })}</Typography>
                 </TableCell>
                 <TableCell align="right">
                   <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                     {!medication.isVerified && medication.source === 'patient' && (
-                      <Tooltip title="Verify Medication">
+                      <Tooltip title={t('doctor.verifyMedication')}>
                         <IconButton
                           color="success"
                           size="small"
@@ -338,7 +338,7 @@ const MedicationManagement = () => {
                         </IconButton>
                       </Tooltip>
                     )}
-                    <Tooltip title="Edit">
+                    <Tooltip title={t('common.edit')}>
                       <IconButton
                         color="primary"
                         size="small"
@@ -347,7 +347,7 @@ const MedicationManagement = () => {
                         <EditIcon />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="Delete">
+                    <Tooltip title={t('common.delete')}>
                       <IconButton
                         color="error"
                         size="small"
@@ -387,10 +387,10 @@ const MedicationManagement = () => {
           <MedicationIcon sx={{ mr: 2, color: 'primary.main', fontSize: 40 }} />
           <Box>
             <Typography variant="h4" component="h1">
-              Medication Management
+              {t('doctor.medicationManagement')}
             </Typography>
             <Typography variant="body2" color="textSecondary">
-              Manage medications for patient side effect reporting
+              {t('doctor.manageMedicationsDescription')}
             </Typography>
           </Box>
         </Box>
@@ -400,14 +400,14 @@ const MedicationManagement = () => {
             startIcon={<RefreshIcon />}
             onClick={() => { loadMedications(); loadStats(); }}
           >
-            Refresh
+            {t('common.refresh')}
           </Button>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => navigate('/add-medication')}
           >
-            Add Medication
+            {t('medications.addMedication')}
           </Button>
         </Box>
       </Box>
@@ -430,21 +430,21 @@ const MedicationManagement = () => {
           <Card 
             elevation={2} 
             sx={{ 
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-              color: 'white' 
+              border: 1,
+              borderColor: 'divider',
             }}
           >
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
-                  <Typography color="rgba(255,255,255,0.8)" gutterBottom variant="body2">
-                    Total Medications
+                  <Typography color="text.secondary" gutterBottom variant="body2">
+                    {t('doctor.totalMedications')}
                   </Typography>
                   <Typography variant="h3" fontWeight="bold">
                     {stats.total}
                   </Typography>
                 </Box>
-                <MedicationIcon sx={{ fontSize: 50, opacity: 0.8 }} />
+                <MedicationIcon sx={{ fontSize: 50, color: 'text.secondary' }} />
               </Box>
             </CardContent>
           </Card>
@@ -455,16 +455,16 @@ const MedicationManagement = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    Predefined
+                    {t('doctor.predefined')}
                   </Typography>
                   <Typography variant="h4">
                     {stats.predefined}
                   </Typography>
-                  <Typography variant="caption" color="primary.main">
-                    Created by doctors
+                  <Typography variant="caption" color="text.secondary">
+                    {t('doctor.createdByDoctors')}
                   </Typography>
                 </Box>
-                <DoctorIcon color="primary" sx={{ fontSize: 40 }} />
+                <DoctorIcon sx={{ fontSize: 40, color: 'text.secondary' }} />
               </Box>
             </CardContent>
           </Card>
@@ -475,16 +475,16 @@ const MedicationManagement = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    Patient Created
+                    {t('doctor.patientCreated')}
                   </Typography>
                   <Typography variant="h4">
                     {stats.patientCreated}
                   </Typography>
-                  <Typography variant="caption" color="success.main">
-                    Added by patients
+                  <Typography variant="caption" color="text.secondary">
+                    {t('doctor.addedByPatients')}
                   </Typography>
                 </Box>
-                <PatientIcon color="success" sx={{ fontSize: 40 }} />
+                <PatientIcon sx={{ fontSize: 40, color: 'text.secondary' }} />
               </Box>
             </CardContent>
           </Card>
@@ -495,16 +495,16 @@ const MedicationManagement = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    Pending Verification
+                    {t('doctor.pendingVerification')}
                   </Typography>
-                  <Typography variant="h4" color="warning.main">
+                  <Typography variant="h4">
                     {stats.pendingVerification}
                   </Typography>
-                  <Typography variant="caption" color="warning.main">
-                    Needs review
+                  <Typography variant="caption" color="text.secondary">
+                    {t('doctor.needsReview')}
                   </Typography>
                 </Box>
-                <PendingIcon color="warning" sx={{ fontSize: 40 }} />
+                <PendingIcon sx={{ fontSize: 40, color: 'text.secondary' }} />
               </Box>
             </CardContent>
           </Card>
@@ -519,11 +519,11 @@ const MedicationManagement = () => {
           indicatorColor="primary"
           textColor="primary"
         >
-          <Tab label="All Medications" />
+          <Tab label={t('doctor.allMedications')} />
           <Tab 
             label={
               <Badge badgeContent={stats.pendingVerification} color="warning">
-                Pending Verification
+                {t('doctor.pendingVerification')}
               </Badge>
             } 
           />
@@ -538,8 +538,8 @@ const MedicationManagement = () => {
             <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
-                label="Search medications"
-                placeholder="Search by name or generic name..."
+                label={t('doctor.searchMedications')}
+                placeholder={t('doctor.searchMedicationsPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -556,7 +556,7 @@ const MedicationManagement = () => {
             </Grid>
             <Grid item xs={12} md={3}>
               <FormControl fullWidth>
-                <InputLabel>Category</InputLabel>
+                <InputLabel>{t('medications.category')}</InputLabel>
                 <Select
                 sx={{minWidth:'220px'}}
                   value={categoryFilter}
@@ -564,9 +564,9 @@ const MedicationManagement = () => {
                     setCategoryFilter(e.target.value);
                     setPage(0);
                   }}
-                  label="Category"
+                  label={t('medications.category')}
                 >
-                  <MenuItem value="">All Categories</MenuItem>
+                  <MenuItem value="">{t('doctor.allCategories')}</MenuItem>
                   {MEDICATION_CATEGORIES.map(category => (
                     <MenuItem key={category} value={category}>{category}</MenuItem>
                   ))}
@@ -575,18 +575,18 @@ const MedicationManagement = () => {
             </Grid>
             <Grid item xs={12} md={3}>
               <FormControl fullWidth sx={{minWidth:'220px'}}>
-                <InputLabel>Source</InputLabel>
+                <InputLabel>{t('doctor.source')}</InputLabel>
                 <Select
                   value={sourceFilter}
                   onChange={(e) => {
                     setSourceFilter(e.target.value);
                     setPage(0);
                   }}
-                  label="Source"
+                  label={t('doctor.source')}
                 >
-                  <MenuItem value="">All Sources</MenuItem>
-                  <MenuItem value="predefined">Predefined (Doctor)</MenuItem>
-                  <MenuItem value="patient">Patient Created</MenuItem>
+                  <MenuItem value="">{t('doctor.allSources')}</MenuItem>
+                  <MenuItem value="predefined">{t('doctor.predefinedDoctor')}</MenuItem>
+                  <MenuItem value="patient">{t('doctor.patientCreated')}</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -596,7 +596,7 @@ const MedicationManagement = () => {
                 variant="outlined"
                 onClick={handleClearFilters}
               >
-                Clear Filters
+                {t('doctor.clearFilters')}
               </Button>
             </Grid>
           </Grid>
@@ -609,8 +609,7 @@ const MedicationManagement = () => {
       {/* Pending Verification Tab */}
       <TabPanel value={tabValue} index={1}>
         <Alert severity="info" sx={{ mb: 3 }}>
-          These medications were created by patients during side effect reporting and need verification.
-          Verified medications will appear in the search results for all patients.
+          {t('doctor.pendingVerificationDescription')}
         </Alert>
         {renderMedicationsTable()}
       </TabPanel>
@@ -620,21 +619,20 @@ const MedicationManagement = () => {
         open={deleteDialog.open}
         onClose={() => setDeleteDialog({ open: false, medicationId: null, medicationName: '' })}
       >
-        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogTitle>{t('doctor.confirmDelete')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete "{deleteDialog.medicationName}"? 
-            This action cannot be undone.
+            {t('doctor.confirmDeleteMessage', { medicationName: deleteDialog.medicationName })}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button 
             onClick={() => setDeleteDialog({ open: false, medicationId: null, medicationName: '' })}
           >
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleDeleteMedication} color="error" variant="contained">
-            Delete
+            {t('common.delete')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -644,21 +642,20 @@ const MedicationManagement = () => {
         open={verifyDialog.open}
         onClose={() => setVerifyDialog({ open: false, medicationId: null, medicationName: '' })}
       >
-        <DialogTitle>Verify Medication</DialogTitle>
+        <DialogTitle>{t('doctor.verifyMedication')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to verify "{verifyDialog.medicationName}"? 
-            This will make it available for all patients to select when reporting side effects.
+            {t('doctor.verifyMedicationMessage', { medicationName: verifyDialog.medicationName })}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button 
             onClick={() => setVerifyDialog({ open: false, medicationId: null, medicationName: '' })}
           >
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleVerifyMedication} color="success" variant="contained">
-            Verify
+            {t('doctor.verify')}
           </Button>
         </DialogActions>
       </Dialog>

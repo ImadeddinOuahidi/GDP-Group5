@@ -199,7 +199,54 @@ class ReportService {
       return response.data;
     } catch (error) {
       // Non-blocking: if check fails, allow submission to proceed
-      return { success: false, data: { hasDuplicates: false } };
+      return {
+        success: false,
+        data: {
+          hasDuplicates: false,
+          hasPotentialDuplicates: false,
+          duplicates: []
+        }
+      };
+    }
+  }
+
+  async findDuplicates(reportId) {
+    try {
+      const response = await apiClient.get(`${ROUTES.API.REPORTS}/${reportId}/duplicates`);
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  async flagDuplicate(reportId, originalReportId) {
+    try {
+      const response = await apiClient.post(`${ROUTES.API.REPORTS}/${reportId}/flag-duplicate`, {
+        originalReportId,
+      });
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  async mergeDuplicate(reportId, originalReportId) {
+    try {
+      const response = await apiClient.post(`${ROUTES.API.REPORTS}/${reportId}/merge-duplicate`, {
+        originalReportId,
+      });
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  async getDuplicateStats() {
+    try {
+      const response = await apiClient.get(`${ROUTES.API.REPORTS}/duplicate-stats`);
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
     }
   }
 

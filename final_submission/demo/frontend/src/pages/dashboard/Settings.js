@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   Box, Typography, Card, CardContent, Stack, TextField, Button, Avatar,
-  Switch, Select, MenuItem, FormControl, InputLabel, Tabs, Tab, Divider,
+  Switch, Select, MenuItem, FormControl, Tabs, Tab, Divider,
   Paper, List, ListItem, ListItemIcon, ListItemText, IconButton, Chip,
   Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment,
   Snackbar, Alert, alpha, useTheme
@@ -17,6 +17,7 @@ import {
 import { useThemeMode } from '../../styles/theme/ThemeProvider';
 import AuthContainer from '../../store/containers/AuthContainer';
 import { api, tokenManager } from '../../services/apiClient';
+import { useI18n } from '../../i18n';
 
 function TabPanel({ children, value, index }) {
   return value === index ? <Box>{children}</Box> : null;
@@ -25,6 +26,7 @@ function TabPanel({ children, value, index }) {
 export default function Settings() {
   const theme = useTheme();
   const { mode, toggleTheme } = useThemeMode();
+  const { t } = useI18n();
   const { user, updateProfile } = AuthContainer.useContainer();
   const fileInputRef = useRef(null);
 
@@ -67,9 +69,9 @@ export default function Settings() {
     setSaving(true);
     try {
       await updateProfile(profile);
-      showMessage('Profile updated successfully');
+      showMessage(t('settings.profileUpdated'));
     } catch (err) {
-      showMessage(err.message || 'Failed to update profile', 'error');
+      showMessage(err.message || t('settings.profileUpdateFailed'), 'error');
     } finally {
       setSaving(false);
     }
@@ -85,19 +87,19 @@ export default function Settings() {
       if (response.data?.profilePicture) {
         await updateProfile({ profilePicture: response.data.profilePicture });
       }
-      showMessage('Profile picture updated');
+      showMessage(t('settings.profilePictureUpdated'));
     } catch (err) {
-      showMessage('Failed to upload picture', 'error');
+      showMessage(t('settings.profilePictureUploadFailed'), 'error');
     }
   };
 
   const handlePasswordChange = async () => {
     if (passwords.new !== passwords.confirm) {
-      showMessage('Passwords do not match', 'error');
+      showMessage(t('settings.passwordsDoNotMatch'), 'error');
       return;
     }
     if (passwords.new.length < 8) {
-      showMessage('Password must be at least 8 characters', 'error');
+      showMessage(t('settings.passwordMinLength'), 'error');
       return;
     }
     try {
@@ -105,11 +107,11 @@ export default function Settings() {
         currentPassword: passwords.current,
         newPassword: passwords.new
       });
-      showMessage('Password changed successfully');
+      showMessage(t('settings.passwordChanged'));
       setPwdDialog(false);
       setPasswords({ current: '', new: '', confirm: '' });
     } catch (err) {
-      showMessage(err.response?.data?.message || 'Failed to change password', 'error');
+      showMessage(err.response?.data?.message || t('settings.passwordChangeFailed'), 'error');
     }
   };
 
@@ -119,10 +121,10 @@ export default function Settings() {
   };
 
   const tabs = [
-    { label: 'Profile', icon: <PersonIcon /> },
-    { label: 'Security', icon: <LockIcon /> },
-    { label: 'Notifications', icon: <NotifIcon /> },
-    { label: 'Appearance', icon: <PaletteIcon /> }
+    { label: t('settings.tabs.profile'), icon: <PersonIcon /> },
+    { label: t('settings.tabs.security'), icon: <LockIcon /> },
+    { label: t('settings.tabs.notifications'), icon: <NotifIcon /> },
+    { label: t('settings.tabs.appearance'), icon: <PaletteIcon /> }
   ];
 
   const isDoctor = user?.role === 'doctor';
@@ -130,10 +132,10 @@ export default function Settings() {
   return (
     <Box sx={{ maxWidth: 1000, mx: 'auto', py: 4, px: 2 }}>
       <Typography variant="h5" fontWeight={700} gutterBottom>
-        Settings
+        {t('settings.title')}
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Manage your account preferences
+        {t('settings.managePreferences')}
       </Typography>
 
       <Card variant="outlined" sx={{ borderRadius: 2.5 }}>
@@ -182,29 +184,29 @@ export default function Settings() {
 
               {/* Personal Info */}
               <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="subtitle2" fontWeight={600} gutterBottom>Personal Information</Typography>
+                <Typography variant="subtitle2" fontWeight={600} gutterBottom>{t('settings.personalInformation')}</Typography>
                 <Stack spacing={2} sx={{ mt: 1 }}>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                     <TextField
-                      size="small" fullWidth label="First Name"
+                      size="small" fullWidth label={t('settings.firstName')}
                       value={profile.firstName}
                       onChange={(e) => setProfile({ ...profile, firstName: e.target.value })}
                       InputProps={{ startAdornment: <InputAdornment position="start"><BadgeIcon fontSize="small" color="action" /></InputAdornment> }}
                     />
                     <TextField
-                      size="small" fullWidth label="Last Name"
+                      size="small" fullWidth label={t('settings.lastName')}
                       value={profile.lastName}
                       onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
                       InputProps={{ startAdornment: <InputAdornment position="start"><BadgeIcon fontSize="small" color="action" /></InputAdornment> }}
                     />
                   </Stack>
                   <TextField
-                    size="small" fullWidth label="Email" disabled
+                    size="small" fullWidth label={t('settings.email')} disabled
                     value={profile.email}
                     InputProps={{ startAdornment: <InputAdornment position="start"><EmailIcon fontSize="small" color="action" /></InputAdornment> }}
                   />
                   <TextField
-                    size="small" fullWidth label="Phone"
+                    size="small" fullWidth label={t('settings.phone')}
                     value={profile.phone}
                     onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
                     InputProps={{ startAdornment: <InputAdornment position="start"><PhoneIcon fontSize="small" color="action" /></InputAdornment> }}
@@ -215,23 +217,23 @@ export default function Settings() {
               {/* Doctor Fields */}
               {isDoctor && (
                 <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
-                  <Typography variant="subtitle2" fontWeight={600} gutterBottom>Professional Information</Typography>
+                  <Typography variant="subtitle2" fontWeight={600} gutterBottom>{t('settings.professionalInformation')}</Typography>
                   <Stack spacing={2} sx={{ mt: 1 }}>
                     <TextField
-                      size="small" fullWidth label="Specialization"
+                      size="small" fullWidth label={t('settings.specialization')}
                       value={profile.specialization}
                       onChange={(e) => setProfile({ ...profile, specialization: e.target.value })}
                       InputProps={{ startAdornment: <InputAdornment position="start"><MedicalServices fontSize="small" color="action" /></InputAdornment> }}
                     />
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                       <TextField
-                        size="small" fullWidth label="License Number"
+                        size="small" fullWidth label={t('settings.licenseNumber')}
                         value={profile.licenseNumber}
                         onChange={(e) => setProfile({ ...profile, licenseNumber: e.target.value })}
                         InputProps={{ startAdornment: <InputAdornment position="start"><BadgeIcon fontSize="small" color="action" /></InputAdornment> }}
                       />
                       <TextField
-                        size="small" fullWidth label="Hospital"
+                        size="small" fullWidth label={t('settings.hospital')}
                         value={profile.hospital}
                         onChange={(e) => setProfile({ ...profile, hospital: e.target.value })}
                         InputProps={{ startAdornment: <InputAdornment position="start"><LocalHospital fontSize="small" color="action" /></InputAdornment> }}
@@ -242,7 +244,7 @@ export default function Settings() {
               )}
 
               <Button variant="contained" startIcon={<SaveIcon />} onClick={handleProfileSave} disabled={saving} sx={{ alignSelf: 'flex-end' }}>
-                {saving ? 'Saving...' : 'Save Changes'}
+                {saving ? t('settings.saving') : t('settings.saveChanges')}
               </Button>
             </Stack>
           </TabPanel>
@@ -251,48 +253,48 @@ export default function Settings() {
           <TabPanel value={tab} index={1}>
             <Stack spacing={3}>
               <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="subtitle2" fontWeight={600} gutterBottom>Password</Typography>
+                <Typography variant="subtitle2" fontWeight={600} gutterBottom>{t('settings.password')}</Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Change your account password
+                  {t('settings.changePasswordDescription')}
                 </Typography>
                 <Button variant="outlined" startIcon={<LockIcon />} onClick={() => setPwdDialog(true)}>
-                  Change Password
+                  {t('settings.changePassword')}
                 </Button>
               </Paper>
 
               <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="subtitle2" fontWeight={600} gutterBottom>Security Options</Typography>
+                <Typography variant="subtitle2" fontWeight={600} gutterBottom>{t('settings.securityOptions')}</Typography>
                 <List disablePadding>
                   <ListItem disableGutters sx={{ py: 1 }}>
-                    <ListItemText primary="Two-Factor Authentication" secondary="Add an extra layer of security" />
+                    <ListItemText primary={t('settings.twoFactorAuthentication')} secondary={t('settings.twoFactorAuthenticationDescription')} />
                     <Switch checked={securitySettings.twoFactor} onChange={(e) => setSecuritySettings({ ...securitySettings, twoFactor: e.target.checked })} />
                   </ListItem>
                   <Divider />
                   <ListItem disableGutters sx={{ py: 1 }}>
-                    <ListItemText primary="Login Alerts" secondary="Get notified of new sign-ins" />
+                    <ListItemText primary={t('settings.loginAlerts')} secondary={t('settings.loginAlertsDescription')} />
                     <Switch checked={securitySettings.loginAlerts} onChange={(e) => setSecuritySettings({ ...securitySettings, loginAlerts: e.target.checked })} />
                   </ListItem>
                   <Divider />
                   <ListItem disableGutters sx={{ py: 1 }}>
-                    <ListItemText primary="Session Timeout" secondary="Auto-logout after inactivity" />
+                    <ListItemText primary={t('settings.sessionTimeout')} secondary={t('settings.sessionTimeoutDescription')} />
                     <FormControl size="small" sx={{ minWidth: 120 }}>
                       <Select value={securitySettings.sessionTimeout} onChange={(e) => setSecuritySettings({ ...securitySettings, sessionTimeout: e.target.value })}>
-                        <MenuItem value="15">15 min</MenuItem>
-                        <MenuItem value="30">30 min</MenuItem>
-                        <MenuItem value="60">1 hour</MenuItem>
-                        <MenuItem value="120">2 hours</MenuItem>
+                        <MenuItem value="15">{t('settings.time.15min')}</MenuItem>
+                        <MenuItem value="30">{t('settings.time.30min')}</MenuItem>
+                        <MenuItem value="60">{t('settings.time.1hour')}</MenuItem>
+                        <MenuItem value="120">{t('settings.time.2hours')}</MenuItem>
                       </Select>
                     </FormControl>
                   </ListItem>
                   <Divider />
                   <ListItem disableGutters sx={{ py: 1 }}>
-                    <ListItemText primary="Password Expiry" secondary="Force password change periodically" />
+                    <ListItemText primary={t('settings.passwordExpiry')} secondary={t('settings.passwordExpiryDescription')} />
                     <FormControl size="small" sx={{ minWidth: 120 }}>
                       <Select value={securitySettings.passwordExpiry} onChange={(e) => setSecuritySettings({ ...securitySettings, passwordExpiry: e.target.value })}>
-                        <MenuItem value="30">30 days</MenuItem>
-                        <MenuItem value="60">60 days</MenuItem>
-                        <MenuItem value="90">90 days</MenuItem>
-                        <MenuItem value="never">Never</MenuItem>
+                        <MenuItem value="30">{t('settings.time.30days')}</MenuItem>
+                        <MenuItem value="60">{t('settings.time.60days')}</MenuItem>
+                        <MenuItem value="90">{t('settings.time.90days')}</MenuItem>
+                        <MenuItem value="never">{t('settings.time.never')}</MenuItem>
                       </Select>
                     </FormControl>
                   </ListItem>
@@ -301,7 +303,7 @@ export default function Settings() {
 
               <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
                 <Button variant="outlined" color="error" startIcon={<LogoutIcon />} onClick={handleSignOut}>
-                  Sign Out of All Devices
+                  {t('settings.signOutAllDevices')}
                 </Button>
               </Paper>
             </Stack>
@@ -311,52 +313,52 @@ export default function Settings() {
           <TabPanel value={tab} index={2}>
             <Stack spacing={3}>
               <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="subtitle2" fontWeight={600} gutterBottom>Notification Channels</Typography>
+                <Typography variant="subtitle2" fontWeight={600} gutterBottom>{t('settings.notificationChannels')}</Typography>
                 <List disablePadding>
                   <ListItem disableGutters sx={{ py: 1 }}>
                     <ListItemIcon sx={{ minWidth: 40 }}><EmailIcon color="action" /></ListItemIcon>
-                    <ListItemText primary="Email Notifications" secondary="Receive updates via email" />
+                    <ListItemText primary={t('settings.emailNotifications')} secondary={t('settings.emailNotificationsDescription')} />
                     <Switch checked={notifSettings.emailNotif} onChange={(e) => setNotifSettings({ ...notifSettings, emailNotif: e.target.checked })} />
                   </ListItem>
                   <Divider />
                   <ListItem disableGutters sx={{ py: 1 }}>
                     <ListItemIcon sx={{ minWidth: 40 }}><NotifIcon color="action" /></ListItemIcon>
-                    <ListItemText primary="Push Notifications" secondary="Browser push notifications" />
+                    <ListItemText primary={t('settings.pushNotifications')} secondary={t('settings.pushNotificationsDescription')} />
                     <Switch checked={notifSettings.pushNotif} onChange={(e) => setNotifSettings({ ...notifSettings, pushNotif: e.target.checked })} />
                   </ListItem>
                   <Divider />
                   <ListItem disableGutters sx={{ py: 1 }}>
                     <ListItemIcon sx={{ minWidth: 40 }}><PhoneIcon color="action" /></ListItemIcon>
-                    <ListItemText primary="SMS Notifications" secondary="Text message alerts" />
+                    <ListItemText primary={t('settings.smsNotifications')} secondary={t('settings.smsNotificationsDescription')} />
                     <Switch checked={notifSettings.smsNotif} onChange={(e) => setNotifSettings({ ...notifSettings, smsNotif: e.target.checked })} />
                   </ListItem>
                 </List>
               </Paper>
 
               <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="subtitle2" fontWeight={600} gutterBottom>Notification Types</Typography>
+                <Typography variant="subtitle2" fontWeight={600} gutterBottom>{t('settings.notificationTypes')}</Typography>
                 <List disablePadding>
                   <ListItem disableGutters sx={{ py: 1 }}>
                     <ListItemIcon sx={{ minWidth: 40 }}><NotificationsActive color="warning" /></ListItemIcon>
-                    <ListItemText primary="High Priority Alerts" secondary="Urgent side effect reports" />
+                    <ListItemText primary={t('settings.highPriorityAlerts')} secondary={t('settings.highPriorityAlertsDescription')} />
                     <Switch checked={notifSettings.highPriority} onChange={(e) => setNotifSettings({ ...notifSettings, highPriority: e.target.checked })} />
                   </ListItem>
                   <Divider />
                   <ListItem disableGutters sx={{ py: 1 }}>
                     <ListItemIcon sx={{ minWidth: 40 }}><ReportProblem color="info" /></ListItemIcon>
-                    <ListItemText primary="Report Reminders" secondary="Follow-up reminders for reports" />
+                    <ListItemText primary={t('settings.reportReminders')} secondary={t('settings.reportRemindersDescription')} />
                     <Switch checked={notifSettings.reportReminders} onChange={(e) => setNotifSettings({ ...notifSettings, reportReminders: e.target.checked })} />
                   </ListItem>
                   <Divider />
                   <ListItem disableGutters sx={{ py: 1 }}>
                     <ListItemIcon sx={{ minWidth: 40 }}><CalendarMonth color="action" /></ListItemIcon>
-                    <ListItemText primary="Weekly Digest" secondary="Summary of weekly activity" />
+                    <ListItemText primary={t('settings.weeklyDigest')} secondary={t('settings.weeklyDigestDescription')} />
                     <Switch checked={notifSettings.weeklyDigest} onChange={(e) => setNotifSettings({ ...notifSettings, weeklyDigest: e.target.checked })} />
                   </ListItem>
                   <Divider />
                   <ListItem disableGutters sx={{ py: 1 }}>
                     <ListItemIcon sx={{ minWidth: 40 }}><SystemUpdate color="action" /></ListItemIcon>
-                    <ListItemText primary="System Updates" secondary="Platform changes and features" />
+                    <ListItemText primary={t('settings.systemUpdates')} secondary={t('settings.systemUpdatesDescription')} />
                     <Switch checked={notifSettings.systemUpdates} onChange={(e) => setNotifSettings({ ...notifSettings, systemUpdates: e.target.checked })} />
                   </ListItem>
                 </List>
@@ -368,9 +370,9 @@ export default function Settings() {
           <TabPanel value={tab} index={3}>
             <Stack spacing={3}>
               <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="subtitle2" fontWeight={600} gutterBottom>Theme</Typography>
+                <Typography variant="subtitle2" fontWeight={600} gutterBottom>{t('settings.theme')}</Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Choose your preferred appearance
+                  {t('settings.themeDescription')}
                 </Typography>
                 <Stack direction="row" spacing={2}>
                   <Paper
@@ -383,7 +385,7 @@ export default function Settings() {
                     }}
                   >
                     <LightMode sx={{ fontSize: 32, color: mode === 'light' ? 'primary.main' : 'text.secondary', mb: 1 }} />
-                    <Typography variant="body2" fontWeight={mode === 'light' ? 600 : 400}>Light</Typography>
+                    <Typography variant="body2" fontWeight={mode === 'light' ? 600 : 400}>{t('settings.lightMode')}</Typography>
                   </Paper>
                   <Paper
                     variant="outlined"
@@ -395,29 +397,31 @@ export default function Settings() {
                     }}
                   >
                     <DarkMode sx={{ fontSize: 32, color: mode === 'dark' ? 'primary.main' : 'text.secondary', mb: 1 }} />
-                    <Typography variant="body2" fontWeight={mode === 'dark' ? 600 : 400}>Dark</Typography>
+                    <Typography variant="body2" fontWeight={mode === 'dark' ? 600 : 400}>{t('settings.darkMode')}</Typography>
                   </Paper>
                 </Stack>
               </Paper>
 
               <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="subtitle2" fontWeight={600} gutterBottom>Preview</Typography>
+                <Typography variant="subtitle2" fontWeight={600} gutterBottom>{t('settings.preview')}</Typography>
                 <Paper
                   sx={{
                     p: 3, borderRadius: 2,
-                    bgcolor: mode === 'dark' ? '#0B1120' : '#F8FAFC',
-                    color: mode === 'dark' ? '#F1F5F9' : '#0F172A',
+                    bgcolor: mode === 'dark'
+                      ? alpha(theme.palette.primary.main, 0.12)
+                      : alpha(theme.palette.primary.main, 0.08),
+                    color: 'text.primary',
                     border: 1, borderColor: 'divider'
                   }}
                 >
-                  <Typography variant="body2" fontWeight={600} gutterBottom>Sample Content</Typography>
-                  <Typography variant="caption" sx={{ color: mode === 'dark' ? '#94A3B8' : '#64748B' }}>
-                    This is how your content will appear with the selected theme.
+                  <Typography variant="body2" fontWeight={600} gutterBottom>{t('settings.sampleContent')}</Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    {t('settings.previewDescription')}
                   </Typography>
                   <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
-                    <Chip label="Primary" size="small" color="primary" />
-                    <Chip label="Success" size="small" color="success" />
-                    <Chip label="Warning" size="small" color="warning" />
+                    <Chip label={t('settings.primary')} size="small" color="primary" />
+                    <Chip label={t('common.success')} size="small" color="success" />
+                    <Chip label={t('common.warning')} size="small" color="warning" />
                   </Stack>
                 </Paper>
               </Paper>
@@ -428,7 +432,7 @@ export default function Settings() {
 
       {/* Password Dialog */}
       <Dialog open={pwdDialog} onClose={() => setPwdDialog(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 600 }}>Change Password</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 600 }}>{t('settings.changePassword')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             {['current', 'new', 'confirm'].map((field) => (
@@ -436,7 +440,7 @@ export default function Settings() {
                 key={field}
                 size="small"
                 fullWidth
-                label={field === 'current' ? 'Current Password' : field === 'new' ? 'New Password' : 'Confirm Password'}
+                label={field === 'current' ? t('settings.currentPassword') : field === 'new' ? t('settings.newPassword') : t('settings.confirmPassword')}
                 type={showPwd[field] ? 'text' : 'password'}
                 value={passwords[field]}
                 onChange={(e) => setPasswords({ ...passwords, [field]: e.target.value })}
@@ -454,8 +458,8 @@ export default function Settings() {
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setPwdDialog(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handlePasswordChange}>Update Password</Button>
+          <Button onClick={() => setPwdDialog(false)}>{t('common.cancel')}</Button>
+          <Button variant="contained" onClick={handlePasswordChange}>{t('settings.updatePassword')}</Button>
         </DialogActions>
       </Dialog>
 

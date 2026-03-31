@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Audio } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
 import { reportService, medicationService, uploadService } from '../../services';
 
@@ -26,6 +27,7 @@ try {
   // Native module not available (Expo Go) — voice input will be hidden
 }
 import { useAuth } from '../../context/AuthContext';
+import { useI18n } from '../../context/I18nContext';
 import {
   SEVERITY_LEVELS,
   ONSET_TIMES,
@@ -38,6 +40,7 @@ const STEPS = ['Basic Information', 'Describe Symptoms', 'Additional Details'];
 
 const ReportScreen = ({ navigation }) => {
   const { user } = useAuth();
+  const { t, speechLanguage } = useI18n();
   const [activeStep, setActiveStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -57,8 +60,10 @@ const ReportScreen = ({ navigation }) => {
   const [showDatePicker, setShowDatePicker] = useState(null);
   const [dateInput, setDateInput] = useState({ month: '', day: '', year: '' });
 
-  // File attachments (images/videos)
+  // File attachments (images/videos/audio)
   const [attachments, setAttachments] = useState([]);
+  const [audioRecording, setAudioRecording] = useState(null);
+  const [isRecordingAudio, setIsRecordingAudio] = useState(false);
 
   // Speech-to-text (matches web's voice input that fills symptoms field)
   const [isListening, setIsListening] = useState(false);
@@ -92,6 +97,14 @@ const ReportScreen = ({ navigation }) => {
       errSub?.remove();
     };
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (audioRecording) {
+        audioRecording.stopAndUnloadAsync().catch(() => {});
+      }
+    };
+  }, [audioRecording]);
 
   // Form Data — matches web exactly
   const [formData, setFormData] = useState({
@@ -218,6 +231,69 @@ const ReportScreen = ({ navigation }) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const startAudioAttachmentRecording = async () => {
+    if (attachments.length >= 5) {
+      Alert.alert('Limit Reached', 'You can upload a maximum of 5 files.');
+      return;
+    }
+
+    try {
+      const permission = await Audio.requestPermissionsAsync();
+      if (permission.status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant microphone permission to record a voice note.');
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const recording = new Audio.Recording();
+      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      await recording.startAsync();
+
+      setAudioRecording(recording);
+      setIsRecordingAudio(true);
+    } catch (error) {
+      console.error('Start voice note recording error:', error);
+      Alert.alert('Error', 'Failed to start voice note recording. Please try again.');
+      setAudioRecording(null);
+      setIsRecordingAudio(false);
+    }
+  };
+
+  const stopAudioAttachmentRecording = async () => {
+    if (!audioRecording) {
+      setIsRecordingAudio(false);
+      return;
+    }
+
+    try {
+      await audioRecording.stopAndUnloadAsync();
+      const uri = audioRecording.getURI();
+
+      if (uri) {
+        setAttachments((prev) => [
+          ...prev,
+          {
+            uri,
+            mimeType: 'audio/m4a',
+            fileName: `voice_note_${Date.now()}.m4a`,
+            type: 'audio',
+          },
+        ].slice(0, 5));
+      }
+    } catch (error) {
+      console.error('Stop voice note recording error:', error);
+      Alert.alert('Error', 'Failed to save voice note. Please try again.');
+    } finally {
+      setAudioRecording(null);
+      setIsRecordingAudio(false);
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false }).catch(() => {});
+    }
+  };
+
   // ─── Speech-to-Text (Voice Input) ─────────────────────────────────
   const startListening = async () => {
     if (!SpeechModule) return;
@@ -228,7 +304,7 @@ const ReportScreen = ({ navigation }) => {
         return;
       }
       SpeechModule.start({
-        lang: 'en-US',
+        lang: speechLanguage,
         interimResults: false,
         continuous: true,
       });
@@ -295,8 +371,34 @@ const ReportScreen = ({ navigation }) => {
     setActiveStep(prev => prev - 1);
   };
 
+  const submitFinalReport = async (reportData) => {
+    const response = await reportService.submitReport(reportData);
+
+    if (response.success || response.status === 'success') {
+      Alert.alert(
+        t('report.alerts.submittedTitle'),
+        t('report.alerts.submittedMessage'),
+        [{
+          text: t('report.alerts.viewReports'),
+          onPress: () => navigation.navigate('Reports'),
+        }]
+      );
+      return;
+    }
+
+    throw new Error(response?.message || t('report.alerts.submitFailed'));
+  };
+
   const handleSubmit = async () => {
     if (!validateStep()) return;
+
+    if (isRecordingAudio) {
+      Alert.alert(
+        t('report.alerts.recordingInProgressTitle'),
+        t('report.alerts.recordingInProgressMessage')
+      );
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -358,20 +460,57 @@ const ReportScreen = ({ navigation }) => {
         reportData.attachments = uploadedAttachments;
       }
 
-      const response = await reportService.submitReport(reportData);
-      
-      if (response.success || response.status === 'success') {
+      const duplicateCheck = await reportService.checkDuplicates({
+        medicine: reportData.medicine,
+        sideEffects: reportData.sideEffects,
+        reportDetails: reportData.reportDetails,
+      });
+
+      const hasPotentialDuplicates =
+        duplicateCheck?.data?.hasPotentialDuplicates ?? duplicateCheck?.data?.hasDuplicates;
+
+      if (duplicateCheck?.success && hasPotentialDuplicates && duplicateCheck?.data?.duplicates?.length > 0) {
+        const duplicateCount = duplicateCheck.data.duplicates.length;
+        const duplicateSuffix = duplicateCount > 1 ? 's' : '';
         Alert.alert(
-          'Report Submitted!',
-          'Your side effect report has been submitted successfully. AI analysis has been queued and will be available shortly.',
-          [{
-            text: 'View Reports',
-            onPress: () => navigation.navigate('Reports'),
-          }]
+          t('report.alerts.possibleDuplicateTitle'),
+          t('report.alerts.possibleDuplicateMessage', {
+            count: duplicateCount,
+            suffix: duplicateSuffix,
+          }),
+          [
+            {
+              text: t('report.alerts.reviewAndEdit'),
+              style: 'cancel',
+            },
+            {
+              text: t('report.alerts.submitAnyway'),
+              onPress: async () => {
+                setIsLoading(true);
+                try {
+                  await submitFinalReport(reportData);
+                } catch (error) {
+                  Alert.alert(
+                    t('report.alerts.errorTitle'),
+                    error.response?.data?.message || error.message || t('report.alerts.submitFailed')
+                  );
+                  console.error('Submit error:', error);
+                } finally {
+                  setIsLoading(false);
+                }
+              }
+            }
+          ]
         );
+        return;
       }
+
+      await submitFinalReport(reportData);
     } catch (error) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to submit report. Please try again.');
+      Alert.alert(
+        t('report.alerts.errorTitle'),
+        error.response?.data?.message || t('report.alerts.submitFailed')
+      );
       console.error('Submit error:', error);
     } finally {
       setIsLoading(false);
@@ -663,8 +802,8 @@ const ReportScreen = ({ navigation }) => {
         textAlignVertical="top"
       />
 
-      {/* Photo / Video Upload (matching web) */}
-      <Text style={styles.inputLabel}>Upload Photos / Videos (Optional)</Text>
+      {/* Media Upload */}
+      <Text style={styles.inputLabel}>Upload Media (Optional)</Text>
       <View style={styles.uploadSection}>
         <View style={styles.uploadButtons}>
           <TouchableOpacity style={styles.uploadBtn} onPress={() => pickImage(false)}>
@@ -675,10 +814,24 @@ const ReportScreen = ({ navigation }) => {
             <Ionicons name="camera-outline" size={20} color={colors.primary} />
             <Text style={styles.uploadBtnText}>Camera</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.uploadBtn, isRecordingAudio && styles.voiceAttachmentBtnActive]}
+            onPress={isRecordingAudio ? stopAudioAttachmentRecording : startAudioAttachmentRecording}
+          >
+            <Ionicons
+              name={isRecordingAudio ? 'stop-circle-outline' : 'mic-outline'}
+              size={20}
+              color={isRecordingAudio ? '#fff' : colors.primary}
+            />
+            <Text style={[styles.uploadBtnText, isRecordingAudio && styles.voiceAttachmentBtnTextActive]}>
+              {isRecordingAudio ? 'Stop Voice' : 'Voice Note'}
+            </Text>
+          </TouchableOpacity>
         </View>
         <Text style={styles.uploadHint}>
-          Upload photos of visible symptoms or reactions (max 5 files, 50MB each)
+          Upload up to 5 images, videos, or voice notes (max 50MB each)
         </Text>
+        {isRecordingAudio && <Text style={styles.listeningHint}>Recording voice note...</Text>}
 
         {/* Attachment previews */}
         {attachments.length > 0 && (
@@ -688,6 +841,13 @@ const ReportScreen = ({ navigation }) => {
                 {file.type === 'video' ? (
                   <View style={styles.videoPlaceholder}>
                     <Ionicons name="videocam" size={24} color="#fff" />
+                  </View>
+                ) : file.type === 'audio' ? (
+                  <View style={styles.audioPlaceholder}>
+                    <Ionicons name="mic" size={20} color="#fff" />
+                    <Text style={styles.audioFileName} numberOfLines={2}>
+                      {file.fileName || 'voice-note.m4a'}
+                    </Text>
                   </View>
                 ) : (
                   <Image source={{ uri: file.uri }} style={styles.attachmentThumb} />
@@ -1653,6 +1813,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.primary,
   },
+  voiceAttachmentBtnActive: {
+    backgroundColor: '#D32F2F',
+    borderColor: '#D32F2F',
+    borderStyle: 'solid',
+  },
+  voiceAttachmentBtnTextActive: {
+    color: '#fff',
+  },
   uploadHint: {
     fontSize: 11,
     color: colors.textSecondary,
@@ -1679,6 +1847,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#333',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  audioPlaceholder: {
+    width: 72,
+    height: 72,
+    borderRadius: borderRadius.md,
+    backgroundColor: '#1E88E5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    gap: 4,
+  },
+  audioFileName: {
+    color: '#fff',
+    fontSize: 9,
+    textAlign: 'center',
   },
   removeAttachmentBtn: {
     position: 'absolute',

@@ -276,6 +276,25 @@ const reportSideEffectSchema = new mongoose.Schema({
     enum: ['Draft', 'Submitted', 'Under Review', 'Reviewed', 'Closed', 'Rejected'],
     default: 'Draft'
   },
+  statusHistory: [{
+    status: {
+      type: String,
+      enum: ['Draft', 'Submitted', 'Under Review', 'Reviewed', 'Closed', 'Rejected'],
+      required: true
+    },
+    changedAt: {
+      type: Date,
+      default: Date.now
+    },
+    changedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    note: {
+      type: String,
+      maxlength: [300, 'Status note cannot exceed 300 characters']
+    }
+  }],
   priority: {
     type: String,
     enum: ['Low', 'Medium', 'High', 'Critical'],
@@ -409,6 +428,29 @@ const reportSideEffectSchema = new mongoose.Schema({
         uri: String
       }]
     },
+    // Duplicate detection metadata
+    isDuplicate: {
+      type: Boolean,
+      default: false
+    },
+    duplicateOf: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ReportSideEffect'
+    },
+    duplicateFlaggedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    duplicateFlaggedAt: Date,
+    mergedInto: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ReportSideEffect'
+    },
+    mergedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    mergedAt: Date,
     aiModelUsed: String,
     aiRiskScore: Number
   },
@@ -567,6 +609,25 @@ reportSideEffectSchema.virtual('overallSeverity').get(function() {
 // Pre-save middleware
 reportSideEffectSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
+
+  // Keep a lightweight status timeline for patient/self-service status tracking.
+  if (this.isNew) {
+    this.statusHistory = this.statusHistory || [];
+    this.statusHistory.push({
+      status: this.status,
+      changedAt: new Date(),
+      changedBy: this.lastModifiedBy || this.reportedBy,
+      note: 'Initial status'
+    });
+  } else if (this.isModified('status')) {
+    this.statusHistory = this.statusHistory || [];
+    this.statusHistory.push({
+      status: this.status,
+      changedAt: new Date(),
+      changedBy: this.lastModifiedBy,
+      note: this.$locals?.statusNote || undefined
+    });
+  }
   
   // Auto-assign priority based on severity and seriousness
   if (this.reportDetails.seriousness === 'Serious' || this.overallSeverity === 'Life-threatening') {
@@ -645,9 +706,11 @@ reportSideEffectSchema.methods.addFollowUp = function(followUpData) {
 };
 
 // Instance method to update status
-reportSideEffectSchema.methods.updateStatus = function(newStatus, userId) {
+reportSideEffectSchema.methods.updateStatus = function(newStatus, userId, note = '') {
   this.status = newStatus;
   this.lastModifiedBy = userId;
+  this.$locals = this.$locals || {};
+  this.$locals.statusNote = note && note.trim() ? note.trim() : undefined;
   this.version += 1;
   return this.save();
 };

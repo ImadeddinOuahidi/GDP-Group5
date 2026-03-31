@@ -28,9 +28,19 @@ const I18nContext = createContext(null);
  */
 function getNestedValue(obj, path, variables = {}) {
   const value = path.split('.').reduce((acc, part) => acc?.[part], obj);
-  if (typeof value !== 'string') return path; // fallback to key
+  if (typeof value !== 'string') return undefined;
   // Replace {{variable}} placeholders
   return value.replace(/\{\{(\w+)\}\}/g, (_, key) => variables[key] ?? `{{${key}}}`);
+}
+
+function humanizeKey(path) {
+  const lastSegment = path.split('.').pop() || path;
+  const withSpaces = lastSegment
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/_/g, ' ')
+    .trim();
+  if (!withSpaces) return path;
+  return withSpaces.charAt(0).toUpperCase() + withSpaces.slice(1);
 }
 
 export function I18nProvider({ children }) {
@@ -40,9 +50,13 @@ export function I18nProvider({ children }) {
 
   const t = useCallback((key, variables = {}) => {
     // Try current locale, then fall back to English
-    const result = getNestedValue(translations[locale], key, variables);
-    if (result !== key) return result;
-    return getNestedValue(translations.en, key, variables);
+    const localized = getNestedValue(translations[locale], key, variables);
+    if (localized !== undefined) return localized;
+
+    const fallback = getNestedValue(translations.en, key, variables);
+    if (fallback !== undefined) return fallback;
+
+    return humanizeKey(key);
   }, [locale]);
 
   const changeLanguage = useCallback((langCode) => {

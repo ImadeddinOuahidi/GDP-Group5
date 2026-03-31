@@ -230,12 +230,25 @@ const ReportDetailScreen = ({ route, navigation }) => {
   const canRequestReview = !report.doctorReview?.requested && report.doctorReview?.status !== 'completed';
   const canDelete = report.status === 'Draft' || report.status === 'Submitted';
   const urgencyConfig = getUrgencyConfig(ai?.patientGuidance?.urgencyLevel);
+  const statusTimeline = [...(report.statusHistory || [])]
+    .sort((a, b) => new Date(b.changedAt) - new Date(a.changedAt));
 
   // AI fields can be objects {level, confidence, reasoning} or plain strings
   const safeStr = (val) => {
     if (val == null) return null;
     if (typeof val === 'object') return val.level || val.classification || JSON.stringify(val);
     return val;
+  };
+
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString();
+  };
+
+  const formatChangedBy = (changedBy) => {
+    if (!changedBy) return 'System';
+    if (typeof changedBy === 'string') return 'System';
+    return `${changedBy.firstName || ''} ${changedBy.lastName || ''}`.trim() || 'System';
   };
 
   return (
@@ -249,6 +262,37 @@ const ReportDetailScreen = ({ route, navigation }) => {
         <Text style={[styles.statusHeaderText, { color: statusColor }]}>{report.status || 'Submitted'}</Text>
         <Text style={styles.reportId}>#{reportId?.slice(-6)}</Text>
       </View>
+
+      {/* Status Timeline */}
+      {statusTimeline.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="time-outline" size={20} color={colors.info} />
+            <Text style={styles.sectionTitle}>Status Timeline</Text>
+          </View>
+          <View style={styles.card}>
+            {statusTimeline.map((entry, index) => (
+              <View
+                key={`${entry.changedAt || entry.status}-${index}`}
+                style={[
+                  styles.timelineRow,
+                  index !== statusTimeline.length - 1 && styles.timelineRowBorder,
+                ]}
+              >
+                <View style={[styles.timelineDot, { backgroundColor: getStatusColor(entry.status) }]} />
+                <View style={styles.timelineContent}>
+                  <View style={styles.timelineTopRow}>
+                    <Text style={styles.timelineStatus}>{entry.status}</Text>
+                    <Text style={styles.timelineDate}>{formatDateTime(entry.changedAt)}</Text>
+                  </View>
+                  <Text style={styles.timelineMeta}>Updated by {formatChangedBy(entry.changedBy)}</Text>
+                  {entry.note ? <Text style={styles.timelineNote}>{entry.note}</Text> : null}
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
 
       {/* Medication Section */}
       <View style={styles.section}>
@@ -689,6 +733,51 @@ const styles = StyleSheet.create({
   statusDot: { width: 8, height: 8, borderRadius: 4, marginRight: spacing.sm },
   statusHeaderText: { fontSize: 14, fontWeight: '700', flex: 1 },
   reportId: { fontSize: 12, color: colors.textSecondary, fontFamily: 'monospace' },
+  timelineRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  timelineRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  timelineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginTop: 6,
+  },
+  timelineContent: {
+    flex: 1,
+  },
+  timelineTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  timelineStatus: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  timelineDate: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  timelineMeta: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  timelineNote: {
+    fontSize: 12,
+    color: colors.text,
+    marginTop: 4,
+    lineHeight: 18,
+  },
   // Sections
   section: { paddingHorizontal: spacing.base, paddingBottom: spacing.sm },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },

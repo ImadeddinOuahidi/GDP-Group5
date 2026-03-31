@@ -20,7 +20,18 @@ const fileFilter = (req, file, cb) => {
   // Define allowed file types
   const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
   const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
-  const allowedAudioTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/m4a', 'audio/ogg', 'audio/webm'];
+  const allowedAudioTypes = [
+    'audio/mpeg',
+    'audio/mp3',
+    'audio/wav',
+    'audio/x-wav',
+    'audio/m4a',
+    'audio/x-m4a',
+    'audio/mp4',
+    'audio/aac',
+    'audio/ogg',
+    'audio/webm'
+  ];
   
   if (file.fieldname === 'images') {
     if (allowedImageTypes.includes(file.mimetype)) {
@@ -41,11 +52,11 @@ const fileFilter = (req, file, cb) => {
       cb(new Error('Invalid audio format. Allowed formats: MP3, WAV, M4A, OGG, WebM'), false);
     }
   } else if (file.fieldname === 'attachments') {
-    // Generic attachments field — accept images and videos
-    if ([...allowedImageTypes, ...allowedVideoTypes].includes(file.mimetype)) {
+    // Generic attachments field — accept images, videos, and audio
+    if ([...allowedImageTypes, ...allowedVideoTypes, ...allowedAudioTypes].includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file format. Allowed: JPEG, PNG, GIF, WebP, MP4, WebM, MOV'), false);
+      cb(new Error('Invalid file format. Allowed: JPEG, PNG, GIF, WebP, MP4, WebM, MOV, MP3, WAV, M4A, OGG'), false);
     }
   } else {
     cb(new Error('Unexpected field name'), false);

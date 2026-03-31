@@ -39,66 +39,67 @@ import {
   ArrowForward as ArrowIcon,
 } from '@mui/icons-material';
 import { reportService } from '../../services';
+import { useI18n } from '../../i18n';
 
 const statusConfig = {
   'draft': {
     color: 'default',
     icon: <PendingIcon />,
-    label: 'Draft'
+    label: 'status.draft'
   },
   'submitted': {
     color: 'warning',
     icon: <PendingIcon />,
-    label: 'Submitted'
+    label: 'status.submitted'
   },
   'under review': {
     color: 'info',
     icon: <WarningIcon />,
-    label: 'Under Review'
+    label: 'status.underReview'
   },
   'reviewed': {
     color: 'success',
     icon: <CheckCircleIcon />,
-    label: 'Reviewed'
+    label: 'status.reviewed'
   },
   'closed': {
     color: 'success',
     icon: <CheckCircleIcon />,
-    label: 'Closed'
+    label: 'status.closed'
   },
   'rejected': {
     color: 'error',
     icon: <ErrorIcon />,
-    label: 'Rejected'
+    label: 'status.rejected'
   },
   // Legacy mappings
   'pending': {
     color: 'warning',
     icon: <PendingIcon />,
-    label: 'Pending Review'
+    label: 'reports.pendingReviewLabel'
   },
   'under_review': {
     color: 'info',
     icon: <WarningIcon />,
-    label: 'Under Review'
+    label: 'status.underReview'
   },
   'confirmed': {
     color: 'success',
     icon: <CheckCircleIcon />,
-    label: 'Confirmed'
+    label: 'reports.confirmed'
   },
   'archived': {
     color: 'default',
     icon: <HistoryIcon />,
-    label: 'Archived'
+    label: 'reports.archived'
   }
 };
 
 const severityConfig = {
-  'mild': { color: 'success', label: 'Mild' },
-  'moderate': { color: 'warning', label: 'Moderate' },
-  'severe': { color: 'error', label: 'Severe' },
-  'life-threatening': { color: 'error', label: 'Life-threatening' }
+  'mild': { color: 'success', label: 'severity.mild' },
+  'moderate': { color: 'warning', label: 'severity.moderate' },
+  'severe': { color: 'error', label: 'severity.severe' },
+  'life-threatening': { color: 'error', label: 'severity.lifeThreatening' }
 };
 
 // Real reports data will be loaded from the API
@@ -106,6 +107,7 @@ const severityConfig = {
 export default function Reports() {
   const theme = useTheme();
   const navigate = useNavigate();
+  const { t } = useI18n();
   
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -137,10 +139,10 @@ export default function Reports() {
           // Transform the API data to match the expected format
           const transformedReports = reportData.map(report => ({
             id: report._id,
-            medicine: report.medicine?.name || 'Unknown Medicine',
-            brandName: report.medicine?.genericName || report.medicine?.name || 'Unknown Brand',
-            dosage: report.medicationUsage?.dosage?.amount || 'Unknown Dosage',
-            sideEffect: report.sideEffects?.[0]?.effect || 'Unknown Side Effect',
+            medicine: report.medicine?.name || t('reports.unknownMedicine'),
+            brandName: report.medicine?.genericName || report.medicine?.name || t('reports.unknownBrand'),
+            dosage: report.medicationUsage?.dosage?.amount || t('reports.unknownDosage'),
+            sideEffect: report.sideEffects?.[0]?.effect || t('reports.unknownSideEffect'),
             severity: report.sideEffects?.[0]?.severity?.toLowerCase() || 'mild',
             status: report.status?.toLowerCase() || 'pending',
             dateSubmitted: report.reportDetails?.reportDate || report.createdAt,
@@ -148,8 +150,8 @@ export default function Reports() {
             reviewedBy: report.reviewedBy?.firstName && report.reviewedBy?.lastName 
               ? `${report.reviewedBy.firstName} ${report.reviewedBy.lastName}` 
               : null,
-            description: report.sideEffects?.[0]?.description || report.description || 'No description provided',
-            outcome: report.reportDetails?.outcome || 'Under investigation',
+            description: report.sideEffects?.[0]?.description || report.description || t('reports.noDescriptionProvided'),
+            outcome: report.reportDetails?.outcome || t('reports.underInvestigation'),
             reportId: `ADR-${report._id?.slice(-8)?.toUpperCase()}` || `ADR-${Date.now()}`,
             // AI Analysis fields
             aiProcessed: report.metadata?.aiProcessed || false,
@@ -183,7 +185,7 @@ export default function Reports() {
     };
 
     loadReports();
-  }, [page]);
+  }, [page, t]);
 
   const filteredReports = reports.filter(report => {
     const matchesSearch = report.medicine.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -231,16 +233,16 @@ export default function Reports() {
   }
 
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth="xl">
       <Box sx={{ py: 4 }}>
         {/* Header */}
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 4 }}>
           <Box>
             <Typography variant="h4" component="h1" gutterBottom fontWeight="700">
-              My Reports
+              {t('reports.viewMyReports')}
             </Typography>
             <Typography variant="body1" color="text.secondary">
-              View and manage your adverse drug reaction reports
+              {t('reports.manageReportsDescription')}
             </Typography>
           </Box>
           <Button
@@ -249,14 +251,14 @@ export default function Reports() {
             onClick={() => navigate('/report')}
             sx={{ fontWeight: 600 }}
           >
-            New Report
+            {t('home.newReport')}
           </Button>
         </Stack>
 
         {/* Stats Cards */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} sm={6} md={3}>
-            <Card>
+            <Card elevation={0} sx={{ border: 1, borderColor: 'divider' }}>
               <CardContent sx={{ textAlign: 'center' }}>
                 <Avatar sx={{ bgcolor: 'primary.main', mx: 'auto', mb: 1 }}>
                   <ReportIcon />
@@ -265,13 +267,13 @@ export default function Reports() {
                   {reports.length}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Total Reports
+                  {t('dashboard.totalReports')}
                 </Typography>
               </CardContent>
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card>
+            <Card elevation={0} sx={{ border: 1, borderColor: 'divider' }}>
               <CardContent sx={{ textAlign: 'center' }}>
                 <Avatar sx={{ bgcolor: 'warning.main', mx: 'auto', mb: 1 }}>
                   <PendingIcon />
@@ -280,13 +282,13 @@ export default function Reports() {
                   {reports.filter(r => r.status === 'pending').length}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Pending Review
+                  {t('reports.pendingReviewLabel')}
                 </Typography>
               </CardContent>
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card>
+            <Card elevation={0} sx={{ border: 1, borderColor: 'divider' }}>
               <CardContent sx={{ textAlign: 'center' }}>
                 <Avatar sx={{ bgcolor: 'success.main', mx: 'auto', mb: 1 }}>
                   <CheckCircleIcon />
@@ -295,13 +297,13 @@ export default function Reports() {
                   {reports.filter(r => r.status === 'reviewed').length}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Reviewed
+                  {t('status.reviewed')}
                 </Typography>
               </CardContent>
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card>
+            <Card elevation={0} sx={{ border: 1, borderColor: 'divider' }}>
               <CardContent sx={{ textAlign: 'center' }}>
                 <Avatar sx={{ bgcolor: 'info.main', mx: 'auto', mb: 1 }}>
                   <WarningIcon />
@@ -310,7 +312,7 @@ export default function Reports() {
                   {reports.filter(r => r.status === 'under_review').length}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Under Review
+                  {t('status.underReview')}
                 </Typography>
               </CardContent>
             </Card>
@@ -318,12 +320,12 @@ export default function Reports() {
         </Grid>
 
         {/* Filters and Search */}
-        <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+        <Paper elevation={0} sx={{ p: 3, mb: 3, border: 1, borderColor: 'divider' }}>
           <Grid container spacing={3} alignItems="center">
             <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
-                placeholder="Search reports..."
+                placeholder={t('reports.searchReportsPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 InputProps={{
@@ -337,56 +339,56 @@ export default function Reports() {
             </Grid>
             <Grid item xs={12} sm={6} md={2}>
               <FormControl fullWidth>
-                <InputLabel>Status</InputLabel>
+                <InputLabel>{t('reports.status')}</InputLabel>
                 <Select
                   value={statusFilter}
-                  label="Status"
+                  label={t('reports.status')}
                   onChange={(e) => setStatusFilter(e.target.value)}
                 >
-                  <MenuItem value="all">All Status</MenuItem>
-                  <MenuItem value="pending">Pending</MenuItem>
-                  <MenuItem value="under_review">Under Review</MenuItem>
-                  <MenuItem value="reviewed">Reviewed</MenuItem>
-                  <MenuItem value="confirmed">Confirmed</MenuItem>
-                  <MenuItem value="rejected">Rejected</MenuItem>
-                  <MenuItem value="archived">Archived</MenuItem>
+                  <MenuItem value="all">{t('reports.allStatus')}</MenuItem>
+                  <MenuItem value="pending">{t('reports.pendingReviewLabel')}</MenuItem>
+                  <MenuItem value="under_review">{t('status.underReview')}</MenuItem>
+                  <MenuItem value="reviewed">{t('status.reviewed')}</MenuItem>
+                  <MenuItem value="confirmed">{t('reports.confirmed')}</MenuItem>
+                  <MenuItem value="rejected">{t('status.rejected')}</MenuItem>
+                  <MenuItem value="archived">{t('reports.archived')}</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
             <Grid item xs={12} sm={6} md={2}>
               <FormControl fullWidth>
-                <InputLabel>Severity</InputLabel>
+                <InputLabel>{t('reports.severity')}</InputLabel>
                 <Select
                   value={severityFilter}
-                  label="Severity"
+                  label={t('reports.severity')}
                   onChange={(e) => setSeverityFilter(e.target.value)}
                 >
-                  <MenuItem value="all">All Severity</MenuItem>
-                  <MenuItem value="mild">Mild</MenuItem>
-                  <MenuItem value="moderate">Moderate</MenuItem>
-                  <MenuItem value="severe">Severe</MenuItem>
-                  <MenuItem value="life-threatening">Life-threatening</MenuItem>
+                  <MenuItem value="all">{t('reports.allSeverity')}</MenuItem>
+                  <MenuItem value="mild">{t('severity.mild')}</MenuItem>
+                  <MenuItem value="moderate">{t('severity.moderate')}</MenuItem>
+                  <MenuItem value="severe">{t('severity.severe')}</MenuItem>
+                  <MenuItem value="life-threatening">{t('severity.lifeThreatening')}</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
             <Grid item xs={12} sm={6} md={2}>
               <FormControl fullWidth>
-                <InputLabel>Sort By</InputLabel>
+                <InputLabel>{t('reports.sortBy')}</InputLabel>
                 <Select
                   value={sortBy}
-                  label="Sort By"
+                  label={t('reports.sortBy')}
                   onChange={(e) => setSortBy(e.target.value)}
                 >
-                  <MenuItem value="date_desc">Newest First</MenuItem>
-                  <MenuItem value="date_asc">Oldest First</MenuItem>
-                  <MenuItem value="medicine">Medicine A-Z</MenuItem>
-                  <MenuItem value="severity">Severity High-Low</MenuItem>
+                  <MenuItem value="date_desc">{t('reports.newestFirst')}</MenuItem>
+                  <MenuItem value="date_asc">{t('reports.oldestFirst')}</MenuItem>
+                  <MenuItem value="medicine">{t('reports.medicineAZ')}</MenuItem>
+                  <MenuItem value="severity">{t('reports.severityHighLow')}</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
             <Grid item xs={12} sm={6} md={2}>
               <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-                {sortedReports.length} of {reports.length} reports
+                {t('reports.reportsShown', { filtered: sortedReports.length, total: reports.length })}
               </Typography>
             </Grid>
           </Grid>
@@ -394,15 +396,15 @@ export default function Reports() {
 
         {/* Reports List */}
         {sortedReports.length === 0 ? (
-          <Paper sx={{ p: 6, textAlign: 'center' }}>
+          <Paper elevation={0} sx={{ p: 6, textAlign: 'center', border: 1, borderColor: 'divider' }}>
             <HistoryIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
             <Typography variant="h6" gutterBottom>
-              No reports found
+              {t('reports.noReportsFound')}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               {reports.length === 0 
-                ? "You haven't submitted any reports yet."
-                : "Try adjusting your search or filter criteria."
+                ? t('reports.noReportsSubmittedYet')
+                : t('reports.adjustSearchOrFilters')
               }
             </Typography>
             <Button
@@ -410,7 +412,7 @@ export default function Reports() {
               startIcon={<AddIcon />}
               onClick={() => navigate('/report')}
             >
-              Create Your First Report
+              {t('reports.createFirstReport')}
             </Button>
           </Paper>
         ) : (
@@ -457,7 +459,7 @@ export default function Reports() {
                           {/* Side Effect Description */}
                           <Box>
                             <Typography variant="body1" fontWeight="500" gutterBottom>
-                              Side Effect: {report.sideEffect}
+                              {t('doctor.sideEffect')}: {report.sideEffect}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
                               {report.description}
@@ -468,13 +470,13 @@ export default function Reports() {
                           <Stack direction="row" spacing={2} flexWrap="wrap">
                             <Chip
                               icon={statusConfig[report.status]?.icon}
-                              label={statusConfig[report.status]?.label}
+                              label={t(statusConfig[report.status]?.label || 'common.unknown')}
                               color={statusConfig[report.status]?.color}
                               variant="outlined"
                             />
                             <Chip
                               icon={<SeverityIcon />}
-                              label={severityConfig[report.severity]?.label}
+                              label={t(severityConfig[report.severity]?.label || 'common.unknown')}
                               color={severityConfig[report.severity]?.color}
                               variant="outlined"
                             />
@@ -489,20 +491,20 @@ export default function Reports() {
                             <Stack direction="row" spacing={1} alignItems="center">
                               <CalendarIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                               <Typography variant="body2" color="text.secondary">
-                                Submitted: {new Date(report.dateSubmitted).toLocaleDateString()}
+                                {t('reports.submittedOn', { date: new Date(report.dateSubmitted).toLocaleDateString() })}
                               </Typography>
                             </Stack>
                             {report.dateReviewed && (
                               <Stack direction="row" spacing={1} alignItems="center">
                                 <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />
                                 <Typography variant="body2" color="text.secondary">
-                                  Reviewed: {new Date(report.dateReviewed).toLocaleDateString()}
+                                  {t('reports.reviewedOn', { date: new Date(report.dateReviewed).toLocaleDateString() })}
                                 </Typography>
                               </Stack>
                             )}
                             {report.reviewedBy && (
                               <Typography variant="body2" color="text.secondary">
-                                Reviewed by: {report.reviewedBy}
+                                {t('reports.reviewedBy', { name: report.reviewedBy })}
                               </Typography>
                             )}
                           </Stack>
@@ -531,7 +533,7 @@ export default function Reports() {
                                     report.aiUrgency === 'soon' ? 'info' : 'success'
                                   } />
                                   <Typography variant="body2" fontWeight="500">
-                                    AI: {report.aiUrgency?.charAt(0).toUpperCase() + report.aiUrgency?.slice(1) || 'Analyzed'}
+                                    {t('reports.aiUrgencyLabel', { urgency: report.aiUrgency?.charAt(0).toUpperCase() + report.aiUrgency?.slice(1) || t('reports.analyzed') })}
                                   </Typography>
                                 </Stack>
                               </Paper>
@@ -540,7 +542,7 @@ export default function Reports() {
                                 <Stack direction="row" spacing={1} alignItems="center">
                                   <PendingIcon fontSize="small" color="action" />
                                   <Typography variant="body2" color="text.secondary">
-                                    AI Analysis Pending
+                                    {t('reports.aiAnalysisPending')}
                                   </Typography>
                                 </Stack>
                               </Paper>
@@ -552,7 +554,7 @@ export default function Reports() {
                                 <Stack direction="row" spacing={1} alignItems="center">
                                   <DoctorIcon fontSize="small" color="success" />
                                   <Typography variant="body2" fontWeight="500" color="success.dark">
-                                    Doctor Reviewed
+                                    {t('reports.doctorReviewed')}
                                   </Typography>
                                 </Stack>
                               </Paper>
@@ -561,7 +563,7 @@ export default function Reports() {
                                 <Stack direction="row" spacing={1} alignItems="center">
                                   <DoctorIcon fontSize="small" color="info" />
                                   <Typography variant="body2" color="info.dark">
-                                    Review Requested
+                                    {t('reports.reviewRequested')}
                                   </Typography>
                                 </Stack>
                               </Paper>
@@ -571,7 +573,7 @@ export default function Reports() {
                           {/* View Details Arrow */}
                           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
                             <Chip 
-                              label="View Details" 
+                              label={t('reports.viewDetails')} 
                               icon={<ArrowIcon />} 
                               color="primary" 
                               variant="outlined"

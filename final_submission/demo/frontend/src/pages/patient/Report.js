@@ -23,15 +23,12 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Divider,
   Chip,
-  LinearProgress,
   Tooltip,
 } from "@mui/material";
 import {
   CloudUpload as UploadIcon,
   Mic as MicIcon,
-  MicOff as MicOffIcon,
   Send as SendIcon,
   PhotoCamera as PhotoIcon,
   Delete as DeleteIcon,
@@ -43,11 +40,12 @@ import { ButtonLoading } from "../../components/ui/Loading";
 import { reportService, medicationService } from "../../services";
 import { MEDICATION_CATEGORIES, MEDICATION_DOSAGE_FORMS } from "../../config/constants";
 import AuthContainer from '../../store/containers/AuthContainer';
+import { useI18n } from '../../i18n';
 
-const steps = ['Basic Information', 'Describe Symptoms', 'Additional Details'];
+const stepKeys = ['report.steps.basicInformation', 'report.steps.describeSymptoms', 'report.steps.additionalDetails'];
 
 // Speech-to-text hook
-const useSpeechToText = () => {
+const useSpeechToText = (language = 'en-US') => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [isSupported, setIsSupported] = useState(false);
@@ -62,18 +60,15 @@ const useSpeechToText = () => {
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'en-US';
+      recognitionRef.current.lang = language;
 
       recognitionRef.current.onresult = (event) => {
         let finalTranscript = '';
-        let interimTranscript = '';
         
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const result = event.results[i];
           if (result.isFinal) {
             finalTranscript += result[0].transcript + ' ';
-          } else {
-            interimTranscript += result[0].transcript;
           }
         }
         
@@ -96,7 +91,7 @@ const useSpeechToText = () => {
         recognitionRef.current.stop();
       }
     };
-  }, []);
+  }, [language]);
 
   const startListening = useCallback(() => {
     if (recognitionRef.current && !isListening) {
@@ -130,7 +125,9 @@ const useSpeechToText = () => {
 };
 
 export default function Report() {
+  const { t, speechLang } = useI18n();
   const { user, isAuthenticated, login } = AuthContainer.useContainer();
+  const steps = stepKeys.map((key) => t(key));
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -150,7 +147,7 @@ export default function Report() {
     startListening, 
     stopListening,
     resetTranscript 
-  } = useSpeechToText();
+  } = useSpeechToText(speechLang);
   
   // Duplicate check state
   const [duplicateWarningOpen, setDuplicateWarningOpen] = useState(false);
@@ -320,7 +317,7 @@ export default function Report() {
     setNewMedicationLoading(true);
     try {
       const response = await medicationService.createPatientMedication(newMedicationData);
-      
+
       if (response.success) {
         const newMedication = response.data.medication;
         setSelectedMedication(newMedication);
@@ -333,12 +330,12 @@ export default function Report() {
         
         // Show message if it was an existing medication
         if (response.data.isExisting) {
-          alert('This medication already exists in our system. We\'ve selected it for you.');
+          alert(t('report.existingMedicationSelected'));
         }
       }
     } catch (error) {
       console.error('Error creating medication:', error);
-      alert('Failed to create medication. Please try again.');
+      alert(t('report.createMedicationFailed'));
     } finally {
       setNewMedicationLoading(false);
     }
@@ -348,16 +345,21 @@ export default function Report() {
     const files = Array.from(event.target.files);
     if (files.length > 0) {
       // Validate file types and sizes
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime'];
+      const allowedTypes = [
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+        'video/mp4', 'video/webm', 'video/quicktime',
+        'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav',
+        'audio/m4a', 'audio/x-m4a', 'audio/mp4', 'audio/aac', 'audio/webm', 'audio/ogg'
+      ];
       const maxSize = 50 * 1024 * 1024; // 50MB max per file
       
       const validFiles = files.filter(file => {
         if (!allowedTypes.includes(file.type)) {
-          setSubmissionError(`File "${file.name}" has unsupported format. Allowed: JPEG, PNG, GIF, WebP, MP4, WebM, MOV`);
+          setSubmissionError(t('report.fileUnsupported', { fileName: file.name }));
           return false;
         }
         if (file.size > maxSize) {
-          setSubmissionError(`File "${file.name}" is too large. Maximum 50MB per file.`);
+          setSubmissionError(t('report.fileTooLarge', { fileName: file.name }));
           return false;
         }
         return true;
@@ -384,15 +386,15 @@ export default function Report() {
     const errors = {};
     
     if (activeStep === 0) {
-      if (!selectedMedication) errors.medication = 'Please select a medication';
-      if (!formData.dosage.trim()) errors.dosage = 'Please enter the dosage';
-      if (!formData.frequency) errors.frequency = 'Please select frequency';
-      if (!formData.indication.trim()) errors.indication = 'Please enter what this medication is for';
+      if (!selectedMedication) errors.medication = t('report.validation.selectMedication');
+      if (!formData.dosage.trim()) errors.dosage = t('report.validation.enterDosage');
+      if (!formData.frequency) errors.frequency = t('report.validation.selectFrequency');
+      if (!formData.indication.trim()) errors.indication = t('report.validation.enterIndication');
     } else if (activeStep === 1) {
-      if (!formData.symptoms.trim()) errors.symptoms = 'Please describe your symptoms';
-      if (!formData.severity) errors.severity = 'Please select severity level';
+      if (!formData.symptoms.trim()) errors.symptoms = t('report.validation.describeSymptoms');
+      if (!formData.severity) errors.severity = t('report.validation.selectSeverity');
     } else if (activeStep === 2) {
-      if (!formData.startDate) errors.startDate = 'Please enter start date';
+      if (!formData.startDate) errors.startDate = t('report.validation.enterStartDate');
     }
     
     setValidationErrors(errors);
@@ -415,9 +417,9 @@ export default function Report() {
     const response = await reportService.submitReport(reportData);
     if (response.status === 'success' || response.success) {
       setSubmitted(true);
-      setSuccessMessage('Your adverse drug reaction report has been submitted successfully. Our medical team will review it shortly.');
+      setSuccessMessage(t('report.submissionSuccessMessage'));
     } else {
-      throw new Error(response.message || 'Failed to submit report');
+      throw new Error(response.message || t('report.submissionFailed'));
     }
   };
 
@@ -428,7 +430,7 @@ export default function Report() {
       try {
         await doSubmitReport(pendingReportData);
       } catch (error) {
-        let errorMessage = 'Failed to submit report. Please try again.';
+        let errorMessage = t('report.submissionFailedGeneric');
         if (error.response?.data?.message) errorMessage = error.response.data.message;
         else if (error.message) errorMessage = error.message;
         setSubmissionError(errorMessage);
@@ -444,12 +446,12 @@ export default function Report() {
     setSubmissionError('');
 
     if (!isAuthenticated || !user) {
-      setSubmissionError('You must be logged in to submit a report.');
+      setSubmissionError(t('report.mustBeLoggedIn'));
       return;
     }
 
     if (!selectedMedication) {
-      setSubmissionError('Please select a medication from the list or create a new one.');
+      setSubmissionError(t('report.selectMedicationFromList'));
       return;
     }
 
@@ -540,7 +542,9 @@ export default function Report() {
         reportDetails: reportData.reportDetails,
       };
       const dupResult = await reportService.checkDuplicates(dupCheckData);
-      if (dupResult?.success && dupResult?.data?.hasDuplicates && dupResult?.data?.duplicates?.length > 0) {
+      const hasPotentialDuplicates =
+        dupResult?.data?.hasPotentialDuplicates ?? dupResult?.data?.hasDuplicates;
+      if (dupResult?.success && hasPotentialDuplicates && dupResult?.data?.duplicates?.length > 0) {
         // Store the report data and show warning dialog
         setPendingReportData(reportData);
         setPotentialDuplicates(dupResult.data.duplicates);
@@ -554,7 +558,7 @@ export default function Report() {
     } catch (error) {
       console.error('Error submitting report:', error);
       // Extract detailed error message
-      let errorMessage = 'Failed to submit report. Please try again.';
+      let errorMessage = t('report.submissionFailedGeneric');
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.response?.data?.errors) {
@@ -571,7 +575,7 @@ export default function Report() {
   // Voice input toggle
   const handleVoiceInput = () => {
     if (!speechSupported) {
-      setSubmissionError('Speech recognition is not supported in your browser. Please use Chrome or Edge.');
+      setSubmissionError(t('report.speechNotSupported'));
       return;
     }
     
@@ -617,24 +621,24 @@ export default function Report() {
                   filterOptions={(x) => x} // Disable built-in filtering since we handle it server-side
                   noOptionsText={
                     <Box>
-                      <Typography variant="body2" sx={{ mb: 1 }}>No medications found</Typography>
+                      <Typography variant="body2" sx={{ mb: 1 }}>{t('report.noMedicationsFound')}</Typography>
                       <Button
                         size="small"
                         startIcon={<AddIcon />}
                         onClick={handleOpenNewMedicationDialog}
                       >
-                        Add New Medication
+                        {t('report.addNewMedication')}
                       </Button>
                     </Box>
                   }
-                  loadingText="Searching medications..."
+                  loadingText={t('report.searchingMedications')}
                   renderInput={(params) => (
                     <TextField
                       {...params}
                       required
-                      label="Search Medication"
-                      placeholder="Start typing medication name..."
-                      helperText={validationErrors.medication || "Search and select the medication you are reporting about"}
+                      label={t('report.searchMedication')}
+                      placeholder={t('report.searchMedicationPlaceholder')}
+                      helperText={validationErrors.medication || t('report.searchMedicationHelper')}
                       error={!!validationErrors.medication}
                     />
                   )}
@@ -644,7 +648,7 @@ export default function Report() {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <Typography variant="body1">{option.name}</Typography>
                           {option.source === 'patient' && !option.isVerified && (
-                            <Chip label="Unverified" size="small" color="warning" variant="outlined" />
+                            <Chip label={t('report.unverified')} size="small" color="warning" variant="outlined" />
                           )}
                         </Box>
                         {option.genericName && (
@@ -654,7 +658,7 @@ export default function Report() {
                         )}
                         {option.category && (
                           <Typography variant="caption" color="text.secondary">
-                            Category: {option.category}
+                            {t('medications.category')}: {option.category}
                           </Typography>
                         )}
                       </Box>
@@ -667,7 +671,7 @@ export default function Report() {
                   onClick={handleOpenNewMedicationDialog}
                   sx={{ mt: 1, whiteSpace: 'nowrap' }}
                 >
-                  Can't find it?
+                  {t('report.cantFindMedication')}
                 </Button>
               </Box>
             </Grid>
@@ -675,11 +679,11 @@ export default function Report() {
               <TextField
                 required
                 fullWidth
-                label="Dosage Amount"
+                label={t('report.dosageAmount')}
                 value={formData.dosage}
                 onChange={handleInputChange('dosage')}
-                placeholder="e.g., 500mg, 1 tablet"
-                helperText={validationErrors.dosage || "Strength per dose"}
+                placeholder={t('report.dosagePlaceholder')}
+                helperText={validationErrors.dosage || t('report.dosageHelper')}
                 error={!!validationErrors.dosage}
               />
             </Grid>
@@ -687,38 +691,38 @@ export default function Report() {
               <TextField
                 required
                 fullWidth
-                label="Frequency"
+                label={t('report.frequency')}
                 value={formData.frequency}
                 onChange={handleInputChange('frequency')}
-                placeholder="e.g., twice daily, once a day"
-                helperText="How often do you take it"
+                placeholder={t('report.frequencyPlaceholder')}
+                helperText={t('report.frequencyHelper')}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth>
-                <InputLabel>Route of Administration</InputLabel>
+                <InputLabel>{t('report.routeOfAdministration')}</InputLabel>
                 <Select
                   sx={{minWidth: '220px'}}
                   value={formData.route}
-                  label="Route of Administration"
+                  label={t('report.routeOfAdministration')}
                   onChange={handleInputChange('route')}
                 >
-                  <MenuItem value="Oral">Oral (by mouth)</MenuItem>
-                  <MenuItem value="Topical">Topical (on skin)</MenuItem>
-                  <MenuItem value="Injection">Injection</MenuItem>
-                  <MenuItem value="Inhalation">Inhalation</MenuItem>
-                  <MenuItem value="Other">Other</MenuItem>
+                  <MenuItem value="Oral">{t('report.route.oral')}</MenuItem>
+                  <MenuItem value="Topical">{t('report.route.topical')}</MenuItem>
+                  <MenuItem value="Injection">{t('report.route.injection')}</MenuItem>
+                  <MenuItem value="Inhalation">{t('report.route.inhalation')}</MenuItem>
+                  <MenuItem value="Other">{t('common.other')}</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Indication (what it's for)"
+                label={t('report.indication')}
                 value={formData.indication}
                 onChange={handleInputChange('indication')}
-                placeholder="e.g., Pain relief, Blood pressure"
-                helperText="Why are you taking this medication"
+                placeholder={t('report.indicationPlaceholder')}
+                helperText={t('report.indicationHelper')}
               />
             </Grid>
           </Grid>
@@ -733,49 +737,49 @@ export default function Report() {
                 fullWidth
                 multiline
                 rows={4}
-                label="Describe the Side Effect"
+                label={t('report.describeSideEffect')}
                 value={formData.symptoms}
                 onChange={handleInputChange('symptoms')}
-                placeholder="Please describe the side effect you experienced in detail..."
-                helperText="Be as specific as possible about what you experienced"
+                placeholder={t('report.describeSideEffectPlaceholder')}
+                helperText={t('report.describeSideEffectHelper')}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth required>
-                <InputLabel>Severity Level</InputLabel>
+                <InputLabel>{t('report.severityLevel')}</InputLabel>
                 <Select
                   sx={{minWidth: '220px'}}
                   value={formData.severity}
-                  label="Severity Level"
+                  label={t('report.severityLevel')}
                   onChange={handleInputChange('severity')}
                 >
-                  <MenuItem value="Mild">Mild</MenuItem>
-                  <MenuItem value="Moderate">Moderate</MenuItem>
-                  <MenuItem value="Severe">Severe</MenuItem>
-                  <MenuItem value="Life-threatening">Life-threatening</MenuItem>
+                  <MenuItem value="Mild">{t('severity.mild')}</MenuItem>
+                  <MenuItem value="Moderate">{t('severity.moderate')}</MenuItem>
+                  <MenuItem value="Severe">{t('severity.severe')}</MenuItem>
+                  <MenuItem value="Life-threatening">{t('severity.lifeThreatening')}</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth required>
-                <InputLabel>When did it start?</InputLabel>
+                <InputLabel>{t('report.whenDidItStart')}</InputLabel>
                 <Select
                   sx={{minWidth: '220px'}}
                   value={formData.onset}
-                  label="When did it start?"
+                  label={t('report.whenDidItStart')}
                   onChange={handleInputChange('onset')}
                 >
-                  <MenuItem value="Immediate">Immediately</MenuItem>
-                  <MenuItem value="Within hours">Within hours</MenuItem>
-                  <MenuItem value="Within days">Within days</MenuItem>
-                  <MenuItem value="Within weeks">Within weeks</MenuItem>
-                  <MenuItem value="Unknown">Unknown</MenuItem>
+                  <MenuItem value="Immediate">{t('report.onset.immediate')}</MenuItem>
+                  <MenuItem value="Within hours">{t('report.onset.withinHours')}</MenuItem>
+                  <MenuItem value="Within days">{t('report.onset.withinDays')}</MenuItem>
+                  <MenuItem value="Within weeks">{t('report.onset.withinWeeks')}</MenuItem>
+                  <MenuItem value="Unknown">{t('common.unknown')}</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
             <Grid item xs={12}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                <Tooltip title={speechSupported ? (isListening ? 'Click to stop recording' : 'Click to start voice recording') : 'Speech recognition not supported in this browser'}>
+                <Tooltip title={speechSupported ? (isListening ? t('report.stopRecordingTooltip') : t('report.startRecordingTooltip')) : t('report.speechNotSupportedTooltip')}>
                   <span>
                     <Button
                       variant={isListening ? "contained" : "outlined"}
@@ -784,7 +788,7 @@ export default function Report() {
                       onClick={handleVoiceInput}
                       disabled={!speechSupported}
                     >
-                      {isListening ? 'Stop Recording' : 'Record Voice'}
+                      {isListening ? t('report.stopRecording') : t('report.recordVoice')}
                     </Button>
                   </span>
                 </Tooltip>
@@ -792,19 +796,19 @@ export default function Report() {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <RecordIcon sx={{ color: 'error.main', animation: 'pulse 1s infinite' }} />
                     <Typography variant="body2" color="error">
-                      Listening... Speak now
+                      {t('report.listeningNow')}
                     </Typography>
                   </Box>
                 )}
                 {!speechSupported && (
                   <Typography variant="caption" color="text.secondary">
-                    (Use Chrome or Edge for voice input)
+                    {t('report.useChromeForVoice')}
                   </Typography>
                 )}
               </Box>
               {speechError && (
                 <Alert severity="warning" sx={{ mt: 1 }}>
-                  Speech error: {speechError}. Please try again.
+                  {t('report.speechError', { error: speechError })}
                 </Alert>
               )}
             </Grid>
@@ -819,11 +823,11 @@ export default function Report() {
                 required
                 fullWidth
                 type="date"
-                label="When did symptoms start?"
+                label={t('report.whenSymptomsStarted')}
                 value={formData.startDate}
                 onChange={handleInputChange('startDate')}
                 InputLabelProps={{ shrink: true }}
-                helperText="Select the date when you first noticed the symptoms"
+                helperText={t('report.whenSymptomsStartedHelper')}
               />
             </Grid>
             <Grid item xs={12}>
@@ -831,18 +835,18 @@ export default function Report() {
                 fullWidth
                 multiline
                 rows={3}
-                label="Additional Information (Optional)"
+                label={t('report.additionalInfoOptional')}
                 value={formData.additionalInfo}
                 onChange={handleInputChange('additionalInfo')}
-                placeholder="Any additional details about the side effect..."
-                helperText="Include any other relevant information"
+                placeholder={t('report.additionalInfoPlaceholder')}
+                helperText={t('report.additionalInfoHelper')}
               />
             </Grid>
             <Grid item xs={12}>
               <Card variant="outlined">
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
-                    Upload Photo (Optional)
+                    {t('report.uploadMediaOptional')}
                   </Typography>
                   {formData.photo ? (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -858,17 +862,18 @@ export default function Report() {
                       component="label"
                       startIcon={<UploadIcon />}
                     >
-                      Upload Photo
+                      {t('report.uploadFiles')}
                       <input
                         hidden
-                        accept="image/*"
+                        accept="image/*,video/*,audio/*"
                         type="file"
+                        multiple
                         onChange={handleFileUpload}
                       />
                     </Button>
                   )}
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    You can upload a photo of any visible symptoms or reactions
+                    {t('report.uploadMediaHelper')}
                   </Typography>
                 </CardContent>
               </Card>
@@ -883,17 +888,17 @@ export default function Report() {
 
   if (submitted) {
     return (
-      <Container maxWidth="md">
+      <Container maxWidth="lg">
         <Box sx={{ py: 4, textAlign: 'center' }}>
-          <Alert severity="success" sx={{ mb: 3, p: 3 }}>
+          <Alert severity="success" sx={{ mb: 3, p: 3, borderRadius: 2, border: 1, borderColor: 'divider' }}>
             <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold' }}>
-              Report Submitted Successfully! ✅
+              {t('report.reportSubmittedSuccessfully')}
             </Typography>
             <Typography variant="body1" sx={{ mb: 2 }}>
-              {successMessage || 'Thank you for reporting your side effect. A healthcare professional will review your report.'}
+              {successMessage || t('report.thankYouMessage')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Report ID: #{Math.random().toString(36).substr(2, 9).toUpperCase()}
+              {t('report.reportId')}: #{Math.random().toString(36).substr(2, 9).toUpperCase()}
             </Typography>
           </Alert>
           
@@ -903,7 +908,7 @@ export default function Report() {
               onClick={() => window.location.href = '/reports'}
               sx={{ minWidth: 150 }}
             >
-              View My Reports
+              {t('reports.viewMyReports')}
             </Button>
             <Button
               variant="outlined"
@@ -928,7 +933,7 @@ export default function Report() {
                 });
               }}
             >
-              Submit Another Report
+              {t('report.submitAnotherReport')}
             </Button>
           </Box>
         </Box>
@@ -937,20 +942,20 @@ export default function Report() {
   }
 
   return (
-    <Container maxWidth="md">
+    <Container maxWidth="lg">
       <Box sx={{ py: 4 }}>
-        <Paper elevation={3} sx={{ p: 4 }}>
-          <Typography variant="h4" gutterBottom align="center">
-            Report Side Effect
+        <Paper elevation={0} sx={{ p: { xs: 2.5, md: 4 }, border: 1, borderColor: 'divider', borderRadius: 3 }}>
+          <Typography variant="h4" gutterBottom align="center" sx={{ fontWeight: 700 }}>
+            {t('reports.submitReport')}
           </Typography>
           <Typography variant="body1" color="text.secondary" align="center" sx={{ mb: 4 }}>
-            Help us keep medications safe by reporting any adverse reactions
+            {t('report.helpKeepMedicationsSafe')}
           </Typography>
 
           {!isAuthenticated && (
             <Alert severity="warning" sx={{ mb: 3 }}>
               <Typography variant="body2" sx={{ mb: 2 }}>
-                You must be logged in to submit a report. Please log in to continue.
+                {t('report.mustBeLoggedInToContinue')}
               </Typography>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                 <Button
@@ -959,20 +964,28 @@ export default function Report() {
                   onClick={handleDemoLogin}
                   disabled={loading}
                 >
-                  {loading ? 'Logging in...' : 'Quick Demo Login'}
+                  {loading ? t('auth.signingIn') : t('report.quickDemoLogin')}
                 </Button>
                 <Button
                   variant="outlined"
                   size="small"
                   onClick={() => window.location.href = '/login'}
                 >
-                  Full Login
+                  {t('auth.signIn')}
                 </Button>
               </Box>
             </Alert>
           )}
 
-          <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+          <Stepper
+            activeStep={activeStep}
+            sx={{
+              mb: 4,
+              '& .MuiStepLabel-label': {
+                fontWeight: 600,
+              },
+            }}
+          >
             {steps.map((label, index) => (
               <Step key={label} completed={isStepComplete(index)}>
                 <StepLabel>{label}</StepLabel>
@@ -995,7 +1008,7 @@ export default function Report() {
                 disabled={activeStep === 0}
                 onClick={handleBack}
               >
-                Back
+                {t('common.back')}
               </Button>
               
               {activeStep === steps.length - 1 ? (
@@ -1005,8 +1018,8 @@ export default function Report() {
                   disabled={!isStepComplete(activeStep) || loading || !isAuthenticated}
                   startIcon={<SendIcon />}
                 >
-                  <ButtonLoading loading={loading} loadingText="Submitting...">
-                    Submit Report
+                  <ButtonLoading loading={loading} loadingText={t('report.submitting')}>
+                    {t('report.submitReport')}
                   </ButtonLoading>
                 </Button>
               ) : (
@@ -1015,7 +1028,7 @@ export default function Report() {
                   onClick={handleNext}
                   disabled={!isStepComplete(activeStep)}
                 >
-                  Next
+                  {t('common.next')}
                 </Button>
               )}
             </Box>
@@ -1023,8 +1036,7 @@ export default function Report() {
 
           <Alert severity="warning" sx={{ mt: 3 }}>
             <Typography variant="body2">
-              <strong>Emergency Notice:</strong> If you're experiencing severe or life-threatening symptoms, 
-              seek immediate medical attention or call emergency services.
+              {t('report.emergencyNotice')}
             </Typography>
           </Alert>
         </Paper>
@@ -1032,19 +1044,18 @@ export default function Report() {
 
       {/* New Medication Dialog */}
       <Dialog open={newMedicationDialog} onClose={handleCloseNewMedicationDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Add New Medication</DialogTitle>
+        <DialogTitle>{t('report.addNewMedication')}</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-            Can't find your medication? Add it here and it will be available for your report.
-            A healthcare professional will verify it later.
+            {t('report.addNewMedicationDescription')}
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={12}>
               <TextField
                 required
                 fullWidth
-                label="Medication Name"
-                placeholder="e.g., Paracetamol, Lisinopril"
+                label={t('doctor.medicationName')}
+                placeholder={t('doctor.medicationNamePlaceholder')}
                 value={newMedicationData.name}
                 onChange={handleNewMedicationInputChange('name')}
                 autoFocus
@@ -1053,22 +1064,22 @@ export default function Report() {
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Generic Name (Optional)"
-                placeholder="e.g., Acetaminophen"
+                label={t('report.genericNameOptional')}
+                placeholder={t('doctor.genericNamePlaceholder')}
                 value={newMedicationData.genericName}
                 onChange={handleNewMedicationInputChange('genericName')}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth>
-                <InputLabel>Category</InputLabel>
+                <InputLabel>{t('medications.category')}</InputLabel>
                 <Select
                   sx={{minWidth: '220px'}}
                   value={newMedicationData.category}
                   onChange={handleNewMedicationInputChange('category')}
-                  label="Category"
+                  label={t('medications.category')}
                 >
-                  <MenuItem value="">Select category</MenuItem>
+                  <MenuItem value="">{t('report.selectCategory')}</MenuItem>
                   {MEDICATION_CATEGORIES.map(cat => (
                     <MenuItem key={cat} value={cat}>{cat}</MenuItem>
                   ))}
@@ -1077,14 +1088,14 @@ export default function Report() {
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth>
-                <InputLabel>Dosage Form</InputLabel>
+                <InputLabel>{t('medications.dosageForm')}</InputLabel>
                 <Select
                   sx={{minWidth: '220px'}}
                   value={newMedicationData.dosageForm}
                   onChange={handleNewMedicationInputChange('dosageForm')}
-                  label="Dosage Form"
+                  label={t('medications.dosageForm')}
                 >
-                  <MenuItem value="">Select form</MenuItem>
+                  <MenuItem value="">{t('report.selectForm')}</MenuItem>
                   {MEDICATION_DOSAGE_FORMS.map(form => (
                     <MenuItem key={form} value={form}>{form}</MenuItem>
                   ))}
@@ -1094,13 +1105,13 @@ export default function Report() {
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseNewMedicationDialog}>Cancel</Button>
+          <Button onClick={handleCloseNewMedicationDialog}>{t('common.cancel')}</Button>
           <Button
             variant="contained"
             onClick={handleCreateNewMedication}
             disabled={!newMedicationData.name.trim() || newMedicationLoading}
           >
-            {newMedicationLoading ? 'Adding...' : 'Add Medication'}
+            {newMedicationLoading ? t('report.adding') : t('medications.addMedication')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1113,37 +1124,36 @@ export default function Report() {
         fullWidth
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'warning.main' }}>
-          <Tooltip title="Possible Duplicate"><span>⚠️</span></Tooltip>
-          Possible Duplicate Report Detected
+          <Tooltip title={t('report.possibleDuplicate')}><span>⚠️</span></Tooltip>
+          {t('report.duplicateDetectedTitle')}
         </DialogTitle>
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 2 }}>
-            We found {potentialDuplicates.length} similar report{potentialDuplicates.length > 1 ? 's' : ''} already submitted for this medication.
-            Please review before proceeding.
+            {t('report.duplicateDetectedMessage', { count: potentialDuplicates.length })}
           </Alert>
           {potentialDuplicates.slice(0, 3).map((dup, i) => (
             <Box key={i} sx={{ p: 1.5, mb: 1, border: '1px solid', borderColor: 'warning.light', borderRadius: 1, bgcolor: 'warning.50' }}>
               <Typography variant="body2" fontWeight={600}>
-                {dup.medicine?.name || 'Same medication'} — {dup.sideEffects?.[0]?.effect || 'Similar symptoms'}
+                {dup.medicine?.name || t('report.sameMedication')} — {dup.sideEffects?.[0]?.effect || t('report.similarSymptoms')}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Submitted: {dup.createdAt ? new Date(dup.createdAt).toLocaleDateString() : 'Unknown date'} •
-                Similarity: {dup.similarityScore ? `${Math.round(dup.similarityScore * 100)}%` : 'High'}
+                {t('report.submittedOn', { date: dup.createdAt ? new Date(dup.createdAt).toLocaleDateString() : t('common.unknownDate') })} •
+                {t('report.similarity', { value: dup.similarityScore ? `${Math.round(dup.similarityScore * 100)}%` : t('report.high') })}
               </Typography>
             </Box>
           ))}
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            You can still submit if this is a new or different reaction. Our team will review for duplicates.
+            {t('report.duplicateDetectedFooter')}
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button
             onClick={() => { setDuplicateWarningOpen(false); setLoading(false); setPendingReportData(null); }}
           >
-            Go Back and Edit
+            {t('report.goBackAndEdit')}
           </Button>
           <Button variant="contained" color="warning" onClick={handleProceedDespiteDuplicates}>
-            Submit Anyway
+            {t('report.submitAnyway')}
           </Button>
         </DialogActions>
       </Dialog>

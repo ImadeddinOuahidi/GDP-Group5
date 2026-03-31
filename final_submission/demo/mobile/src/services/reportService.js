@@ -44,6 +44,82 @@ export const reportService = {
   },
 
   /**
+   * Check for potential duplicate reports before submission
+   */
+  checkDuplicates: async (reportData) => {
+    try {
+      const response = await apiClient.post(`${ENDPOINTS.REPORTS}/check-duplicates`, reportData);
+      return response.data;
+    } catch (error) {
+      console.warn('Duplicate check failed:', error?.response?.data?.message || error.message);
+      return {
+        success: false,
+        data: {
+          hasDuplicates: false,
+          hasPotentialDuplicates: false,
+          duplicates: []
+        }
+      };
+    }
+  },
+
+  /**
+   * Find potential duplicates for an existing report
+   */
+  findDuplicates: async (reportId) => {
+    try {
+      const response = await apiClient.get(`${ENDPOINTS.REPORTS}/${reportId}/duplicates`);
+      return response.data;
+    } catch (error) {
+      console.error('Find duplicates error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Flag report as duplicate of an original report
+   */
+  flagDuplicate: async (reportId, originalReportId) => {
+    try {
+      const response = await apiClient.post(`${ENDPOINTS.REPORTS}/${reportId}/flag-duplicate`, {
+        originalReportId,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Flag duplicate error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Merge duplicate report into original report
+   */
+  mergeDuplicate: async (reportId, originalReportId) => {
+    try {
+      const response = await apiClient.post(`${ENDPOINTS.REPORTS}/${reportId}/merge-duplicate`, {
+        originalReportId,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Merge duplicate error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get duplicate detection statistics
+   */
+  getDuplicateStats: async () => {
+    try {
+      const response = await apiClient.get(`${ENDPOINTS.REPORTS}/duplicate-stats`);
+      return response.data;
+    } catch (error) {
+      console.error('Get duplicate stats error:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Submit report with AI processing (multimodal)
    */
   submitAIReport: async (formData) => {

@@ -5,7 +5,6 @@ import {
   Typography,
   Box,
   IconButton,
-  Button,
   Menu,
   MenuItem,
   Avatar,
@@ -18,14 +17,15 @@ import {
   ListItemIcon,
   Divider,
   Popover,
+  alpha,
   useTheme,
 } from '@mui/material';
 import {
   DarkMode,
   LightMode,
-  AccountCircle,
   Logout,
-  MedicalServices as MedicalServicesIcon,
+  Menu as MenuIcon,
+  Medication as MedicationIcon,
   Notifications as NotificationsIcon,
   Warning as WarningIcon,
   CheckCircle as CheckIcon,
@@ -34,15 +34,17 @@ import {
   Language as LanguageIcon,
   DoneAll as DoneAllIcon,
 } from '@mui/icons-material';
+import { useLocation } from 'react-router-dom';
 import { useThemeMode } from '../../styles/theme/ThemeProvider';
 import AuthContainer from '../../store/containers/AuthContainer';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { useI18n } from '../../i18n';
 
-const CustomAppBar = () => {
+const CustomAppBar = ({ onOpenMobileNav }) => {
   const theme = useTheme();
+  const location = useLocation();
   const { isDarkMode, toggleTheme } = useThemeMode();
-  const { user, logout, switchRole, isPatient, isDoctor } = AuthContainer.useContainer();
+  const { user, logout } = AuthContainer.useContainer();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const { locale, changeLanguage, supportedLanguages, t } = useI18n();
   
@@ -50,9 +52,24 @@ const CustomAppBar = () => {
   const [notifAnchor, setNotifAnchor] = React.useState(null);
   const [langAnchor, setLangAnchor] = React.useState(null);
 
+  const getPageTitle = React.useCallback((pathname) => {
+    if (pathname === '/') return t('navigation.overview');
+    if (pathname === '/report') return t('navigation.newReport');
+    if (pathname === '/reports') return t('navigation.myReports');
+    if (pathname.startsWith('/reports/')) return t('reports.reportDetails');
+    if (pathname === '/settings') return t('navigation.settings');
+    if (pathname === '/doctor-home') return t('navigation.doctorOverview');
+    if (pathname === '/review-requests') return t('navigation.reviewRequests');
+    if (pathname === '/medications') return t('doctor.medicationManagement');
+    if (pathname === '/add-medication') return t('doctor.addMedication');
+    if (pathname.startsWith('/medications/edit/')) return t('doctor.editMedication');
+    if (pathname === '/dashboard') return t('doctor.analyticsDashboard');
+    return t('common.appName');
+  }, [t]);
+
   // Safe function to get user display name
   const getUserDisplayName = () => {
-    if (!user) return 'Guest';
+    if (!user) return t('common.guest');
     
     // Handle both API user structure and demo user structure
     if (user.name) {
@@ -75,14 +92,14 @@ const CustomAppBar = () => {
       return user.email.split('@')[0];
     }
     
-    return 'User';
+    return t('common.user');
   };
 
   // Safe function to get user initials
   const getUserInitials = () => {
     const displayName = getUserDisplayName();
     
-    if (!displayName || displayName === 'Guest' || displayName === 'User') {
+    if (!displayName || displayName === t('common.guest') || displayName === t('common.user')) {
       return 'U';
     }
     
@@ -94,12 +111,6 @@ const CustomAppBar = () => {
     
     // Single name or username
     return displayName.charAt(0).toUpperCase();
-  };
-
-  // Safe function to get user role
-  const getUserRole = () => {
-    if (!user || !user.role) return 'user';
-    return user.role;
   };
 
   const handleMenu = (event) => {
@@ -115,56 +126,75 @@ const CustomAppBar = () => {
     logout();
   };
 
-  const handleRoleSwitch = (role) => {
-    handleClose();
-    switchRole(role);
-  };
-
-  const getRoleColor = (role) => {
-    return role === 'doctor' ? 'secondary' : 'primary';
-  };
-
-  const getRoleIcon = (role) => {
-    return role === 'doctor' ? '👨‍⚕️' : '🤒';
-  };
+  const roleLabel = (user?.role || 'user').toUpperCase();
 
   return (
-    <AppBar position="sticky" elevation={2}>
-      <Toolbar>
-        <MedicalServicesIcon sx={{ mr: 2 }} />
-        <Typography
-          variant="h6"
-          component="div"
-          sx={{ 
-            flexGrow: 1, 
-            fontWeight: 600,
-            background: 'linear-gradient(45deg, #ffffff 30%, #e3f2fd 90%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}
-        >
-          SafeMed ADR
-        </Typography>
+    <AppBar
+      position="sticky"
+      elevation={0}
+      color="transparent"
+      sx={{
+        backdropFilter: 'blur(12px)',
+        backgroundColor: alpha(theme.palette.background.paper, 0.82),
+      }}
+    >
+      <Toolbar sx={{ minHeight: 72, gap: 2 }}>
+        {onOpenMobileNav && (
+          <IconButton
+            onClick={onOpenMobileNav}
+            sx={{
+              display: { xs: 'inline-flex', md: 'none' },
+              border: 1,
+              borderColor: 'divider',
+            }}
+          >
+            <MenuIcon />
+          </IconButton>
+        )}
+
+        <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0, flexGrow: 1 }}>
+          <Avatar
+            variant="rounded"
+            sx={{
+              width: 34,
+              height: 34,
+              mr: 1.5,
+              bgcolor: 'primary.main',
+              color: 'primary.contrastText',
+            }}
+          >
+            <MedicationIcon fontSize="small" />
+          </Avatar>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.2 }}>
+              {t('common.appName')}
+            </Typography>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2 }} noWrap>
+              {getPageTitle(location.pathname)}
+            </Typography>
+          </Box>
+        </Box>
 
         {user && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Chip
-              icon={<span>{getRoleIcon(getUserRole())}</span>}
-              label={getUserRole().toUpperCase()}
-              color={getRoleColor(getUserRole())}
+              label={roleLabel}
               size="small"
-              variant="filled"
+              variant="outlined"
+              sx={{ display: { xs: 'none', md: 'inline-flex' } }}
             />
             
-            <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
-              Welcome, {getUserDisplayName()}
+            <Typography variant="body2" sx={{ display: { xs: 'none', lg: 'block' }, color: 'text.secondary' }}>
+              {getUserDisplayName()}
             </Typography>
 
-            <Tooltip title="Toggle theme">
+            <Tooltip title={t('settings.toggleTheme')}>
               <IconButton
-                color="inherit"
                 onClick={toggleTheme}
-                sx={{ ml: 1 }}
+                sx={{
+                  border: 1,
+                  borderColor: 'divider',
+                }}
               >
                 {isDarkMode ? <LightMode /> : <DarkMode />}
               </IconButton>
@@ -173,8 +203,8 @@ const CustomAppBar = () => {
             {/* Language Selector */}
             <Tooltip title={t('settings.selectLanguage')}>
               <IconButton
-                color="inherit"
                 onClick={(e) => setLangAnchor(e.currentTarget)}
+                sx={{ border: 1, borderColor: 'divider' }}
               >
                 <LanguageIcon />
               </IconButton>
@@ -200,8 +230,8 @@ const CustomAppBar = () => {
             {/* Notification Bell */}
             <Tooltip title={t('notifications.title')}>
               <IconButton
-                color="inherit"
                 onClick={(e) => setNotifAnchor(e.currentTarget)}
+                sx={{ border: 1, borderColor: 'divider' }}
               >
                 <Badge badgeContent={unreadCount} color="error" max={99}>
                   <NotificationsIcon />
@@ -263,13 +293,12 @@ const CustomAppBar = () => {
               </List>
             </Popover>
 
-            <Tooltip title="Account settings">
+            <Tooltip title={t('settings.accountSettings')}>
               <IconButton
                 size="large"
                 onClick={handleMenu}
-                color="inherit"
               >
-                <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
+                <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', color: 'primary.contrastText' }}>
                   {getUserInitials()}
                 </Avatar>
               </IconButton>
@@ -295,16 +324,19 @@ const CustomAppBar = () => {
             >
               <Box sx={{ px: 2, py: 1, borderBottom: 1, borderColor: 'divider' }}>
                 <Typography variant="body2" color="text.secondary">
-                  Signed in as
+                  {t('navigation.signedInAs')}
                 </Typography>
                 <Typography variant="body1" fontWeight="medium">
                   {getUserDisplayName()}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {roleLabel}
                 </Typography>
               </Box>
 
               <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
                 <Logout sx={{ mr: 1 }} />
-                Logout
+                {t('auth.logOut')}
               </MenuItem>
             </Menu>
           </Box>

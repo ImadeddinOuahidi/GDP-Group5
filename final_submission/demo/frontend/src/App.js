@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { Box, IconButton, useMediaQuery, useTheme, Alert, Snackbar, LinearProgress, Typography } from "@mui/material";
-import { Menu as MenuIcon } from "@mui/icons-material";
+import { Box, useMediaQuery, useTheme, Alert, Snackbar, LinearProgress, Typography } from "@mui/material";
 
 // Import components from new structure
 import {
@@ -23,11 +22,12 @@ import {
 import AuthContainer from "./store/containers/AuthContainer";
 import { CustomThemeProvider } from "./styles/theme/ThemeProvider";
 import { CustomAppBar, Navigation } from "./components";
-import { I18nProvider } from "./i18n";
+import { I18nProvider, useI18n } from "./i18n";
 import { NotificationProvider } from "./contexts/NotificationContext";
 
 function AppContent() {
   const theme = useTheme();
+  const { t } = useI18n();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
@@ -58,7 +58,7 @@ function AppContent() {
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
           <Box sx={{ textAlign: 'center' }}>
             <Typography variant="h6" color="primary" sx={{ mb: 2 }}>
-              Loading SafeMed ADR...
+              {t('app.loading')}
             </Typography>
           </Box>
         </Box>
@@ -80,7 +80,7 @@ function AppContent() {
 
   const handleRegistrationSuccess = (result) => {
     setShowRegistration(false);
-    setSuccessMessage(result.message || 'Registration successful! Welcome to SafeMed ADR.');
+    setSuccessMessage(result.message || t('auth.registrationSuccess'));
   };
 
   const handleCloseSnackbar = () => {
@@ -119,29 +119,6 @@ function AppContent() {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Mobile menu button */}
-      {isMobile && (
-        <IconButton
-          color="inherit"
-          aria-label="open drawer"
-          edge="start"
-          onClick={handleDrawerToggle}
-          sx={{
-            position: 'fixed',
-            top: 8,
-            left: 8,
-            zIndex: theme.zIndex.drawer + 1,
-            bgcolor: 'primary.main',
-            color: 'primary.contrastText',
-            '&:hover': {
-              bgcolor: 'primary.dark',
-            },
-          }}
-        >
-          <MenuIcon />
-        </IconButton>
-      )}
-
       {/* Navigation Sidebar */}
       <Navigation 
         mobileOpen={mobileOpen} 
@@ -158,43 +135,46 @@ function AppContent() {
           minHeight: '100vh',
         }}
       >
-        <CustomAppBar />
+        <CustomAppBar onOpenMobileNav={isMobile ? handleDrawerToggle : undefined} />
         
         <Box
           sx={{
             flexGrow: 1,
-            p: { xs: 2, md: 3 },
+            px: { xs: 1.5, sm: 2.5, md: 4 },
+            py: { xs: 2, md: 3 },
             bgcolor: 'background.default',
             minHeight: 'calc(100vh - 64px)',
           }}
         >
-          <Routes>
-            {isPatient ? (
-              <>
-                <Route path="/" element={<Home />} />
-                <Route path="/report" element={<Report />} />
-                <Route path="/reports" element={<Reports />} />
-                <Route path="/reports/:id" element={<ReportDetail />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </>
-            ) : (
-              <>
-                <Route path="/doctor-home" element={<DoctorHome />} />
-                <Route path="/review-requests" element={<ReviewRequests />} />
-                <Route path="/reports/:id" element={<ReportDetail />} />
-                {/* Medication System Routes for Side Effect Reporting */}
-                <Route path="/medications" element={<MedicationManagement />} />
-                <Route path="/add-medication" element={<AddMedication />} />
-                <Route path="/medications/edit/:id" element={<AddMedication />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/doctor" element={<Navigate to="/doctor-home" replace />} />
-                <Route path="/" element={<Navigate to="/doctor-home" replace />} />
-                <Route path="*" element={<Navigate to="/doctor-home" replace />} />
-              </>
-            )}
-          </Routes>
+          <Box sx={{ width: '100%', maxWidth: 1400, mx: 'auto' }}>
+            <Routes>
+              {isPatient ? (
+                <>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/report" element={<Report />} />
+                  <Route path="/reports" element={<Reports />} />
+                  <Route path="/reports/:id" element={<ReportDetail />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </>
+              ) : (
+                <>
+                  <Route path="/doctor-home" element={<DoctorHome />} />
+                  <Route path="/review-requests" element={<ReviewRequests />} />
+                  <Route path="/reports/:id" element={<ReportDetail />} />
+                  {/* Medication System Routes for Side Effect Reporting */}
+                  <Route path="/medications" element={<MedicationManagement />} />
+                  <Route path="/add-medication" element={<AddMedication />} />
+                  <Route path="/medications/edit/:id" element={<AddMedication />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/doctor" element={<Navigate to="/doctor-home" replace />} />
+                  <Route path="/" element={<Navigate to="/doctor-home" replace />} />
+                  <Route path="*" element={<Navigate to="/doctor-home" replace />} />
+                </>
+              )}
+            </Routes>
+          </Box>
         </Box>
       </Box>
     </Box>

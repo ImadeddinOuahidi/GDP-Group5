@@ -7,7 +7,7 @@
  * Design: Clean, focused, and easy to use - only essential fields
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Paper,
@@ -40,9 +40,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { medicationService } from '../../services';
 import { MEDICATION_CATEGORIES, MEDICATION_DOSAGE_FORMS } from '../../config/constants';
 import { ButtonLoading } from '../../components/ui/Loading';
+import { useI18n } from '../../i18n';
 
 const AddMedication = () => {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const { id } = useParams(); // Get medication ID from URL if editing
   const isEditMode = Boolean(id);
   
@@ -65,14 +67,7 @@ const AddMedication = () => {
   // Tag input state
   const [tagInput, setTagInput] = useState('');
 
-  // Load medication data if in edit mode
-  useEffect(() => {
-    if (isEditMode && id) {
-      loadMedication();
-    }
-  }, [isEditMode, id]);
-
-  const loadMedication = async () => {
+  const loadMedication = useCallback(async () => {
     setLoadingMedication(true);
     setError('');
     
@@ -90,15 +85,22 @@ const AddMedication = () => {
           tags: med.tags || [],
         });
       } else {
-        setError('Failed to load medication data');
+        setError(t('doctor.medicationLoadFailed'));
       }
     } catch (err) {
       console.error('Load medication error:', err);
-      setError('Failed to load medication. It may not exist.');
+      setError(t('doctor.medicationLoadNotFound'));
     } finally {
       setLoadingMedication(false);
     }
-  };
+  }, [id, t]);
+
+  // Load medication data if in edit mode
+  useEffect(() => {
+    if (isEditMode && id) {
+      loadMedication();
+    }
+  }, [isEditMode, id, loadMedication]);
 
   // Handle simple input changes
   const handleInputChange = (field) => (event) => {
@@ -154,11 +156,11 @@ const AddMedication = () => {
   // Validate form
   const validateForm = () => {
     if (!formData.name.trim()) {
-      setError('Medication name is required');
+      setError(t('doctor.medicationNameRequired'));
       return false;
     }
     if (formData.name.length < 2) {
-      setError('Medication name must be at least 2 characters');
+      setError(t('doctor.medicationNameMinLength'));
       return false;
     }
     return true;
@@ -177,7 +179,7 @@ const AddMedication = () => {
       const submitData = {
         name: formData.name.trim(),
         genericName: formData.genericName.trim() || undefined,
-        category: formData.category || 'Other',
+        category: formData.category || t('common.other'),
         dosageForm: formData.dosageForm || undefined,
         commonStrengths: formData.commonStrengths.filter(s => s.trim()),
         description: formData.description.trim() || undefined,
@@ -192,14 +194,14 @@ const AddMedication = () => {
       }
 
       if (response.success) {
-        setSuccess(isEditMode ? 'Medication updated successfully!' : 'Medication created successfully!');
+        setSuccess(isEditMode ? t('doctor.medicationUpdated') : t('doctor.medicationCreated'));
         setTimeout(() => {
           navigate('/medications');
         }, 1500);
       }
     } catch (err) {
       console.error(isEditMode ? 'Update medication error:' : 'Create medication error:', err);
-      setError(err.message || `Failed to ${isEditMode ? 'update' : 'create'} medication. Please try again.`);
+      setError(err.message || (isEditMode ? t('doctor.medicationUpdateFailed') : t('doctor.medicationCreateFailed')));
     } finally {
       setLoading(false);
     }
@@ -208,17 +210,17 @@ const AddMedication = () => {
   // Show loading state while fetching medication data
   if (loadingMedication) {
     return (
-      <Container maxWidth="md" sx={{ py: 4 }}>
+      <Container maxWidth="lg" sx={{ py: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
           <CircularProgress />
-          <Typography sx={{ ml: 2 }}>Loading medication...</Typography>
+          <Typography sx={{ ml: 2 }}>{t('doctor.loadingMedication')}</Typography>
         </Box>
       </Container>
     );
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
         <IconButton onClick={() => navigate('/medications')} sx={{ mr: 2 }}>
@@ -231,12 +233,12 @@ const AddMedication = () => {
         )}
         <Box>
           <Typography variant="h4" component="h1">
-            {isEditMode ? 'Edit Medication' : 'Add New Medication'}
+            {isEditMode ? t('doctor.editMedication') : t('doctor.addMedication')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             {isEditMode 
-              ? 'Update the medication details below'
-              : 'Add a medication that patients can select when reporting side effects'
+              ? t('doctor.updateMedicationDetails')
+              : t('doctor.addMedicationDescription')
             }
           </Typography>
         </Box>
@@ -255,11 +257,11 @@ const AddMedication = () => {
       )}
 
       {/* Form */}
-      <Paper sx={{ p: { xs: 2, sm: 4 } }}>
+      <Paper elevation={0} sx={{ p: { xs: 2, sm: 4 }, border: 1, borderColor: 'divider', borderRadius: 3 }}>
         {/* Basic Information Section */}
         <Box sx={{ mb: 4 }}>
           <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
-            Basic Information
+            {t('doctor.basicInformation')}
           </Typography>
           <Divider sx={{ mb: 3 }} />
           <Grid container spacing={3}>
@@ -267,32 +269,32 @@ const AddMedication = () => {
               <TextField
                 fullWidth
                 required
-                label="Medication Name"
-                placeholder="e.g., Paracetamol, Lisinopril"
+                label={t('doctor.medicationName')}
+                placeholder={t('doctor.medicationNamePlaceholder')}
                 value={formData.name}
                 onChange={handleInputChange('name')}
-                helperText="The brand or common name of the medication"
+                helperText={t('doctor.medicationNameHelper')}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Generic Name"
-                placeholder="e.g., Acetaminophen"
+                label={t('doctor.genericName')}
+                placeholder={t('doctor.genericNamePlaceholder')}
                 value={formData.genericName}
                 onChange={handleInputChange('genericName')}
-                helperText="The scientific/generic name (optional)"
+                helperText={t('doctor.genericNameHelper')}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth sx={{minWidth: '220px'}}>
-                <InputLabel>Category</InputLabel>
+                <InputLabel>{t('medications.category')}</InputLabel>
                 <Select
                   value={formData.category}
                   onChange={handleInputChange('category')}
-                  label="Category"
+                  label={t('medications.category')}
                 >
-                  <MenuItem value="">Select a category</MenuItem>
+                  <MenuItem value="">{t('doctor.selectCategory')}</MenuItem>
                   {MEDICATION_CATEGORIES.map(category => (
                     <MenuItem key={category} value={category}>{category}</MenuItem>
                   ))}
@@ -301,13 +303,13 @@ const AddMedication = () => {
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth sx={{minWidth: '220px'}}>
-                <InputLabel>Dosage Form</InputLabel>
+                <InputLabel>{t('medications.dosageForm')}</InputLabel>
                 <Select
                   value={formData.dosageForm}
                   onChange={handleInputChange('dosageForm')}
-                  label="Dosage Form"
+                  label={t('medications.dosageForm')}
                 >
-                  <MenuItem value="">Select a form</MenuItem>
+                  <MenuItem value="">{t('doctor.selectDosageForm')}</MenuItem>
                   {MEDICATION_DOSAGE_FORMS.map(form => (
                     <MenuItem key={form} value={form}>{form}</MenuItem>
                   ))}
@@ -320,11 +322,11 @@ const AddMedication = () => {
         {/* Common Strengths Section */}
         <Box sx={{ mb: 4 }}>
           <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
-            Common Strengths
+            {t('doctor.commonStrengths')}
           </Typography>
           <Divider sx={{ mb: 2 }} />
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Add common dosage strengths (e.g., "500mg", "10mg/5ml")
+            {t('doctor.commonStrengthsDescription')}
           </Typography>
           <Grid container spacing={2}>
             {formData.commonStrengths.map((strength, index) => (
@@ -333,8 +335,8 @@ const AddMedication = () => {
                   <TextField
                     fullWidth
                     size="small"
-                    label={`Strength ${index + 1}`}
-                    placeholder="e.g., 500mg"
+                    label={t('doctor.strengthLabel', { index: index + 1 })}
+                    placeholder={t('doctor.strengthPlaceholder')}
                     value={strength}
                     onChange={(e) => handleStrengthChange(index, e.target.value)}
                   />
@@ -357,38 +359,38 @@ const AddMedication = () => {
             size="small"
             sx={{ mt: 2 }}
           >
-            Add Another Strength
+            {t('doctor.addAnotherStrength')}
           </Button>
         </Box>
 
         {/* Description Section */}
         <Box sx={{ mb: 4 }}>
           <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
-            Additional Information
+            {t('doctor.additionalInformation')}
           </Typography>
           <Divider sx={{ mb: 3 }} />
           <TextField
             fullWidth
             multiline
             rows={3}
-            label="Description"
-            placeholder="Brief description of what this medication is used for..."
+            label={t('doctor.description')}
+            placeholder={t('doctor.descriptionPlaceholder')}
             value={formData.description}
             onChange={handleInputChange('description')}
-            helperText="Optional: Provide a brief description for patients"
+            helperText={t('doctor.descriptionHelper')}
           />
         </Box>
 
         {/* Tags Section */}
         <Box sx={{ mb: 4 }}>
           <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
-            Tags
+            {t('doctor.tags')}
           </Typography>
           <Divider sx={{ mb: 3 }} />
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <TextField
-              label="Add Tag"
-              placeholder="Type and press Enter..."
+              label={t('doctor.addTag')}
+              placeholder={t('doctor.tagPlaceholder')}
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               onKeyPress={(e) => {
@@ -397,7 +399,7 @@ const AddMedication = () => {
                   handleAddTag();
                 }
               }}
-              helperText="Press Enter to add tags for better searchability"
+              helperText={t('doctor.tagHelper')}
               size="small"
               sx={{ minWidth: 250 }}
             />
@@ -407,7 +409,7 @@ const AddMedication = () => {
               size="medium"
               sx={{ mt: 0.5 }}
             >
-              Add
+              {t('common.add')}
             </Button>
           </Box>
           {formData.tags.length > 0 && (
@@ -429,13 +431,13 @@ const AddMedication = () => {
         {/* Preview Section */}
         <Box sx={{ mb: 4 }}>
           <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
-            Preview
+            {t('doctor.preview')}
           </Typography>
           <Divider sx={{ mb: 3 }} />
           <Card variant="outlined" sx={{ bgcolor: 'action.hover' }}>
             <CardContent>
               <Typography variant="h6" component="div">
-                {formData.name || 'Medication Name'}
+                {formData.name || t('doctor.medicationName')}
                 {formData.genericName && (
                   <Typography 
                     component="span" 
@@ -489,7 +491,7 @@ const AddMedication = () => {
             onClick={() => navigate('/medications')}
             disabled={loading}
           >
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             variant="contained"
@@ -497,7 +499,7 @@ const AddMedication = () => {
             onClick={handleSubmit}
             disabled={loading}
           >
-            {loading ? <ButtonLoading /> : (isEditMode ? 'Update Medication' : 'Create Medication')}
+            {loading ? <ButtonLoading /> : (isEditMode ? t('doctor.updateMedication') : t('doctor.createMedication'))}
           </Button>
         </Box>
       </Paper>
