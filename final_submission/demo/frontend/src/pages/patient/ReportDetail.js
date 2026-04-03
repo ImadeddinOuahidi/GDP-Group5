@@ -55,29 +55,21 @@ const urgencyConfig = {
     color: 'success',
     icon: <CheckIcon />,
     label: 'Routine',
-    bgColor: '#e8f5e9',
-    borderColor: '#2e7d32'
   },
   soon: {
     color: 'info',
     icon: <InfoIcon />,
     label: 'See Doctor Soon',
-    bgColor: '#e3f2fd',
-    borderColor: '#1565c0'
   },
   urgent: {
     color: 'warning',
     icon: <WarningIcon />,
     label: 'Urgent',
-    bgColor: '#fff4e5',
-    borderColor: '#ed6c02'
   },
   emergency: {
     color: 'error',
     icon: <ErrorIcon />,
     label: 'Emergency',
-    bgColor: '#ffebee',
-    borderColor: '#d32f2f'
   }
 };
 
@@ -171,6 +163,7 @@ export default function ReportDetail() {
   const patientGuidance = aiAnalysis?.patientGuidance;
   const doctorReview = report.doctorReview;
   const urgency = urgencyConfig[patientGuidance?.urgencyLevel] || urgencyConfig.routine;
+  const urgencyAccent = theme.palette[urgency.color]?.main || theme.palette.success.main;
   const statusHistory = [...(report.statusHistory || [])]
     .sort((a, b) => new Date(b.changedAt) - new Date(a.changedAt));
 
@@ -191,10 +184,10 @@ export default function ReportDetail() {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }} className="organic-fade-in">
       {/* Header */}
       <Box display="flex" alignItems="center" mb={3} flexWrap="wrap" gap={1}>
-        <Button startIcon={<BackIcon />} onClick={() => navigate(-1)} sx={{ mr: 2 }}>
+        <Button startIcon={<BackIcon />} onClick={() => navigate(-1)} sx={{ mr: 2, borderRadius: 999 }}>
           {t('common.back')}
         </Button>
         <Typography variant="h4" fontWeight="bold" sx={{ flexGrow: 1 }}>
@@ -210,7 +203,7 @@ export default function ReportDetail() {
           size="small"
           startIcon={<PrintIcon />}
           onClick={() => printReport(report)}
-          sx={{ mr: 1 }}
+          sx={{ mr: 1, borderRadius: 999 }}
         >
           {t('common.print')}
         </Button>
@@ -219,6 +212,7 @@ export default function ReportDetail() {
           size="small"
           startIcon={<DownloadIcon />}
           onClick={() => exportClientJSON([report], `report-${report._id}`)}
+          sx={{ borderRadius: 999 }}
         >
           {t('common.export')}
         </Button>
@@ -228,7 +222,7 @@ export default function ReportDetail() {
         {/* Left Column - Report Info */}
         <Grid item xs={12} md={6}>
           {/* Medication & Side Effect Info */}
-          <Card sx={{ mb: 3 }}>
+          <Card sx={{ mb: 3, borderRadius: '16px' }}>
             <CardContent>
               <Box display="flex" alignItems="center" mb={2}>
                 <Avatar sx={{ bgcolor: theme.palette.primary.main, mr: 2 }}>
@@ -305,13 +299,13 @@ export default function ReportDetail() {
             <Card 
               sx={{ 
                 mb: 3, 
-                border: `2px solid ${urgency.borderColor}`,
-                bgcolor: alpha(urgency.borderColor, 0.05)
+                border: `2px solid ${alpha(urgencyAccent, 0.56)}`,
+                bgcolor: alpha(urgencyAccent, 0.08)
               }}
             >
               <CardContent>
                 <Box display="flex" alignItems="center" mb={2}>
-                  <Avatar sx={{ bgcolor: urgency.borderColor, mr: 2 }}>
+                  <Avatar sx={{ bgcolor: urgencyAccent, mr: 2 }}>
                     <AIIcon />
                   </Avatar>
                   <Box flex={1}>
@@ -430,7 +424,7 @@ export default function ReportDetail() {
             </Card>
           )}
 
-          <Card sx={{ mb: 3 }}>
+          <Card sx={{ mb: 3, borderRadius: '16px' }}>
             <CardContent>
               <Box display="flex" alignItems="center" mb={2}>
                 <Avatar sx={{ bgcolor: theme.palette.info.main, mr: 2 }}>
@@ -478,7 +472,7 @@ export default function ReportDetail() {
           </Card>
 
           {/* Doctor Review Section */}
-          <Card sx={{ mb: 3 }}>
+          <Card sx={{ mb: 3, borderRadius: '16px' }}>
             <CardContent>
               <Box display="flex" alignItems="center" mb={2}>
                 <Avatar sx={{ bgcolor: theme.palette.secondary.main, mr: 2 }}>

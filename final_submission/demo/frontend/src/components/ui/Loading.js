@@ -7,7 +7,7 @@ import {
   Card,
   CardContent,
 } from '@mui/material';
-import { styled, keyframes } from '@mui/material/styles';
+import { alpha, styled, keyframes } from '@mui/material/styles';
 
 // Loading animation
 const pulse = keyframes`
@@ -32,16 +32,17 @@ const StyledCard = styled(Card)(({ theme }) => ({
     : 'rgba(255, 255, 255, 0.9)',
   backdropFilter: 'blur(10px)',
   border: `1px solid ${theme.palette.divider}`,
+  borderRadius: '18px 28px 16px 24px',
 }));
 
 // Full screen loading overlay
 export const LoadingOverlay = ({ message = 'Loading...', open = true }) => (
   <Backdrop
     sx={{
-      color: '#fff',
+      color: 'common.white',
       zIndex: (theme) => theme.zIndex.drawer + 1,
-      background: 'rgba(0, 0, 0, 0.7)',
-      backdropFilter: 'blur(4px)',
+      background: (theme) => alpha(theme.palette.background.default, 0.74),
+      backdropFilter: 'blur(6px)',
     }}
     open={open}
   >
@@ -76,6 +77,7 @@ export const InlineLoading = ({
     alignItems="center"
     justifyContent="center"
     p={3}
+    sx={{ borderRadius: '14px 22px 12px 20px' }}
   >
     <CircularProgress 
       size={size} 

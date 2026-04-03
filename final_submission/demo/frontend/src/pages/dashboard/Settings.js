@@ -130,7 +130,7 @@ export default function Settings() {
   const isDoctor = user?.role === 'doctor';
 
   return (
-    <Box sx={{ maxWidth: 1000, mx: 'auto', py: 4, px: 2 }}>
+    <Box sx={{ maxWidth: 1080, mx: 'auto', py: 4, px: 2 }} className="organic-fade-in">
       <Typography variant="h5" fontWeight={700} gutterBottom>
         {t('settings.title')}
       </Typography>
@@ -138,13 +138,13 @@ export default function Settings() {
         {t('settings.managePreferences')}
       </Typography>
 
-      <Card variant="outlined" sx={{ borderRadius: 2.5 }}>
+      <Card variant="outlined" sx={{ borderRadius: '16px' }}>
         <Tabs
           value={tab}
           onChange={(_, v) => setTab(v)}
           variant="scrollable"
           scrollButtons="auto"
-          sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}
+          sx={{ borderBottom: 1, borderColor: 'divider', px: 2, pt: 1 }}
         >
           {tabs.map((t, i) => (
             <Tab key={i} icon={t.icon} label={t.label} iconPosition="start" sx={{ minHeight: 56, textTransform: 'none' }} />
@@ -156,7 +156,7 @@ export default function Settings() {
           <TabPanel value={tab} index={0}>
             <Stack spacing={3}>
               {/* Avatar Section */}
-              <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, textAlign: 'center' }}>
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: '14px', textAlign: 'center' }}>
                 <Box sx={{ position: 'relative', display: 'inline-block' }}>
                   <Avatar
                     src={user?.profilePicture}
@@ -169,7 +169,7 @@ export default function Settings() {
                     onClick={() => fileInputRef.current?.click()}
                     sx={{
                       position: 'absolute', bottom: 0, right: -4,
-                      bgcolor: 'primary.main', color: '#fff',
+                      bgcolor: 'primary.main', color: 'common.white',
                       '&:hover': { bgcolor: 'primary.dark' },
                       width: 32, height: 32
                     }}
@@ -183,7 +183,7 @@ export default function Settings() {
               </Paper>
 
               {/* Personal Info */}
-              <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: '14px' }}>
                 <Typography variant="subtitle2" fontWeight={600} gutterBottom>{t('settings.personalInformation')}</Typography>
                 <Stack spacing={2} sx={{ mt: 1 }}>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
@@ -216,7 +216,7 @@ export default function Settings() {
 
               {/* Doctor Fields */}
               {isDoctor && (
-                <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
+                <Paper variant="outlined" sx={{ p: 3, borderRadius: '14px' }}>
                   <Typography variant="subtitle2" fontWeight={600} gutterBottom>{t('settings.professionalInformation')}</Typography>
                   <Stack spacing={2} sx={{ mt: 1 }}>
                     <TextField
@@ -243,7 +243,7 @@ export default function Settings() {
                 </Paper>
               )}
 
-              <Button variant="contained" startIcon={<SaveIcon />} onClick={handleProfileSave} disabled={saving} sx={{ alignSelf: 'flex-end' }}>
+              <Button variant="contained" startIcon={<SaveIcon />} onClick={handleProfileSave} disabled={saving} sx={{ alignSelf: 'flex-end', borderRadius: 999 }}>
                 {saving ? t('settings.saving') : t('settings.saveChanges')}
               </Button>
             </Stack>
@@ -252,7 +252,7 @@ export default function Settings() {
           {/* ── Security Tab ── */}
           <TabPanel value={tab} index={1}>
             <Stack spacing={3}>
-              <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: '14px' }}>
                 <Typography variant="subtitle2" fontWeight={600} gutterBottom>{t('settings.password')}</Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   {t('settings.changePasswordDescription')}
@@ -262,7 +262,7 @@ export default function Settings() {
                 </Button>
               </Paper>
 
-              <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: '14px' }}>
                 <Typography variant="subtitle2" fontWeight={600} gutterBottom>{t('settings.securityOptions')}</Typography>
                 <List disablePadding>
                   <ListItem disableGutters sx={{ py: 1 }}>
@@ -301,7 +301,7 @@ export default function Settings() {
                 </List>
               </Paper>
 
-              <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: '14px' }}>
                 <Button variant="outlined" color="error" startIcon={<LogoutIcon />} onClick={handleSignOut}>
                   {t('settings.signOutAllDevices')}
                 </Button>
@@ -312,7 +312,7 @@ export default function Settings() {
           {/* ── Notifications Tab ── */}
           <TabPanel value={tab} index={2}>
             <Stack spacing={3}>
-              <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: '14px' }}>
                 <Typography variant="subtitle2" fontWeight={600} gutterBottom>{t('settings.notificationChannels')}</Typography>
                 <List disablePadding>
                   <ListItem disableGutters sx={{ py: 1 }}>
@@ -335,7 +335,7 @@ export default function Settings() {
                 </List>
               </Paper>
 
-              <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: '14px' }}>
                 <Typography variant="subtitle2" fontWeight={600} gutterBottom>{t('settings.notificationTypes')}</Typography>
                 <List disablePadding>
                   <ListItem disableGutters sx={{ py: 1 }}>
@@ -369,7 +369,7 @@ export default function Settings() {
           {/* ── Appearance Tab ── */}
           <TabPanel value={tab} index={3}>
             <Stack spacing={3}>
-              <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: '14px' }}>
                 <Typography variant="subtitle2" fontWeight={600} gutterBottom>{t('settings.theme')}</Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   {t('settings.themeDescription')}
@@ -458,8 +458,8 @@ export default function Settings() {
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setPwdDialog(false)}>{t('common.cancel')}</Button>
-          <Button variant="contained" onClick={handlePasswordChange}>{t('settings.updatePassword')}</Button>
+          <Button onClick={() => setPwdDialog(false)} sx={{ borderRadius: 999 }}>{t('common.cancel')}</Button>
+          <Button variant="contained" onClick={handlePasswordChange} sx={{ borderRadius: 999 }}>{t('settings.updatePassword')}</Button>
         </DialogActions>
       </Dialog>
 

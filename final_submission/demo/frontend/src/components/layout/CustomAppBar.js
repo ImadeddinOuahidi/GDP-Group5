@@ -134,11 +134,17 @@ const CustomAppBar = ({ onOpenMobileNav }) => {
       elevation={0}
       color="transparent"
       sx={{
-        backdropFilter: 'blur(12px)',
-        backgroundColor: alpha(theme.palette.background.paper, 0.82),
+        mt: { xs: 1, md: 1.25 },
+        mx: { xs: 1, md: 2 },
+        width: 'auto',
+        border: 1,
+        borderColor: alpha(theme.palette.divider, 0.9),
+        borderRadius: { xs: 3, md: 4 },
+        backdropFilter: 'blur(14px) saturate(1.25)',
+        backgroundColor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.58 : 0.72),
       }}
     >
-      <Toolbar sx={{ minHeight: 72, gap: 2 }}>
+      <Toolbar sx={{ minHeight: 74, gap: 2, px: { xs: 1.25, sm: 2 } }}>
         {onOpenMobileNav && (
           <IconButton
             onClick={onOpenMobileNav}
@@ -146,6 +152,8 @@ const CustomAppBar = ({ onOpenMobileNav }) => {
               display: { xs: 'inline-flex', md: 'none' },
               border: 1,
               borderColor: 'divider',
+              borderRadius: 999,
+              bgcolor: alpha(theme.palette.background.paper, 0.65),
             }}
           >
             <MenuIcon />
@@ -154,13 +162,13 @@ const CustomAppBar = ({ onOpenMobileNav }) => {
 
         <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0, flexGrow: 1 }}>
           <Avatar
-            variant="rounded"
             sx={{
-              width: 34,
-              height: 34,
+              width: 38,
+              height: 38,
               mr: 1.5,
               bgcolor: 'primary.main',
               color: 'primary.contrastText',
+              borderRadius: '41% 59% 63% 37% / 43% 41% 59% 57%',
             }}
           >
             <MedicationIcon fontSize="small" />
@@ -181,7 +189,12 @@ const CustomAppBar = ({ onOpenMobileNav }) => {
               label={roleLabel}
               size="small"
               variant="outlined"
-              sx={{ display: { xs: 'none', md: 'inline-flex' } }}
+              sx={{
+                display: { xs: 'none', md: 'inline-flex' },
+                borderRadius: 999,
+                bgcolor: alpha(theme.palette.secondary.main, theme.palette.mode === 'dark' ? 0.18 : 0.1),
+                borderColor: alpha(theme.palette.secondary.main, 0.58),
+              }}
             />
             
             <Typography variant="body2" sx={{ display: { xs: 'none', lg: 'block' }, color: 'text.secondary' }}>
@@ -194,6 +207,8 @@ const CustomAppBar = ({ onOpenMobileNav }) => {
                 sx={{
                   border: 1,
                   borderColor: 'divider',
+                  borderRadius: 999,
+                  bgcolor: alpha(theme.palette.background.paper, 0.65),
                 }}
               >
                 {isDarkMode ? <LightMode /> : <DarkMode />}
@@ -204,7 +219,12 @@ const CustomAppBar = ({ onOpenMobileNav }) => {
             <Tooltip title={t('settings.selectLanguage')}>
               <IconButton
                 onClick={(e) => setLangAnchor(e.currentTarget)}
-                sx={{ border: 1, borderColor: 'divider' }}
+                sx={{
+                  border: 1,
+                  borderColor: 'divider',
+                  borderRadius: 999,
+                  bgcolor: alpha(theme.palette.background.paper, 0.65),
+                }}
               >
                 <LanguageIcon />
               </IconButton>
@@ -231,7 +251,12 @@ const CustomAppBar = ({ onOpenMobileNav }) => {
             <Tooltip title={t('notifications.title')}>
               <IconButton
                 onClick={(e) => setNotifAnchor(e.currentTarget)}
-                sx={{ border: 1, borderColor: 'divider' }}
+                sx={{
+                  border: 1,
+                  borderColor: 'divider',
+                  borderRadius: 999,
+                  bgcolor: alpha(theme.palette.background.paper, 0.65),
+                }}
               >
                 <Badge badgeContent={unreadCount} color="error" max={99}>
                   <NotificationsIcon />
@@ -244,7 +269,16 @@ const CustomAppBar = ({ onOpenMobileNav }) => {
               onClose={() => setNotifAnchor(null)}
               anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
               transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-              PaperProps={{ sx: { width: 360, maxHeight: 420 } }}
+              PaperProps={{
+                sx: {
+                  width: 360,
+                  maxHeight: 420,
+                  borderRadius: 3,
+                  border: 1,
+                  borderColor: 'divider',
+                  bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.95 : 0.96),
+                },
+              }}
             >
               <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: 1, borderColor: 'divider' }}>
                 <Typography variant="subtitle1" fontWeight="bold">{t('notifications.title')}</Typography>
@@ -298,7 +332,15 @@ const CustomAppBar = ({ onOpenMobileNav }) => {
                 size="large"
                 onClick={handleMenu}
               >
-                <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+                <Avatar
+                  sx={{
+                    width: 34,
+                    height: 34,
+                    bgcolor: 'primary.main',
+                    color: 'primary.contrastText',
+                    borderRadius: '40% 60% 58% 42% / 47% 40% 60% 53%',
+                  }}
+                >
                   {getUserInitials()}
                 </Avatar>
               </IconButton>

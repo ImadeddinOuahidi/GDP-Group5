@@ -94,7 +94,7 @@ export default function Home() {
 
   if (isLoading || pageLoading) {
     return (
-      <Container maxWidth="lg">
+      <Container maxWidth="xl" className="organic-fade-in">
         <Box sx={{ py: 4 }}>
           <Skeleton variant="rectangular" height={200} sx={{ mb: 4, borderRadius: 3 }} />
           <Grid container spacing={3}>
@@ -161,7 +161,7 @@ export default function Home() {
   ];
 
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth="xl" className="organic-fade-in">
       <Box sx={{ py: 4 }}>
         {/* Error Alert */}
         {error && (
@@ -183,10 +183,11 @@ export default function Home() {
           sx={{
             p: 4,
             mb: 4,
-            backgroundColor: 'background.paper',
-            borderRadius: 3,
+            backgroundColor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.5 : 0.74),
+            borderRadius: '18px',
             border: 1,
             borderColor: 'divider',
+            backdropFilter: 'blur(8px)',
           }}
         >
           <Grid container spacing={3} alignItems="center">
@@ -240,7 +241,7 @@ export default function Home() {
                     sx={{
                       height: 8,
                       borderRadius: 4,
-                      backgroundColor: 'grey.200',
+                      backgroundColor: alpha(theme.palette.primary.main, 0.2),
                       '& .MuiLinearProgress-bar': {
                         borderRadius: 4,
                       },
@@ -267,6 +268,7 @@ export default function Home() {
                   height: '100%',
                   display: 'flex',
                   flexDirection: 'column',
+                    borderRadius: '16px',
                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   cursor: 'pointer',
                   position: 'relative',
@@ -347,6 +349,7 @@ export default function Home() {
                     sx={{
                       fontWeight: 600,
                       py: 1.5,
+                      borderRadius: 999,
                     }}
                   >
                     {action.title}
@@ -410,6 +413,7 @@ export default function Home() {
                     variant="outlined"
                     onClick={() => navigate("/reports")}
                     startIcon={<HistoryIcon />}
+                    sx={{ borderRadius: 999 }}
                   >
                     {t('home.viewAllReports')}
                   </Button>
@@ -430,6 +434,7 @@ export default function Home() {
                 sx={{ 
                   height: '100%', 
                   textAlign: 'center',
+                  borderRadius: '16px',
                   transition: 'all 0.3s ease-in-out',
                   '&:hover': {
                     transform: 'translateY(-4px)',

@@ -135,11 +135,20 @@ export default function DoctorHome() {
   return (
     <Box sx={{ 
       minHeight: '100vh',
-      background: `linear-gradient(145deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, ${alpha(theme.palette.secondary.main, 0.06)} 100%)`,
-      p: 3 
-    }}>
+      p: { xs: 2, md: 3 },
+    }} className="organic-fade-in">
       {/* Header Section */}
-      <Box sx={{ mb: 4 }}>
+      <Box
+        sx={{
+          mb: 4,
+          p: { xs: 2.2, md: 2.8 },
+          borderRadius: '16px',
+          border: 1,
+          borderColor: 'divider',
+          bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.5 : 0.74),
+          backdropFilter: 'blur(8px)',
+        }}
+      >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
           <Box>
             <Typography 
@@ -199,7 +208,7 @@ export default function DoctorHome() {
         <Alert 
           severity="warning" 
           icon={<NotificationIcon />}
-          sx={{ mb: 3, cursor: 'pointer' }}
+          sx={{ mb: 3, cursor: 'pointer', borderRadius: 3 }}
           onClick={() => navigate('/review-requests')}
           action={
             <Button 
@@ -230,6 +239,7 @@ export default function DoctorHome() {
               border: 1,
               borderColor: alpha(theme.palette.primary.main, 0.35),
               backgroundColor: alpha(theme.palette.primary.main, 0.08),
+              borderRadius: '16px',
             }}
           >
             <CardContent>
@@ -254,6 +264,7 @@ export default function DoctorHome() {
               border: 1,
               borderColor: alpha(theme.palette.warning.main, 0.4),
               backgroundColor: alpha(theme.palette.warning.main, 0.1),
+              borderRadius: '16px',
             }}
           >
             <CardContent>
@@ -284,6 +295,7 @@ export default function DoctorHome() {
               border: 1,
               borderColor: alpha(theme.palette.success.main, 0.45),
               backgroundColor: alpha(theme.palette.success.main, 0.1),
+              borderRadius: '16px',
             }}
           >
             <CardContent>
@@ -308,6 +320,7 @@ export default function DoctorHome() {
               border: 1,
               borderColor: alpha(theme.palette.error.main, 0.45),
               backgroundColor: alpha(theme.palette.error.main, 0.1),
+              borderRadius: '16px',
             }}
           >
             <CardContent>
@@ -330,6 +343,7 @@ export default function DoctorHome() {
               border: 1,
               borderColor: alpha(theme.palette.secondary.main, 0.45),
               backgroundColor: alpha(theme.palette.secondary.main, 0.1),
+              borderRadius: '16px',
             }}
           >
             <CardContent>
@@ -352,6 +366,7 @@ export default function DoctorHome() {
               border: 1,
               borderColor: alpha(theme.palette.info.main, 0.45),
               backgroundColor: alpha(theme.palette.info.main, 0.1),
+              borderRadius: '16px',
             }}
           >
             <CardContent>
@@ -374,7 +389,7 @@ export default function DoctorHome() {
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {/* Severity Distribution - Pie Chart */}
         <Grid item xs={12} md={6}>
-          <Card>
+          <Card sx={{ borderRadius: '16px' }}>
             <CardContent>
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
                 {t('doctor.aiSeverityAssessment')}
@@ -424,7 +439,7 @@ export default function DoctorHome() {
 
         {/* Top Medications - Bar Chart */}
         <Grid item xs={12} md={6}>
-          <Card>
+          <Card sx={{ borderRadius: '16px' }}>
             <CardContent>
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
                 {t('doctor.mostReportedMedications')}
@@ -480,6 +495,7 @@ export default function DoctorHome() {
             sx={{ 
               height: '100%',
               cursor: 'pointer',
+              borderRadius: '16px',
               transition: 'all 0.3s ease',
               '&:hover': { transform: 'translateY(-4px)', boxShadow: theme.shadows[8] },
               border: pendingReviewCount > 0 ? `2px solid ${theme.palette.warning.main}` : undefined,
@@ -509,6 +525,7 @@ export default function DoctorHome() {
             sx={{ 
               height: '100%',
               cursor: 'pointer',
+              borderRadius: '16px',
               transition: 'all 0.3s ease',
               '&:hover': { transform: 'translateY(-4px)', boxShadow: theme.shadows[8] }
             }}
@@ -535,6 +552,7 @@ export default function DoctorHome() {
             sx={{ 
               height: '100%',
               cursor: 'pointer',
+              borderRadius: '16px',
               transition: 'all 0.3s ease',
               '&:hover': { transform: 'translateY(-4px)', boxShadow: theme.shadows[8] }
             }}
@@ -583,6 +601,7 @@ export default function DoctorHome() {
                   <Card 
                     sx={{ 
                       cursor: 'pointer',
+                      borderRadius: '14px',
                       '&:hover': { boxShadow: theme.shadows[4] },
                       borderLeft: 4,
                       borderColor

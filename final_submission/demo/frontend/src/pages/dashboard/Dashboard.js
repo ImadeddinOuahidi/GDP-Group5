@@ -298,9 +298,19 @@ export default function Dashboard() {
   const handleSnackbarClose = () => { setSnackbar({ ...snackbar, open: false }); };
 
   return (
-    <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 } }}>
+    <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 } }} className="organic-fade-in">
       {/* Header Section */}
-      <Box sx={{ mb: 4 }}>
+      <Box
+        sx={{
+          mb: 4,
+          p: { xs: 2.2, md: 2.8 },
+          borderRadius: '16px',
+          border: 1,
+          borderColor: 'divider',
+          bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.52 : 0.74),
+          backdropFilter: 'blur(8px)',
+        }}
+      >
         <Stack 
           direction={{ xs: 'column', md: 'row' }} 
           justifyContent="space-between" 
@@ -326,7 +336,7 @@ export default function Dashboard() {
               variant="outlined"
               startIcon={<FileDownload />}
               onClick={handleExportClick}
-              sx={{ display: { xs: 'none', sm: 'flex' } }}
+              sx={{ display: { xs: 'none', sm: 'flex' }, borderRadius: 999 }}
             >
               {t('dashboard.exportData')}
             </Button>
@@ -335,6 +345,7 @@ export default function Dashboard() {
               startIcon={isLoading ? <AutorenewRounded sx={{ animation: 'spin 1s linear infinite', '@keyframes spin': { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } } }} /> : <Refresh />}
               onClick={handleRefresh}
               disabled={isLoading}
+              sx={{ borderRadius: 999 }}
             >
               {isLoading ? t('dashboard.refreshing') : t('dashboard.refresh')}
             </Button>
@@ -352,6 +363,7 @@ export default function Dashboard() {
                 height: '100%',
                 position: 'relative',
                 overflow: 'visible',
+                borderRadius: '16px',
                 '&:hover': {
                   transform: 'translateY(-2px)',
                   transition: 'transform 0.3s ease-in-out',
@@ -401,7 +413,7 @@ export default function Dashboard() {
       </Grid>
 
       {/* Reports Table */}
-      <Paper elevation={2} sx={{ borderRadius: 2, overflow: 'hidden' }}>
+      <Paper elevation={2} sx={{ borderRadius: '18px', overflow: 'hidden' }}>
         <Box sx={{ p: 3, pb: 0 }}>
           <Stack 
             direction={{ xs: 'column', md: 'row' }} 
@@ -475,7 +487,7 @@ export default function Dashboard() {
                   sx={{ minWidth: 150 }}
                 />
                 {(searchTerm || severityFilter || dateFrom || dateTo) && (
-                  <Button size="small" variant="outlined" color="inherit" onClick={handleClearFilters}>
+                  <Button size="small" variant="outlined" color="inherit" onClick={handleClearFilters} sx={{ borderRadius: 999 }}>
                     {t('doctor.clearFilters')}
                   </Button>
                 )}
@@ -614,7 +626,7 @@ export default function Dashboard() {
       <Grid container spacing={3} sx={{ mt: 4 }}>
         {/* Trend Chart: Reports Over Time */}
         <Grid item xs={12} md={8}>
-          <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+          <Paper elevation={2} sx={{ p: 3, borderRadius: '16px' }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               {t('dashboard.reportsOverTime')}
             </Typography>
@@ -665,7 +677,7 @@ export default function Dashboard() {
 
         {/* Severity Distribution Pie Chart */}
         <Grid item xs={12} md={4}>
-          <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+          <Paper elevation={2} sx={{ p: 3, borderRadius: '16px' }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               {t('dashboard.severityDistribution')}
             </Typography>
@@ -675,7 +687,12 @@ export default function Dashboard() {
                 : t('dashboard.patientReportedSeverity')}
             </Typography>
             {(() => {
-              const PIE_COLORS = { 'Life-threatening': '#d32f2f', Severe: '#f57c00', Moderate: '#1976d2', Mild: '#388e3c' };
+              const PIE_COLORS = {
+                'Life-threatening': theme.palette.error.main,
+                Severe: theme.palette.warning.main,
+                Moderate: theme.palette.info.main,
+                Mild: theme.palette.success.main,
+              };
               const aiDist = dashboardStats?.aiSeverityDistribution || [];
               const pieData = ['Life-threatening', 'Severe', 'Moderate', 'Mild'].map(sev => {
                 const item = aiDist.find(d => d._id === sev);
@@ -698,7 +715,7 @@ export default function Dashboard() {
                       dataKey="value"
                     >
                       {pieData.map((entry) => (
-                        <Cell key={entry.name} fill={PIE_COLORS[entry.name] || '#9e9e9e'} />
+                        <Cell key={entry.name} fill={PIE_COLORS[entry.name] || theme.palette.grey[500]} />
                       ))}
                     </Pie>
                     <RechartsTooltip formatter={(val, name) => [t('dashboard.reportCountLabel', { count: val }), name]} />
@@ -712,7 +729,7 @@ export default function Dashboard() {
 
         {/* Recent Activity */}
         <Grid item xs={12} md={6}>
-          <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+          <Paper elevation={2} sx={{ p: 3, borderRadius: '16px' }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               {t('dashboard.recentActivity')}
             </Typography>
@@ -755,7 +772,7 @@ export default function Dashboard() {
 
         {/* Top Reported Medications Bar Chart */}
         <Grid item xs={12} md={6}>
-          <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+          <Paper elevation={2} sx={{ p: 3, borderRadius: '16px' }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               {t('doctor.topMedicationsByReportCount')}
             </Typography>
@@ -786,7 +803,12 @@ export default function Dashboard() {
 
       {/* Loading Backdrop */}
       <Backdrop
-        sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
+        sx={{
+          color: 'common.white',
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+          backgroundColor: alpha(theme.palette.background.default, 0.74),
+          backdropFilter: 'blur(4px)',
+        }}
         open={isLoading}
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>

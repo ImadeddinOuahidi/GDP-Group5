@@ -22,6 +22,7 @@ import {
   useTheme,
   Fade,
   Pagination,
+  alpha,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -233,10 +234,10 @@ export default function Reports() {
   }
 
   return (
-    <Container maxWidth="xl">
+    <Container maxWidth="xl" className="organic-fade-in">
       <Box sx={{ py: 4 }}>
         {/* Header */}
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 4 }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }} spacing={2} sx={{ mb: 4 }}>
           <Box>
             <Typography variant="h4" component="h1" gutterBottom fontWeight="700">
               {t('reports.viewMyReports')}
@@ -249,7 +250,7 @@ export default function Reports() {
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => navigate('/report')}
-            sx={{ fontWeight: 600 }}
+            sx={{ fontWeight: 600, borderRadius: 999 }}
           >
             {t('home.newReport')}
           </Button>
@@ -258,9 +259,17 @@ export default function Reports() {
         {/* Stats Cards */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} sm={6} md={3}>
-            <Card elevation={0} sx={{ border: 1, borderColor: 'divider' }}>
+            <Card
+              elevation={0}
+              sx={{
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: '16px',
+                '&:hover': { transform: 'translateY(-2px)' },
+              }}
+            >
               <CardContent sx={{ textAlign: 'center' }}>
-                <Avatar sx={{ bgcolor: 'primary.main', mx: 'auto', mb: 1 }}>
+                <Avatar sx={{ bgcolor: 'primary.main', mx: 'auto', mb: 1.2, width: 46, height: 46 }}>
                   <ReportIcon />
                 </Avatar>
                 <Typography variant="h4" fontWeight="bold" color="primary.main">
@@ -273,9 +282,9 @@ export default function Reports() {
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card elevation={0} sx={{ border: 1, borderColor: 'divider' }}>
+            <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: '16px' }}>
               <CardContent sx={{ textAlign: 'center' }}>
-                <Avatar sx={{ bgcolor: 'warning.main', mx: 'auto', mb: 1 }}>
+                <Avatar sx={{ bgcolor: 'warning.main', mx: 'auto', mb: 1.2, width: 46, height: 46 }}>
                   <PendingIcon />
                 </Avatar>
                 <Typography variant="h4" fontWeight="bold" color="warning.main">
@@ -288,9 +297,9 @@ export default function Reports() {
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card elevation={0} sx={{ border: 1, borderColor: 'divider' }}>
+            <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: '16px' }}>
               <CardContent sx={{ textAlign: 'center' }}>
-                <Avatar sx={{ bgcolor: 'success.main', mx: 'auto', mb: 1 }}>
+                <Avatar sx={{ bgcolor: 'success.main', mx: 'auto', mb: 1.2, width: 46, height: 46 }}>
                   <CheckCircleIcon />
                 </Avatar>
                 <Typography variant="h4" fontWeight="bold" color="success.main">
@@ -303,9 +312,9 @@ export default function Reports() {
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card elevation={0} sx={{ border: 1, borderColor: 'divider' }}>
+            <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: '16px' }}>
               <CardContent sx={{ textAlign: 'center' }}>
-                <Avatar sx={{ bgcolor: 'info.main', mx: 'auto', mb: 1 }}>
+                <Avatar sx={{ bgcolor: 'info.main', mx: 'auto', mb: 1.2, width: 46, height: 46 }}>
                   <WarningIcon />
                 </Avatar>
                 <Typography variant="h4" fontWeight="bold" color="info.main">
@@ -320,7 +329,18 @@ export default function Reports() {
         </Grid>
 
         {/* Filters and Search */}
-        <Paper elevation={0} sx={{ p: 3, mb: 3, border: 1, borderColor: 'divider' }}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: 3,
+            mb: 3,
+            border: 1,
+            borderColor: 'divider',
+            borderRadius: { xs: 3, md: 4 },
+            backdropFilter: 'blur(6px)',
+            backgroundColor: (theme) => alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.55 : 0.72),
+          }}
+        >
           <Grid container spacing={3} alignItems="center">
             <Grid item xs={12} md={4}>
               <TextField
@@ -396,7 +416,7 @@ export default function Reports() {
 
         {/* Reports List */}
         {sortedReports.length === 0 ? (
-          <Paper elevation={0} sx={{ p: 6, textAlign: 'center', border: 1, borderColor: 'divider' }}>
+          <Paper elevation={0} sx={{ p: 6, textAlign: 'center', border: 1, borderColor: 'divider', borderRadius: 4 }}>
             <HistoryIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
             <Typography variant="h6" gutterBottom>
               {t('reports.noReportsFound')}
@@ -424,6 +444,7 @@ export default function Reports() {
                   sx={{
                     cursor: 'pointer',
                     transition: 'all 0.2s ease-in-out',
+                    borderRadius: '16px',
                     '&:hover': {
                       transform: 'translateY(-4px)',
                       boxShadow: theme.shadows[8],
@@ -524,6 +545,7 @@ export default function Reports() {
                                   borderColor: report.aiUrgency === 'emergency' ? 'error.main' :
                                               report.aiUrgency === 'urgent' ? 'warning.main' :
                                               report.aiUrgency === 'soon' ? 'info.main' : 'success.main',
+                                  borderRadius: 2,
                                 }}
                               >
                                 <Stack direction="row" spacing={1} alignItems="center">
@@ -538,7 +560,7 @@ export default function Reports() {
                                 </Stack>
                               </Paper>
                             ) : (
-                              <Paper sx={{ p: 1.5, mb: 1, bgcolor: 'grey.100' }}>
+                              <Paper sx={{ p: 1.5, mb: 1, bgcolor: 'grey.100', borderRadius: 2 }}>
                                 <Stack direction="row" spacing={1} alignItems="center">
                                   <PendingIcon fontSize="small" color="action" />
                                   <Typography variant="body2" color="text.secondary">
@@ -550,7 +572,7 @@ export default function Reports() {
 
                             {/* Doctor Review Status */}
                             {report.doctorReviewStatus === 'completed' ? (
-                              <Paper sx={{ p: 1.5, bgcolor: 'success.50', border: '1px solid', borderColor: 'success.main' }}>
+                              <Paper sx={{ p: 1.5, bgcolor: 'success.50', border: '1px solid', borderColor: 'success.main', borderRadius: 2 }}>
                                 <Stack direction="row" spacing={1} alignItems="center">
                                   <DoctorIcon fontSize="small" color="success" />
                                   <Typography variant="body2" fontWeight="500" color="success.dark">
@@ -559,7 +581,7 @@ export default function Reports() {
                                 </Stack>
                               </Paper>
                             ) : report.doctorReviewRequested ? (
-                              <Paper sx={{ p: 1.5, bgcolor: 'info.50', border: '1px solid', borderColor: 'info.main' }}>
+                              <Paper sx={{ p: 1.5, bgcolor: 'info.50', border: '1px solid', borderColor: 'info.main', borderRadius: 2 }}>
                                 <Stack direction="row" spacing={1} alignItems="center">
                                   <DoctorIcon fontSize="small" color="info" />
                                   <Typography variant="body2" color="info.dark">

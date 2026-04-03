@@ -46,6 +46,8 @@ import {
   Tabs,
   Tab,
   Badge,
+  useTheme,
+  alpha,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -83,6 +85,7 @@ function TabPanel({ children, value, index, ...props }) {
 const MedicationManagement = () => {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const theme = useTheme();
   
   // State
   const [medications, setMedications] = useState([]);
@@ -380,9 +383,24 @@ const MedicationManagement = () => {
   );
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }} className="organic-fade-in">
       {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: { xs: 'flex-start', md: 'center' },
+          justifyContent: 'space-between',
+          flexDirection: { xs: 'column', md: 'row' },
+          gap: 2,
+          mb: 4,
+          p: { xs: 2.2, md: 2.8 },
+          borderRadius: '16px',
+          border: 1,
+          borderColor: 'divider',
+          bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.46 : 0.72),
+          backdropFilter: 'blur(8px)',
+        }}
+      >
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <MedicationIcon sx={{ mr: 2, color: 'primary.main', fontSize: 40 }} />
           <Box>
@@ -399,6 +417,7 @@ const MedicationManagement = () => {
             variant="outlined"
             startIcon={<RefreshIcon />}
             onClick={() => { loadMedications(); loadStats(); }}
+            sx={{ borderRadius: 999 }}
           >
             {t('common.refresh')}
           </Button>
@@ -406,6 +425,7 @@ const MedicationManagement = () => {
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => navigate('/add-medication')}
+            sx={{ borderRadius: 999 }}
           >
             {t('medications.addMedication')}
           </Button>
@@ -432,6 +452,7 @@ const MedicationManagement = () => {
             sx={{ 
               border: 1,
               borderColor: 'divider',
+              borderRadius: '16px',
             }}
           >
             <CardContent>
@@ -450,7 +471,7 @@ const MedicationManagement = () => {
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card elevation={2}>
+          <Card elevation={2} sx={{ borderRadius: '16px' }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
@@ -470,7 +491,7 @@ const MedicationManagement = () => {
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card elevation={2}>
+          <Card elevation={2} sx={{ borderRadius: '16px' }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
@@ -490,7 +511,7 @@ const MedicationManagement = () => {
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card elevation={2}>
+          <Card elevation={2} sx={{ borderRadius: '16px' }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
@@ -512,7 +533,7 @@ const MedicationManagement = () => {
       </Grid>
 
       {/* Tabs */}
-      <Paper sx={{ mb: 3 }}>
+      <Paper sx={{ mb: 3, borderRadius: { xs: 3, md: 4 } }}>
         <Tabs
           value={tabValue}
           onChange={handleTabChange}
@@ -533,7 +554,14 @@ const MedicationManagement = () => {
       {/* All Medications Tab */}
       <TabPanel value={tabValue} index={0}>
         {/* Filters */}
-        <Paper sx={{ p: 3, mb: 3 }}>
+        <Paper
+          sx={{
+            p: 3,
+            mb: 3,
+            borderRadius: { xs: 3, md: 4 },
+            bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.42 : 0.74),
+          }}
+        >
           <Grid container spacing={3} alignItems="center">
             <Grid item xs={12} md={4}>
               <TextField
@@ -595,6 +623,7 @@ const MedicationManagement = () => {
                 fullWidth
                 variant="outlined"
                 onClick={handleClearFilters}
+                sx={{ borderRadius: 999 }}
               >
                 {t('doctor.clearFilters')}
               </Button>

@@ -27,6 +27,8 @@ import {
   Card,
   CardContent,
   CircularProgress,
+  useTheme,
+  alpha,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -45,6 +47,7 @@ import { useI18n } from '../../i18n';
 const AddMedication = () => {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const theme = useTheme();
   const { id } = useParams(); // Get medication ID from URL if editing
   const isEditMode = Boolean(id);
   
@@ -220,10 +223,22 @@ const AddMedication = () => {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }} className="organic-fade-in">
       {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-        <IconButton onClick={() => navigate('/medications')} sx={{ mr: 2 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          mb: 4,
+          p: { xs: 2.2, md: 2.8 },
+          borderRadius: '16px',
+          border: 1,
+          borderColor: 'divider',
+          bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.46 : 0.72),
+          backdropFilter: 'blur(8px)',
+        }}
+      >
+        <IconButton onClick={() => navigate('/medications')} sx={{ mr: 2, borderRadius: 999 }}>
           <ArrowBackIcon />
         </IconButton>
         {isEditMode ? (
@@ -257,7 +272,17 @@ const AddMedication = () => {
       )}
 
       {/* Form */}
-      <Paper elevation={0} sx={{ p: { xs: 2, sm: 4 }, border: 1, borderColor: 'divider', borderRadius: 3 }}>
+      <Paper
+        elevation={0}
+        sx={{
+          p: { xs: 2, sm: 4 },
+          border: 1,
+          borderColor: 'divider',
+          borderRadius: { xs: 4, md: 5 },
+          bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.42 : 0.72),
+          backdropFilter: 'blur(8px)',
+        }}
+      >
         {/* Basic Information Section */}
         <Box sx={{ mb: 4 }}>
           <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
@@ -357,7 +382,7 @@ const AddMedication = () => {
             startIcon={<AddIcon />}
             onClick={addStrength}
             size="small"
-            sx={{ mt: 2 }}
+            sx={{ mt: 2, borderRadius: 999 }}
           >
             {t('doctor.addAnotherStrength')}
           </Button>
@@ -434,7 +459,7 @@ const AddMedication = () => {
             {t('doctor.preview')}
           </Typography>
           <Divider sx={{ mb: 3 }} />
-          <Card variant="outlined" sx={{ bgcolor: 'action.hover' }}>
+          <Card variant="outlined" sx={{ bgcolor: alpha(theme.palette.primary.main, 0.06), borderRadius: '14px' }}>
             <CardContent>
               <Typography variant="h6" component="div">
                 {formData.name || t('doctor.medicationName')}
@@ -490,6 +515,7 @@ const AddMedication = () => {
             variant="outlined"
             onClick={() => navigate('/medications')}
             disabled={loading}
+            sx={{ borderRadius: 999 }}
           >
             {t('common.cancel')}
           </Button>
@@ -498,6 +524,7 @@ const AddMedication = () => {
             startIcon={loading ? null : <SaveIcon />}
             onClick={handleSubmit}
             disabled={loading}
+            sx={{ borderRadius: 999 }}
           >
             {loading ? <ButtonLoading /> : (isEditMode ? t('doctor.updateMedication') : t('doctor.createMedication'))}
           </Button>

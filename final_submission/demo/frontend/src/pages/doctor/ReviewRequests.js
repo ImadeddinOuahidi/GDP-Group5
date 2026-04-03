@@ -153,9 +153,25 @@ export default function ReviewRequests() {
   }
 
   return (
-    <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
+    <Box
+      sx={{
+        p: { xs: 2, md: 3 },
+        maxWidth: 1280,
+        mx: 'auto',
+      }}
+      className="organic-fade-in"
+    >
       {/* Header */}
-      <Box sx={{ mb: 4 }}>
+      <Box
+        sx={{
+          mb: 4,
+          p: { xs: 2, md: 2.6 },
+          borderRadius: '16px',
+          border: 1,
+          borderColor: 'divider',
+          bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.44 : 0.74),
+        }}
+      >
         <Typography variant="h4" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
           <ReviewIcon color="primary" />
           {t('navigation.reviewRequests')}
@@ -195,6 +211,7 @@ export default function ReviewRequests() {
                     borderColor: patientGuidance?.urgencyLevel === 'urgent' ? 'error.main' 
                       : patientGuidance?.urgencyLevel === 'soon' ? 'warning.main' 
                       : 'success.main',
+                    borderRadius: '16px',
                     '&:hover': { boxShadow: 3 },
                     transition: 'box-shadow 0.2s'
                   }}
@@ -276,7 +293,7 @@ export default function ReviewRequests() {
 
                     {/* AI Analysis Accordion */}
                     {aiAnalysis && (
-                      <Accordion sx={{ mb: 2 }}>
+                      <Accordion sx={{ mb: 2, borderRadius: '14px !important' }}>
                         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <AIIcon color="primary" />
@@ -418,10 +435,11 @@ export default function ReviewRequests() {
                     )}
 
                     {/* Action Buttons */}
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5, mt: 2, flexWrap: 'wrap' }}>
                       <Button 
                         variant="outlined" 
                         onClick={() => navigate(`/reports/${report._id}`)}
+                        sx={{ borderRadius: 999 }}
                       >
                         {t('doctor.viewFullReport')}
                       </Button>
@@ -429,6 +447,7 @@ export default function ReviewRequests() {
                         variant="contained" 
                         startIcon={<ReviewIcon />}
                         onClick={() => handleOpenReviewDialog(report)}
+                        sx={{ borderRadius: 999 }}
                       >
                         {t('doctor.submitReview')}
                       </Button>
@@ -509,7 +528,7 @@ export default function ReviewRequests() {
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2, gap: 1 }}>
-          <Button onClick={() => setReviewDialogOpen(false)} disabled={submittingReview}>
+          <Button onClick={() => setReviewDialogOpen(false)} disabled={submittingReview} sx={{ borderRadius: 999 }}>
             {t('common.cancel')}
           </Button>
           <Button 
@@ -517,6 +536,7 @@ export default function ReviewRequests() {
             onClick={handleSubmitReview}
             disabled={submittingReview || !reviewRemarks.trim()}
             startIcon={submittingReview ? <CircularProgress size={20} /> : <CheckIcon />}
+            sx={{ borderRadius: 999 }}
           >
             {submittingReview ? t('doctor.submitting') : t('doctor.submitReview')}
           </Button>

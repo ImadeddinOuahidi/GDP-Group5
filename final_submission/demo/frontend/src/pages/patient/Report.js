@@ -25,6 +25,7 @@ import {
   DialogActions,
   Chip,
   Tooltip,
+  alpha,
 } from "@mui/material";
 import {
   CloudUpload as UploadIcon,
@@ -35,6 +36,7 @@ import {
   Add as AddIcon,
   Stop as StopIcon,
   FiberManualRecord as RecordIcon,
+  WarningAmber as WarningAmberIcon,
 } from "@mui/icons-material";
 import { ButtonLoading } from "../../components/ui/Loading";
 import { reportService, medicationService } from "../../services";
@@ -888,9 +890,19 @@ export default function Report() {
 
   if (submitted) {
     return (
-      <Container maxWidth="lg">
+      <Container maxWidth="md" className="organic-fade-in">
         <Box sx={{ py: 4, textAlign: 'center' }}>
-          <Alert severity="success" sx={{ mb: 3, p: 3, borderRadius: 2, border: 1, borderColor: 'divider' }}>
+          <Alert
+            severity="success"
+            sx={{
+              mb: 3,
+              p: 3,
+              borderRadius: 3,
+              border: 1,
+              borderColor: 'divider',
+              bgcolor: (theme) => alpha(theme.palette.success.main, 0.1),
+            }}
+          >
             <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold' }}>
               {t('report.reportSubmittedSuccessfully')}
             </Typography>
@@ -906,7 +918,7 @@ export default function Report() {
             <Button
               variant="contained"
               onClick={() => window.location.href = '/reports'}
-              sx={{ minWidth: 150 }}
+              sx={{ minWidth: 170 }}
             >
               {t('reports.viewMyReports')}
             </Button>
@@ -942,9 +954,21 @@ export default function Report() {
   }
 
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth="lg" className="organic-fade-in">
       <Box sx={{ py: 4 }}>
-        <Paper elevation={0} sx={{ p: { xs: 2.5, md: 4 }, border: 1, borderColor: 'divider', borderRadius: 3 }}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 2.5, md: 4 },
+            border: 1,
+            borderColor: 'divider',
+            borderRadius: { xs: 4, md: 6 },
+            background: (theme) => theme.palette.mode === 'dark'
+              ? 'linear-gradient(155deg, rgba(14,36,41,0.86) 0%, rgba(18,43,49,0.86) 100%)'
+              : 'linear-gradient(155deg, rgba(247,255,253,0.86) 0%, rgba(236,254,255,0.86) 100%)',
+            backdropFilter: 'blur(10px)',
+          }}
+        >
           <Typography variant="h4" gutterBottom align="center" sx={{ fontWeight: 700 }}>
             {t('reports.submitReport')}
           </Typography>
@@ -984,6 +1008,9 @@ export default function Report() {
               '& .MuiStepLabel-label': {
                 fontWeight: 600,
               },
+              '& .MuiStepLabel-label.Mui-active': {
+                color: 'primary.main',
+              },
             }}
           >
             {steps.map((label, index) => (
@@ -1007,6 +1034,7 @@ export default function Report() {
               <Button
                 disabled={activeStep === 0}
                 onClick={handleBack}
+                sx={{ borderRadius: 999 }}
               >
                 {t('common.back')}
               </Button>
@@ -1017,6 +1045,7 @@ export default function Report() {
                   variant="contained"
                   disabled={!isStepComplete(activeStep) || loading || !isAuthenticated}
                   startIcon={<SendIcon />}
+                  sx={{ borderRadius: 999 }}
                 >
                   <ButtonLoading loading={loading} loadingText={t('report.submitting')}>
                     {t('report.submitReport')}
@@ -1027,6 +1056,7 @@ export default function Report() {
                   variant="contained"
                   onClick={handleNext}
                   disabled={!isStepComplete(activeStep)}
+                  sx={{ borderRadius: 999 }}
                 >
                   {t('common.next')}
                 </Button>
@@ -1124,7 +1154,9 @@ export default function Report() {
         fullWidth
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'warning.main' }}>
-          <Tooltip title={t('report.possibleDuplicate')}><span>⚠️</span></Tooltip>
+          <Tooltip title={t('report.possibleDuplicate')}>
+            <WarningAmberIcon color="warning" fontSize="small" />
+          </Tooltip>
           {t('report.duplicateDetectedTitle')}
         </DialogTitle>
         <DialogContent>

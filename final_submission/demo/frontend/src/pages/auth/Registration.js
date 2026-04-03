@@ -42,8 +42,8 @@ import authService from "../../services/authService";
 import { useI18n } from "../../i18n";
 
 const roleOptions = [
-  { value: 'patient', icon: '🤒' },
-  { value: 'doctor', icon: '👨‍⚕️' },
+  { value: 'patient', icon: <PersonIcon fontSize="large" /> },
+  { value: 'doctor', icon: <MedicalIcon fontSize="large" /> },
 ];
 
 const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -470,18 +470,31 @@ export default function Registration({ onSuccess, onBackToLogin }) {
                       cursor: 'pointer',
                       border: formData.role === role.value ? 2 : 1,
                       borderColor: formData.role === role.value ? 'primary.main' : 'divider',
+                      borderRadius: '16px',
                       backgroundColor: formData.role === role.value
-                        ? alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.2 : 0.05)
-                        : 'background.paper',
+                        ? alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.24 : 0.1)
+                        : alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.24 : 0.74),
                       '&:hover': {
                         borderColor: 'primary.main',
-                        backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.2 : 0.05),
+                        transform: 'translateY(-2px)',
+                        backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.3 : 0.14),
                       }
                     }}
                     onClick={() => handleInputChange('role')({ target: { value: role.value } })}
                   >
                     <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                      <Typography variant="h4" sx={{ mb: 1 }}>{role.icon}</Typography>
+                      <Box
+                        sx={{
+                          mb: 1,
+                          display: 'inline-flex',
+                          p: 1.1,
+                          borderRadius: '40% 60% 62% 38% / 44% 42% 58% 56%',
+                          color: 'primary.main',
+                          bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.18 : 0.1),
+                        }}
+                      >
+                        {role.icon}
+                      </Box>
                       <Typography variant="h6" gutterBottom>{t(`auth.registration.roles.${role.value}`)}</Typography>
                       <Typography variant="body2" color="text.secondary">
                         {t(`auth.registration.roleDescriptions.${role.value}`)}
@@ -696,19 +709,50 @@ export default function Registration({ onSuccess, onBackToLogin }) {
   };
 
   return (
-    <Container component="main" maxWidth="lg">
-      <Box sx={{ py: 5 }}>
+    <Container component="main" maxWidth="lg" sx={{ position: 'relative', overflow: 'hidden' }}>
+      <Box sx={{ py: 5, position: 'relative' }}>
+        <Box
+          aria-hidden
+          sx={{
+            position: 'absolute',
+            width: { xs: 180, md: 260 },
+            height: { xs: 180, md: 260 },
+            right: { xs: -70, md: -110 },
+            top: { xs: 22, md: 8 },
+            borderRadius: '36% 64% 60% 40% / 45% 37% 63% 55%',
+            background: 'linear-gradient(140deg, rgba(34, 211, 238, 0.2), rgba(5, 150, 105, 0.14))',
+            zIndex: 0,
+          }}
+        />
+        <Box
+          aria-hidden
+          sx={{
+            position: 'absolute',
+            width: { xs: 170, md: 240 },
+            height: { xs: 170, md: 240 },
+            left: { xs: -76, md: -104 },
+            bottom: { xs: -36, md: -42 },
+            borderRadius: '58% 42% 43% 57% / 48% 62% 38% 52%',
+            background: 'linear-gradient(140deg, rgba(8, 145, 178, 0.16), rgba(34, 211, 238, 0.18))',
+            zIndex: 0,
+          }}
+        />
+
         <Paper
           elevation={0}
           sx={{
-            p: { xs: 2.5, md: 4 },
-            borderRadius: 3.5,
+            p: { xs: 2.5, md: 4.2 },
+            borderRadius: { xs: 3, md: 4 },
             border: 1,
             borderColor: 'divider',
+            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(14, 36, 41, 0.72)' : 'rgba(247, 255, 253, 0.8)',
+            backdropFilter: 'blur(12px)',
+            position: 'relative',
+            zIndex: 1,
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-            <IconButton onClick={onBackToLogin} sx={{ mr: 2 }}>
+            <IconButton onClick={onBackToLogin} sx={{ mr: 2, border: 1, borderColor: 'divider', borderRadius: 999 }}>
               <BackIcon />
             </IconButton>
             <Typography variant="h4" component="h1" fontWeight="700">
@@ -724,6 +768,15 @@ export default function Registration({ onSuccess, onBackToLogin }) {
             activeStep={activeStep}
             sx={{
               mb: 4,
+              '& .MuiStepConnector-line': {
+                borderColor: alpha(theme.palette.primary.main, 0.28),
+              },
+              '& .MuiStepIcon-root': {
+                color: alpha(theme.palette.primary.main, 0.22),
+              },
+              '& .MuiStepIcon-root.Mui-active, & .MuiStepIcon-root.Mui-completed': {
+                color: 'primary.main',
+              },
               '& .MuiStepLabel-label': {
                 fontWeight: 600,
               },
@@ -745,6 +798,7 @@ export default function Registration({ onSuccess, onBackToLogin }) {
               disabled={activeStep === 0}
               onClick={handleBack}
               startIcon={<BackIcon />}
+              sx={{ borderRadius: 999 }}
             >
               {t('common.back')}
             </Button>
@@ -755,6 +809,7 @@ export default function Registration({ onSuccess, onBackToLogin }) {
                 onClick={handleSubmit}
                 disabled={loading}
                 startIcon={<CheckIcon />}
+                sx={{ borderRadius: 999 }}
               >
                 <ButtonLoading loading={loading} loadingText={t('auth.registration.creatingAccount')}>
                   {t('auth.createAccount')}
@@ -765,7 +820,7 @@ export default function Registration({ onSuccess, onBackToLogin }) {
                 variant="contained"
                 onClick={handleNext}
                 endIcon={<ForwardIcon />}
-                sx={{ fontWeight: 650 }}
+                sx={{ fontWeight: 650, borderRadius: 999 }}
               >
                 {t('common.next')}
               </Button>

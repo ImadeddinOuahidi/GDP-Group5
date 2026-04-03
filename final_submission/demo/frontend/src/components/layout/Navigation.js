@@ -31,7 +31,7 @@ import AuthContainer from '../../store/containers/AuthContainer';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { useI18n } from '../../i18n';
 
-const drawerWidth = 272;
+const drawerWidth = 292;
 
 const Navigation = ({ mobileOpen, handleDrawerToggle }) => {
   const theme = useTheme();
@@ -72,20 +72,26 @@ const Navigation = ({ mobileOpen, handleDrawerToggle }) => {
   const userRole = String(user?.role || 'user').toUpperCase();
 
   const drawer = (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }} className="organic-fade-in">
       <Box
         sx={{
-          p: 2.5,
+          p: 2.75,
           display: 'flex',
           alignItems: 'center',
-          gap: 1.25,
+          gap: 1.5,
           borderBottom: 1,
           borderColor: 'divider',
+          background: `linear-gradient(140deg, ${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.22 : 0.14)} 0%, ${alpha(theme.palette.secondary.main, theme.palette.mode === 'dark' ? 0.12 : 0.08)} 100%)`,
         }}
       >
         <Avatar
-          variant="rounded"
-          sx={{ width: 34, height: 34, bgcolor: 'primary.main', color: 'primary.contrastText' }}
+          sx={{
+            width: 40,
+            height: 40,
+            bgcolor: 'primary.main',
+            color: 'primary.contrastText',
+            borderRadius: '40% 60% 62% 38% / 44% 42% 58% 56%',
+          }}
         >
           <MedicationIcon fontSize="small" />
         </Avatar>
@@ -99,7 +105,13 @@ const Navigation = ({ mobileOpen, handleDrawerToggle }) => {
         </Box>
       </Box>
 
-      <Box sx={{ p: 2.5, pb: 1.5 }}>
+      <Box
+        sx={{
+          p: 2.5,
+          pb: 1.75,
+          bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.18 : 0.42),
+        }}
+      >
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
           {t('navigation.signedInAs')}
         </Typography>
@@ -120,16 +132,20 @@ const Navigation = ({ mobileOpen, handleDrawerToggle }) => {
                 onClick={() => handleNavigation(item.path)}
                 selected={active}
                 sx={{
-                  px: 1.25,
-                  py: 1,
-                  borderRadius: 1.5,
+                  px: 1.4,
+                  py: 1.05,
+                  borderRadius: '16px 26px 16px 24px',
                   border: 1,
-                  borderColor: active ? 'primary.main' : 'transparent',
+                  borderColor: active ? alpha(theme.palette.primary.main, 0.65) : alpha(theme.palette.divider, 0.15),
                   backgroundColor: active
-                    ? alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.2 : 0.08)
-                    : 'transparent',
+                    ? alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.28 : 0.14)
+                    : alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.14 : 0.46),
+                  '&:hover': {
+                    transform: 'translateX(2px)',
+                    backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.26 : 0.12),
+                  },
                   '&.Mui-selected:hover': {
-                    backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.3 : 0.12),
+                    backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.34 : 0.18),
                   },
                 }}
               >
@@ -159,11 +175,11 @@ const Navigation = ({ mobileOpen, handleDrawerToggle }) => {
       <Box sx={{ mt: 'auto', p: 2.5 }}>
         <Box
           sx={{
-            p: 1.75,
+            p: 2,
             border: 1,
             borderColor: 'divider',
-            borderRadius: 1.5,
-            bgcolor: alpha(theme.palette.background.paper, 0.6),
+            borderRadius: '18px 26px 18px 24px',
+            bgcolor: alpha(theme.palette.secondary.main, theme.palette.mode === 'dark' ? 0.12 : 0.08),
           }}
         >
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
@@ -189,6 +205,9 @@ const Navigation = ({ mobileOpen, handleDrawerToggle }) => {
           '& .MuiDrawer-paper': {
             boxSizing: 'border-box',
             width: drawerWidth,
+            backdropFilter: 'blur(14px)',
+            borderTopRightRadius: 26,
+            borderBottomRightRadius: 26,
           },
         }}
       >
@@ -204,6 +223,7 @@ const Navigation = ({ mobileOpen, handleDrawerToggle }) => {
             width: drawerWidth,
             position: 'fixed',
             height: '100vh',
+            backdropFilter: 'blur(16px)',
           },
         }}
         open
