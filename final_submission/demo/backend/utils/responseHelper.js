@@ -5,19 +5,44 @@
 
 const { HTTP_STATUS } = require('./constants');
 
+const normalizeSuccessOptions = (options, legacyMessage, legacyStatusCode) => {
+  if (options && typeof options === 'object' && !Array.isArray(options)) {
+    return options;
+  }
+
+  return {
+    data: options ?? null,
+    message: legacyMessage || 'Success',
+    statusCode: legacyStatusCode || HTTP_STATUS.OK
+  };
+};
+
+const normalizeErrorOptions = (options, legacyStatusCode, legacyErrors, legacyStack) => {
+  if (options && typeof options === 'object' && !Array.isArray(options)) {
+    return options;
+  }
+
+  return {
+    message: typeof options === 'string' ? options : 'An error occurred',
+    statusCode: legacyStatusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR,
+    errors: legacyErrors || null,
+    stack: legacyStack || null
+  };
+};
+
 /**
  * Format successful response
  * @param {Object} res - Express response object
  * @param {Object} options - Response options
  * @returns {Object} JSON response
  */
-const sendSuccess = (res, options = {}) => {
+const sendSuccess = (res, options = {}, legacyMessage = null, legacyStatusCode = null) => {
   const {
     data = null,
     message = 'Success',
     statusCode = HTTP_STATUS.OK,
     meta = null
-  } = options;
+  } = normalizeSuccessOptions(options, legacyMessage, legacyStatusCode);
 
   const response = {
     success: true,
@@ -41,13 +66,13 @@ const sendSuccess = (res, options = {}) => {
  * @param {Object} options - Response options
  * @returns {Object} JSON response
  */
-const sendError = (res, options = {}) => {
+const sendError = (res, options = {}, legacyStatusCode = null, legacyErrors = null, legacyStack = null) => {
   const {
     message = 'An error occurred',
     statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR,
     errors = null,
     stack = null
-  } = options;
+  } = normalizeErrorOptions(options, legacyStatusCode, legacyErrors, legacyStack);
 
   const response = {
     success: false,
