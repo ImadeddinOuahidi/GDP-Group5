@@ -1,0 +1,34 @@
+@startuml usecase2
+!theme plain
+title Use Case 2: Submit a Side Effect Report via Voice
+
+left to right direction
+
+actor "Patient" as Patient
+rectangle "ADR Reporting System" {
+    usecase "Submit Voice Report" as UC2
+    usecase "Transcribe Audio to Text" as UC2_1
+    usecase "Save Transcription Securely" as UC2_2
+    usecase "Run Severity Analysis" as UC2_3
+    usecase "Send Confirmation" as UC2_4
+    usecase "Prompt Re-record" as UC2_5
+}
+
+Patient --> UC2 : Voice recording\nof side effect
+
+UC2 .> UC2_1 : <<include>>
+UC2 .> UC2_2 : <<include>>
+UC2 .> UC2_3 : <<include>>
+UC2 .> UC2_4 : <<include>>
+UC2 .> UC2_5 : <<extend>>\n(if audio unclear)
+
+note right of UC2
+  **Inputs:**
+  - Voice recording of side effect
+  
+  **Outputs:**
+  - Confirmation message to patient
+  - Re-record prompt if unclear
+end note
+
+@enduml

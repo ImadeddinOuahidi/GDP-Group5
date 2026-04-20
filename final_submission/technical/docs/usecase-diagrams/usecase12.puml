@@ -1,0 +1,32 @@
+@startuml usecase12
+!theme plain
+title Use Case 12: Display Error Messages
+
+left to right direction
+
+actor "System" as System
+rectangle "ADR Reporting System" {
+    usecase "Display Error Messages" as UC12
+    usecase "Detect Error" as UC12_1
+    usecase "Generate Meaningful Message" as UC12_2
+    usecase "Display Error Message" as UC12_3
+    usecase "Prompt User to Fix Input" as UC12_4
+}
+
+System --> UC12 : Invalid or\nincomplete input
+
+UC12 .> UC12_1 : <<include>>
+UC12 .> UC12_2 : <<include>>
+UC12 .> UC12_3 : <<include>>
+UC12 .> UC12_4 : <<include>>
+
+note right of UC12
+  **Inputs:**
+  - Invalid or incomplete input
+  
+  **Outputs:**
+  - Error message shown to user
+  - User prompted to fix input
+end note
+
+@enduml

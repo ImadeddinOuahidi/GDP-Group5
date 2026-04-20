@@ -1,0 +1,148 @@
+1.Implement Core Feature Prototypes
+
+Text Reporting Module
+
+Create the text input form where users can submit side effects.
+
+Commit message: feat: add text reporting form for symptom submission
+
+Voice Recording Prototype
+
+Add a button to record voice notes and store as audio files.
+
+Commit message: feat: add voice note recording functionality
+
+Photo Upload Component
+
+Enable users to upload images of symptoms.
+
+Commit message: feat: implement photo upload component
+
+2.Backend / API Setup
+
+User Authentication
+
+Implement basic signup/login endpoints.
+
+Commit message: feat: add user authentication endpoints
+
+Report Submission API
+
+Backend endpoint to receive text, voice, or photo reports.
+
+Commit message: feat: create API for report submission
+
+Database Schema Initialization
+
+Create tables for users and reports.
+
+Commit message: feat: setup database schema for users and reports
+
+- Set up a clean backend project skeleton for the healthcare app  
+- Added API routes to handle side-effect reporting via text, photo, and voice  
+- Included placeholder AI severity detection logic to classify reports as Mild, Moderate, or Severe  
+- Implemented input validation for text, photo, and audio submissions  
+- Designed database schema to store reports with type, description, severity, and timestamps  
+- Added API documentation file describing endpoints and expected responses  
+
+1.Frontend → Backend Integration
+
+Connect text/voice/photo components to the API you just built.
+
+Ensure reports are actually submitted and saved in DB.
+
+Commit: feat: integrate frontend reporting components with backend API
+
+2. Severity Feedback UI
+
+After a report is submitted, show the AI severity classification (Mild / Moderate / Severe).
+
+Helps us know their submission was processed.
+
+Commit: feat: display AI severity feedback after report submission
+
+Report History / Dashboard
+
+Let us see their past submissions (text, photo, voice) with severity labels.
+
+Backend: add /reports GET endpoint (filter by user).
+
+Frontend: build a simple list UI to display report type, date, and severity color badge.
+
+Commit: feat: add report history screen showing previous submissions
+
+2. User Authentication in Frontend
+
+We have auth backend — now wire it into the frontend.
+
+Add signup/login screens.
+
+Store JWT token in AsyncStorage and attach to all API calls.
+
+Commit: feat: implement login/signup UI with JWT-based authentication
+
+1. User-Specific Report History
+
+Now that users can log in, show only their submitted reports.
+
+Backend: update /reports GET to filter by userId from JWT.
+
+Frontend: fetch and display reports in a simple list view.
+
+Commit: feat: implement user-specific report history screen
+
+🟢 Why this is good: Makes login meaningful; gives users visibility of what they’ve submitted.
+
+2. Logout & Auth Session Handling
+
+Add logout button to clear token from AsyncStorage.
+
+Auto-redirect to login if token is missing or expired.
+
+Commit: feat: add logout functionality and session management
+
+🟢 Why this is good: Completes the authentication cycle and prevents unauthorized access.
+
+3. Voice & Photo Upload Integration
+
+Connect your existing voice/photo components to backend now that users are authenticated.
+
+Include Authorization header with uploads.
+
+Commit: feat: enable voice and photo report submission with authentication
+
+🟢 Why this is good: Expands functionality beyond text now that identity is secured.
+
+Add Input Validation & Error Handling
+
+Use express-validator on the backend to:
+
+Validate fields like email, password strength
+
+Validate text/photo/audio report fields
+
+Improve error responses with proper status codes and JSON error format.
+
+1. Loading & Error States UI
+
+Show spinners/loaders while API calls are in progress
+
+Display friendly error messages (e.g. “Upload failed, please try again”)
+
+Prevent double submissions
+
+Commit message:
+feat: add loading indicators and error state UI for report submissions
+
+Why: Improves UX and gives clear feedback during network actions.
+
+2. Form Field Validation on Frontend
+
+Validate required fields before sending to backend
+
+Show inline error messages (e.g. “Please enter a description”)
+
+Commit message:
+feat: add frontend form validation for text/voice/photo reports
+
+Why: Avoids unnecessary API calls and improves data quality.

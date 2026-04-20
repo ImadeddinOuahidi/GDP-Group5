@@ -1,0 +1,31 @@
+@startuml usecase1
+!theme plain
+title Use Case 1: Submit an ADR Report
+
+left to right direction
+
+actor "Patient" as Patient
+rectangle "ADR Reporting System" {
+    usecase "Submit ADR Report" as UC1
+    usecase "Validate Input" as UC1_1
+    usecase "Store Report Securely" as UC1_2
+    usecase "Run Severity Analysis" as UC1_3
+    usecase "Send Confirmation" as UC1_4
+}
+
+Patient --> UC1 : Text description\nof side effect
+
+UC1 .> UC1_1 : <<include>>
+UC1 .> UC1_2 : <<include>>
+UC1 .> UC1_3 : <<include>>
+UC1 .> UC1_4 : <<include>>
+
+note right of UC1
+  **Inputs:**
+  - Text description of side effect
+  
+  **Outputs:**
+  - Confirmation message to patient
+end note
+
+@enduml

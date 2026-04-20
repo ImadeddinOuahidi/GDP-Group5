@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>SafeMed Test Plan</title>
+  <style>
+    body {
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1.45;
+      margin: 36px;
+      color: #111;
+    }
+    h1, h2, h3 {
+      color: #13294b;
+      margin-bottom: 6px;
+    }
+    p, li {
+      font-size: 11pt;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 18px;
+      font-size: 10.5pt;
+    }
+    th, td {
+      border: 1px solid #666;
+      padding: 8px;
+      vertical-align: top;
+      text-align: left;
+    }
+    th {
+      background: #eaf0f8;
+    }
+    .meta {
+      margin-bottom: 18px;
+    }
+  </style>
+</head>
+<body>
+  <h1>SafeMed Test Plan</h1>
+  <div class="meta">
+    <p><strong>Group #5 Project title:</strong> SafeMed ADR Reporting System</p>
+    <p><strong>Team Members:</strong> Imadeddin Ouahidi, Anji Reddy Modugula, Lohitha Vodnala</p>
+    <p><strong>Date:</strong> March 2026</p>
+    <p><strong>The test plan GitHub link:</strong> <a href="https://github.com/ImadeddinOuahidi/GDP-Group5">https://github.com/ImadeddinOuahidi/GDP-Group5</a></p>
+  </div>
+
+  <h2>Introduction</h2>
+  <h3>Purpose of the Document</h3>
+  <p>
+    This document defines the testing strategy for SafeMed, a cross-platform adverse drug reaction
+    (ADR) reporting system that supports patients and healthcare staff across web and mobile clients.
+    The plan validates patient reporting, doctor review, access control, secure uploads, export flows,
+    notifications, and AI-supported analysis in the implementation under <code>final_submission/demo</code>.
+  </p>
+
+  <h3>Summary of the Goals of the Test Plan</h3>
+  <ul><li>Validate end-to-end ADR workflows from patient submission to doctor review and export.</li><li>Verify required-field validation, meaningful error handling, and role-based access control.</li><li>Confirm that reports, medications, notifications, and user data are stored and retrieved correctly.</li><li>Validate the implemented AI-assisted flows, including severity metadata and duplicate scoring/flagging.</li><li>Confirm the demo supports both web and mobile access for the primary user journeys.</li></ul>
+
+  <h3>Constraints</h3>
+  <ul><li>Testing is centered on the current demo implementation rather than every aspirational wiki requirement.</li><li>Some requirements remain partial or in progress, including duplicate merging, full multilingual coverage, urgent staff notification, graph/statistics UI, and custom print layout.</li><li>AI analysis depends on external services and asynchronous processing, so some scenarios require seeded/demo data or a configured worker stack.</li><li>Performance, high availability, disaster recovery, and formal security validation require separate infrastructure-oriented testing.</li></ul>
+
+  <h3>References</h3>
+  <ul><li>Functional Requirements: &lt;a href=&quot;https://github.com/ImadeddinOuahidi/GDP-Group5/wiki/Functional-Requirements-List---Final---Group-5&quot;&gt;https://github.com/ImadeddinOuahidi/GDP-Group5/wiki/Functional-Requirements-List---Final---Group-5&lt;/a&gt;</li><li>Project Wiki: &lt;a href=&quot;https://github.com/ImadeddinOuahidi/GDP-Group5/wiki&quot;&gt;https://github.com/ImadeddinOuahidi/GDP-Group5/wiki&lt;/a&gt;</li><li>Local wiki sources: GDP-Group5.wiki/Functional-Requirements-List---Final---Group-5.md, GDP-Group5.wiki/Use-Cases-(Iteration-2).md, GDP-Group5.wiki/Non‐Functional-Requirements-List-(Iteration-2).md, GDP-Group5.wiki/Problem-Statement-(Draft-2).md</li><li>Implementation sources: final_submission/demo/backend, final_submission/demo/frontend, final_submission/demo/mobile, final_submission/demo/consumer</li></ul>
+
+  <h2>Features to Be Tested</h2>
+  <table><thead><tr><th>Feature</th><th>Feature Description</th><th>Requirement Mapping</th></tr></thead><tbody><tr><td>Authentication and account lifecycle</td><td>Patient/doctor registration, sign-in, email verification, password change, profile updates, and secured session handling.</td><td>FR4, FR8, FR10, FR11, FR12</td></tr><tr><td>Medication discovery and management</td><td>Search, popular/category browsing, patient-created medications, and doctor/admin medication CRUD.</td><td>FR1, FR2, FR11, FR12</td></tr><tr><td>Patient ADR report submission</td><td>Manual ADR reporting with medicine, dosage, symptoms, severity, onset, and submission timestamps on web and mobile.</td><td>FR1, FR2, FR3, FR9, FR14</td></tr><tr><td>Voice, photo, and file-assisted reporting</td><td>Voice-to-text capture, media attachment upload, upload validation, and secure file handling.</td><td>FR1, FR6, FR7, FR12, FR14</td></tr><tr><td>Doctor review and report status workflow</td><td>Pending review queue, patient review requests, doctor review submission, report status updates, and doctor assignment.</td><td>FR4, FR8, FR11, SHOULD4</td></tr><tr><td>AI analysis and prioritization</td><td>AI-assisted extraction endpoints, async severity analysis, AI metadata, patient guidance, and prioritization flags.</td><td>FR5, FR6</td></tr><tr><td>Duplicate detection</td><td>Pre-submission duplicate checks, staff duplicate flagging, and duplicate statistics.</td><td>FR5 (merge remains partial)</td></tr><tr><td>Notifications</td><td>Unread counts, notification listing, mark-read flows, and web SSE/mobile polling behavior.</td><td>SHOULD3 (partial in current demo)</td></tr><tr><td>Export and printable summaries</td><td>Report exports in JSON/CSV and printable single-report detail views.</td><td>SHOULD5, MAY1</td></tr><tr><td>Symptom progression tracking</td><td>Progression creation, progression entries, patient/provider lookup, and status updates via API.</td><td>Implemented enhancement beyond final FR list</td></tr><tr><td>Cross-platform and multilingual smoke coverage</td><td>SafeMed web and mobile parity checks, with English default and partial French/Spanish UI verification where supported.</td><td>FR13, FR14</td></tr></tbody></table>
+
+  <h2>Features Not to Be Tested</h2>
+  <table><thead><tr><th>Feature</th><th>Rationale</th></tr></thead><tbody><tr><td>Full duplicate report merging</td><td>The wiki/client notes and codebase show duplicate scoring and flagging, but not complete merge behavior.</td></tr><tr><td>Full multilingual translation coverage</td><td>Language support is present only on selected screens and remains incomplete for the whole system.</td></tr><tr><td>Visualization and graph analytics UI</td><td>Client meeting notes mark visualization/statistics UI work as pending.</td></tr><tr><td>Formal performance and 500-user load validation</td><td>This requires a dedicated load-testing environment and deployment instrumentation.</td></tr><tr><td>Infrastructure failover, disaster recovery, and uptime SLA proof</td><td>These are deployment-level checks and are not fully verifiable from the local demo repository alone.</td></tr><tr><td>Formal security penetration testing, TLS/AES deployment verification, and virus scanning</td><td>These controls depend on runtime infrastructure and security tooling outside the checked-in demo stack.</td></tr><tr><td>Custom print/PDF layout design</td><td>The current project supports browser/mobile print/export flows, but the customized print layout is not finished.</td></tr><tr><td>MFA for staff</td><td>It appears in non-functional goals but is not implemented as a completed demo workflow in the codebase.</td></tr></tbody></table>
+
+  <h2>Approach</h2>
+  <h3>Tools</h3>
+  <p><strong>Backend / Integration Testing</strong></p>
+  <ul><li>Swagger UI, Postman/curl, and direct API verification for the Express backend.</li><li>MongoDB seed/demo data for deterministic patient, doctor, medication, and report scenarios.</li><li>RabbitMQ and the consumer worker for async AI-processing verification.</li><li>MinIO/S3-compatible storage validation for report attachments and exported content.</li></ul>
+  <p><strong>Web / Mobile Testing</strong></p>
+  <ul><li>Manual browser testing for the React/MUI web application.</li><li>Manual device/emulator testing for the Expo/React Native mobile client.</li><li>Existing repository test scaffolding: React Testing Library/Jest on web, Jest on mobile, and backend Supertest/Jest scripts that can be extended later.</li></ul>
+
+  <h3>Methods</h3>
+  <ul><li>Functional testing of patient, doctor, and admin-facing scenarios.</li><li>API and integration testing across auth, reports, medications, uploads, notifications, exports, and symptom progression.</li><li>Role-based access validation for protected report and export flows.</li><li>Cross-platform smoke testing across the web and mobile clients.</li><li>AI-assisted workflow verification using seeded data, async processing, and report metadata inspection.</li></ul>
+
+  <h2>Test Deliverables</h2>
+  <ul><li>SafeMed Test Plan (`.docx` and HTML source).</li><li>SafeMed Test Case workbook (`.xlsx`) aligned to the template structure.</li><li>Execution status placeholders marked `Not Executed` so the team can record live QA results later.</li></ul>
+
+  <h2>Pass / Fail Criteria</h2>
+  <ul><li>A test case passes when the observed system behavior matches the expected behavior across the supported client and API path.</li><li>A test case fails when validation, persistence, access control, notifications, exports, or linked workflows do not meet the documented expected result.</li><li>Environment-dependent scenarios remain marked as `Not Executed` until the required AI, email, upload, or worker services are available for live execution.</li></ul>
+</body>
+</html>
