@@ -4,6 +4,7 @@
  * Demo credentials:
  * - Patient: patient@demo.com / Demo@123
  * - Doctor:  doctor@demo.com / Demo@123
+ * - Admin:   admin@demo.com / Demo@123
  */
 
 require('dotenv').config();
@@ -67,6 +68,36 @@ const demoUsers = [
     },
     isEmailVerified: true,
     isActive: true
+  },
+  {
+    firstName: 'Demo',
+    lastName: 'Admin',
+    email: 'admin@demo.com',
+    password: 'Demo@123',
+    phone: '+1-555-300-0001',
+    dateOfBirth: new Date('1978-09-10'),
+    gender: 'other',
+    address: {
+      street: '789 Admin Plaza',
+      city: 'Demo City',
+      state: 'DC',
+      zipCode: '12345',
+      country: 'USA'
+    },
+    role: 'admin',
+    adminInfo: {
+      department: 'System Administration',
+      employeeId: 'DEMO-ADMIN-001',
+      permissions: [
+        'user_management',
+        'doctor_management',
+        'patient_management',
+        'system_settings',
+        'reports'
+      ]
+    },
+    isEmailVerified: true,
+    isActive: true
   }
 ];
 
@@ -83,8 +114,9 @@ async function upsertDemoUser(userData) {
     existing.gender = userData.gender;
     existing.address = userData.address;
     existing.role = userData.role;
-    existing.patientInfo = userData.patientInfo || existing.patientInfo;
-    existing.doctorInfo = userData.doctorInfo || existing.doctorInfo;
+    existing.patientInfo = userData.patientInfo || undefined;
+    existing.doctorInfo = userData.doctorInfo || undefined;
+    existing.adminInfo = userData.adminInfo || undefined;
     existing.isEmailVerified = true;
     existing.isActive = true;
 
@@ -116,6 +148,7 @@ async function seedDemoUsers() {
     console.log('├─────────────────────────────────────────────────────┤');
     console.log('│  Patient  │  patient@demo.com   │  Demo@123         │');
     console.log('│  Doctor   │  doctor@demo.com    │  Demo@123         │');
+    console.log('│  Admin    │  admin@demo.com     │  Demo@123         │');
     console.log('└─────────────────────────────────────────────────────┘');
     console.log('\nDemo users seeded successfully!');
   } catch (error) {

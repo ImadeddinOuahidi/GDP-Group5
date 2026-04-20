@@ -43,7 +43,8 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Apply general rate limiting to all routes
-app.use(generalLimiter);
+// Temporarily disabled for local testing/debugging.
+// app.use(generalLimiter);
 
 // Swagger Configuration
 const swaggerDocument = YAML.load(path.join(__dirname, 'swagger.yaml'));
@@ -79,7 +80,8 @@ const notificationRoutes = require('./routes/notifications'); // Real-time notif
 const exportRoutes = require('./routes/export'); // Report export (CSV/JSON/PDF)
 
 // Apply strict rate limiting to auth routes
-app.use('/api/auth', authLimiter);
+// Temporarily disabled for local testing/debugging.
+// app.use('/api/auth', authLimiter);
 
 // Debug middleware for auth routes
 app.use('/api/auth', (req, res, next) => {

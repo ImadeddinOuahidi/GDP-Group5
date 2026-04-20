@@ -250,6 +250,15 @@ class ReportService {
     }
   }
 
+  async reprocessAiAnalysis(reportId) {
+    try {
+      const response = await apiClient.post(`${ROUTES.API.REPORTS}/${reportId}/reprocess-ai`);
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
   // ==================== Doctor Review Methods ====================
 
   // Request a doctor review for a report

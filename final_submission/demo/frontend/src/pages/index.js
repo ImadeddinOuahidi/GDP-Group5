@@ -6,6 +6,7 @@ export { default as Registration } from './auth/Registration';
 export { default as Home } from './dashboard/Home';
 export { default as Dashboard } from './dashboard/Dashboard';
 export { default as DoctorHome } from './dashboard/DoctorHome';
+export { default as AdminHome } from './dashboard/AdminHome';
 export { default as Settings } from './dashboard/Settings';
 
 // Doctor Pages - Medication Management for Side Effect Reporting

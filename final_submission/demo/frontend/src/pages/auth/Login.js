@@ -23,12 +23,14 @@ import {
   MedicalServices as MedicalIcon,
   PersonAdd as SignUpIcon,
 } from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
 import { ButtonLoading } from "../../components/ui/Loading";
 import AuthContainer from "../../store/containers/AuthContainer";
 import { useI18n } from '../../i18n';
 
 export default function Login({ onShowRegistration }) {
   const theme = useTheme();
+  const navigate = useNavigate();
   const { t } = useI18n();
   const [emailOrUsername, setEmailOrUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -42,7 +44,16 @@ export default function Login({ onShowRegistration }) {
     const result = await login(emailOrUsername, password);
     if (result.success) {
       console.log("Login successful:", result.user);
-      // Redirect will be handled by the main App component
+      const role = String(result.user?.role || '').trim().toLowerCase();
+      if (role === 'admin') {
+        navigate('/admin-home', { replace: true });
+        return;
+      }
+      if (role === 'doctor') {
+        navigate('/doctor-home', { replace: true });
+        return;
+      }
+      navigate('/', { replace: true });
     }
   };
 
@@ -58,6 +69,7 @@ export default function Login({ onShowRegistration }) {
   const demoCredentials = [
     { role: t('common.patient'), email: "patient@demo.com", password: "Demo@123", color: "primary" },
     { role: t('common.doctor'), email: "doctor@demo.com", password: "Demo@123", color: "secondary" },
+    { role: t('common.admin'), email: "admin@demo.com", password: "Demo@123", color: "success" },
   ];
 
   return (

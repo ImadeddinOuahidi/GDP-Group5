@@ -55,6 +55,7 @@ The frontend will be available at `http://localhost:3000`
 #### Demo Login Credentials:
 - **Patient**: Email: `patient@demo.com` / Password: `Demo@123`
 - **Doctor**: Email: `doctor@demo.com` / Password: `Demo@123`
+- **Admin**: Email: `admin@demo.com` / Password: `Demo@123`
 
 > **Tip:** Click on the credential chips on the login page to auto-fill the login form!
 

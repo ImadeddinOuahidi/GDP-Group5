@@ -22,9 +22,11 @@ import * as Print from 'expo-print';
 import { reportService } from '../../services';
 import { colors, spacing, borderRadius, shadows } from '../../config/theme';
 import { API_CONFIG } from '../../config/constants';
+import { useI18n } from '../../context/I18nContext';
 
 const ReportDetailScreen = ({ route, navigation }) => {
   const { reportId } = route.params;
+  const { t, locale } = useI18n();
   const [report, setReport] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -55,10 +57,10 @@ const ReportDetailScreen = ({ route, navigation }) => {
       await reportService.requestReview(reportId, { reason: reviewReason || undefined });
       setShowReviewDialog(false);
       setReviewReason('');
-      Alert.alert('Success', 'Review request submitted successfully. A doctor will review your report.');
+      Alert.alert(t('common.success'), t('reportDetail.requestReviewSuccess'));
       fetchReportDetail(true);
     } catch (error) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to request review.');
+      Alert.alert(t('common.error'), error.response?.data?.message || t('reportDetail.requestReviewFailed'));
     } finally {
       setIsRequesting(false);
     }
@@ -66,17 +68,17 @@ const ReportDetailScreen = ({ route, navigation }) => {
 
   const handleDeleteReport = () => {
     Alert.alert(
-      'Delete Report',
-      'Are you sure you want to permanently delete this report? This action cannot be undone.',
+      t('reportDetail.deleteTitle'),
+      t('reportDetail.deleteMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: async () => {
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.delete'), style: 'destructive', onPress: async () => {
           try {
             await reportService.deleteReport(reportId);
-            Alert.alert('Deleted', 'Report deleted successfully.');
+            Alert.alert(t('common.deleted'), t('reportDetail.deleteSuccess'));
             navigation.goBack();
           } catch (error) {
-            Alert.alert('Error', error.response?.data?.message || 'Failed to delete report.');
+            Alert.alert(t('common.error'), error.response?.data?.message || t('reportDetail.deleteFailed'));
           }
         }},
       ]
@@ -89,40 +91,42 @@ const ReportDetailScreen = ({ route, navigation }) => {
       const fileUri = FileSystem.cacheDirectory + `report-${reportId}.json`;
       await FileSystem.writeAsStringAsync(fileUri, json, { encoding: FileSystem.EncodingType.UTF8 });
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'Export Report' });
+        await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: t('reportDetail.exportDialogTitle') });
       } else {
-        Alert.alert('Error', 'Sharing is not available on this device.');
+        Alert.alert(t('common.error'), t('reportDetail.sharingUnavailable'));
       }
     } catch (error) {
       console.error('Export JSON error:', error);
-      Alert.alert('Error', 'Failed to export report.');
+      Alert.alert(t('common.error'), t('reportDetail.exportFailed'));
     }
   };
 
   const handlePrintReport = async () => {
     try {
+      const aiSummary = safeStr(ai?.summary) || safeStr(ai?.clinicalSummary);
       const sideEffects = (report.sideEffects || []).map(
-        (se) => `<li><b>${se.effect || 'Unknown'}</b> — ${se.severity || 'N/A'} (${se.duration || 'N/A'})</li>`
+        (se) => `<li><b>${se.effect || t('common.unknown')}</b> - ${getSeverityLabel(se.severity)} (${se.duration || t('common.notAvailable')})</li>`
       ).join('');
       const html = `
         <html><body style="font-family:system-ui;padding:20px;">
-          <h1>Side Effect Report</h1>
-          <p><b>Report ID:</b> ${report._id}</p>
-          <p><b>Status:</b> ${report.status}</p>
-          <p><b>Medication:</b> ${report.medicine?.name || 'Unknown'}</p>
-          <p><b>Date:</b> ${formatDate(report.createdAt)}</p>
-          <h2>Side Effects</h2>
-          <ul>${sideEffects || '<li>None</li>'}</ul>
-          ${ai ? `<h2>AI Analysis</h2>
-            <p><b>Severity:</b> ${safeStr(ai.severity) || 'N/A'}</p>
-            <p><b>Summary:</b> ${safeStr(ai.clinicalSummary) || 'N/A'}</p>` : ''}
-          ${review?.status === 'completed' ? `<h2>Doctor Review</h2>
-            <p><b>Assessment:</b> ${review.doctorAssessment?.assessment || 'N/A'}</p>` : ''}
+          <h1>${t('reportDetail.print.title')}</h1>
+          <p>${t('reportDetail.print.generatedNotice')}</p>
+          <p><b>${t('reportDetail.labels.reportId')}:</b> ${report._id}</p>
+          <p><b>${t('reportDetail.labels.status')}:</b> ${getStatusLabel(report.status)}</p>
+          <p><b>${t('reportDetail.labels.medication')}:</b> ${report.medicine?.name || t('common.unknown')}</p>
+          <p><b>${t('reportDetail.labels.date')}:</b> ${formatDate(report.createdAt)}</p>
+          <h2>${t('reportDetail.sections.sideEffects', { count: report.sideEffects?.length || 0 })}</h2>
+          <ul>${sideEffects || `<li>${t('reportDetail.labels.sideEffectsEmpty')}</li>`}</ul>
+          ${ai ? `<h2>${t('reportDetail.print.aiAnalysis')}</h2>
+            <p><b>${t('reportDetail.labels.severity')}:</b> ${getSeverityLabel(safeStr(ai.severity)) || t('common.notAvailable')}</p>
+            <p><b>${t('reportDetail.labels.summary')}:</b> ${aiSummary || t('common.notAvailable')}</p>` : ''}
+          ${review?.status === 'completed' ? `<h2>${t('reportDetail.print.doctorReview')}</h2>
+            <p><b>${t('reportDetail.labels.assessment')}:</b> ${review.doctorAssessment?.assessment || t('common.notAvailable')}</p>` : ''}
         </body></html>`;
       await Print.printAsync({ html });
     } catch (error) {
       console.error('Print error:', error);
-      Alert.alert('Error', 'Failed to print report.');
+      Alert.alert(t('common.error'), t('reportDetail.printFailed'));
     }
   };
 
@@ -165,26 +169,26 @@ const ReportDetailScreen = ({ route, navigation }) => {
   const getUrgencyConfig = (level) => {
     switch (level?.toLowerCase()) {
       case 'emergency':
-        return { gradient: ['#B71C1C', '#F44336'], icon: 'alert-circle', label: 'EMERGENCY', color: '#F44336' };
+        return { gradient: ['#B71C1C', '#F44336'], icon: 'alert-circle', label: t('reportDetail.urgency.emergency'), color: '#F44336' };
       case 'urgent':
-        return { gradient: ['#E65100', '#FF9800'], icon: 'warning', label: 'URGENT', color: '#FF9800' };
+        return { gradient: ['#E65100', '#FF9800'], icon: 'warning', label: t('reportDetail.urgency.urgent'), color: '#FF9800' };
       case 'soon':
-        return { gradient: ['#0D47A1', '#42A5F5'], icon: 'time', label: 'SEE DOCTOR SOON', color: '#42A5F5' };
+        return { gradient: ['#0D47A1', '#42A5F5'], icon: 'time', label: t('reportDetail.urgency.soon'), color: '#42A5F5' };
       default:
-        return { gradient: ['#1B5E20', '#4CAF50'], icon: 'checkmark-circle', label: 'ROUTINE', color: '#4CAF50' };
+        return { gradient: ['#1B5E20', '#4CAF50'], icon: 'checkmark-circle', label: t('reportDetail.urgency.routine'), color: '#4CAF50' };
     }
   };
 
   const getActionLabel = (action) => {
     const labels = {
-      'none': 'No immediate action',
-      'monitor': 'Continue monitoring',
-      'adjust_medication': 'Adjust medication',
-      'discontinue': 'Discontinue medication',
-      'schedule_appointment': 'Schedule appointment',
-      'emergency': 'Seek emergency care',
+      none: t('reviewRequests.actions.none'),
+      monitor: t('reviewRequests.actions.monitor'),
+      adjust_medication: t('reviewRequests.actions.adjustMedication'),
+      discontinue: t('reviewRequests.actions.discontinue'),
+      schedule_appointment: t('reviewRequests.actions.scheduleAppointment'),
+      emergency: t('reviewRequests.actions.emergency'),
     };
-    return labels[action] || action || 'None';
+    return labels[action] || action || t('common.notAvailable');
   };
 
   const getActionColor = (action) => {
@@ -199,17 +203,49 @@ const ReportDetailScreen = ({ route, navigation }) => {
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
+    if (!dateString) return t('common.notAvailable');
+    return new Intl.DateTimeFormat(locale, {
       year: 'numeric', month: 'long', day: 'numeric',
-    });
+    }).format(new Date(dateString));
+  };
+
+  const formatShortDate = (dateString) => {
+    if (!dateString) return t('common.notAvailable');
+    return new Intl.DateTimeFormat(locale, {
+      year: 'numeric', month: 'short', day: 'numeric',
+    }).format(new Date(dateString));
+  };
+
+  const getStatusLabel = (status) => {
+    const key = {
+      Draft: 'status.draft',
+      Submitted: 'status.submitted',
+      'Under Review': 'status.underReview',
+      Reviewed: 'status.reviewed',
+      Closed: 'status.closed',
+      Rejected: 'status.rejected',
+    }[status];
+
+    return key ? t(key) : status || t('common.unknown');
+  };
+
+  const getSeverityLabel = (severity) => {
+    const normalized = String(severity || '').toLowerCase();
+    const key = {
+      mild: 'reviewRequests.severity.mild',
+      moderate: 'reviewRequests.severity.moderate',
+      severe: 'reviewRequests.severity.severe',
+      'life-threatening': 'reviewRequests.severity.lifeThreatening',
+    }[normalized];
+
+    return key ? t(key) : severity || t('common.unknown');
   };
 
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading report...</Text>
+        <Text style={styles.loadingText}>{t('reportDetail.loading')}</Text>
       </View>
     );
   }
@@ -218,13 +254,13 @@ const ReportDetailScreen = ({ route, navigation }) => {
     return (
       <View style={styles.errorContainer}>
         <Ionicons name="alert-circle-outline" size={64} color={colors.error} />
-        <Text style={styles.errorText}>Report not found</Text>
+        <Text style={styles.errorText}>{t('reportDetail.notFound')}</Text>
       </View>
     );
   }
 
   const ai = report.metadata?.aiAnalysis;
-  const aiProcessed = report.metadata?.aiProcessed;
+  const aiStatus = report.metadata?.aiStatus || (report.metadata?.aiProcessed ? 'completed' : 'queued');
   const review = report.doctorReview;
   const statusColor = getStatusColor(report.status);
   const canRequestReview = !report.doctorReview?.requested && report.doctorReview?.status !== 'completed';
@@ -241,14 +277,20 @@ const ReportDetailScreen = ({ route, navigation }) => {
   };
 
   const formatDateTime = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString();
+    if (!dateString) return t('common.notAvailable');
+    return new Intl.DateTimeFormat(locale, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(new Date(dateString));
   };
 
   const formatChangedBy = (changedBy) => {
-    if (!changedBy) return 'System';
-    if (typeof changedBy === 'string') return 'System';
-    return `${changedBy.firstName || ''} ${changedBy.lastName || ''}`.trim() || 'System';
+    if (!changedBy) return t('common.system');
+    if (typeof changedBy === 'string') return t('common.system');
+    return `${changedBy.firstName || ''} ${changedBy.lastName || ''}`.trim() || t('common.system');
   };
 
   return (
@@ -259,7 +301,7 @@ const ReportDetailScreen = ({ route, navigation }) => {
       {/* Status Header */}
       <View style={[styles.statusHeader, { backgroundColor: statusColor + '12', borderLeftColor: statusColor }]}>
         <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-        <Text style={[styles.statusHeaderText, { color: statusColor }]}>{report.status || 'Submitted'}</Text>
+        <Text style={[styles.statusHeaderText, { color: statusColor }]}>{getStatusLabel(report.status)}</Text>
         <Text style={styles.reportId}>#{reportId?.slice(-6)}</Text>
       </View>
 
@@ -268,7 +310,7 @@ const ReportDetailScreen = ({ route, navigation }) => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="time-outline" size={20} color={colors.info} />
-            <Text style={styles.sectionTitle}>Status Timeline</Text>
+            <Text style={styles.sectionTitle}>{t('reportDetail.sections.statusTimeline')}</Text>
           </View>
           <View style={styles.card}>
             {statusTimeline.map((entry, index) => (
@@ -282,10 +324,10 @@ const ReportDetailScreen = ({ route, navigation }) => {
                 <View style={[styles.timelineDot, { backgroundColor: getStatusColor(entry.status) }]} />
                 <View style={styles.timelineContent}>
                   <View style={styles.timelineTopRow}>
-                    <Text style={styles.timelineStatus}>{entry.status}</Text>
+                    <Text style={styles.timelineStatus}>{getStatusLabel(entry.status)}</Text>
                     <Text style={styles.timelineDate}>{formatDateTime(entry.changedAt)}</Text>
                   </View>
-                  <Text style={styles.timelineMeta}>Updated by {formatChangedBy(entry.changedBy)}</Text>
+                  <Text style={styles.timelineMeta}>{t('reportDetail.labels.updatedBy', { name: formatChangedBy(entry.changedBy) })}</Text>
                   {entry.note ? <Text style={styles.timelineNote}>{entry.note}</Text> : null}
                 </View>
               </View>
@@ -298,10 +340,10 @@ const ReportDetailScreen = ({ route, navigation }) => {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Ionicons name="medkit" size={20} color={colors.primary} />
-          <Text style={styles.sectionTitle}>Medication</Text>
+          <Text style={styles.sectionTitle}>{t('reportDetail.sections.medication')}</Text>
         </View>
         <View style={styles.card}>
-          <Text style={styles.medicineName}>{report.medicine?.name || 'Unknown'}</Text>
+          <Text style={styles.medicineName}>{report.medicine?.name || t('common.unknown')}</Text>
           {report.medicine?.genericName && (
             <Text style={styles.medicineGeneric}>{report.medicine.genericName}</Text>
           )}
@@ -324,23 +366,23 @@ const ReportDetailScreen = ({ route, navigation }) => {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Ionicons name="warning" size={20} color={colors.warning} />
-          <Text style={styles.sectionTitle}>Side Effects ({report.sideEffects?.length || 0})</Text>
+          <Text style={styles.sectionTitle}>{t('reportDetail.sections.sideEffects', { count: report.sideEffects?.length || 0 })}</Text>
         </View>
         {report.sideEffects?.map((effect, index) => (
           <View key={index} style={[styles.card, { marginBottom: spacing.sm, borderLeftWidth: 3, borderLeftColor: getSeverityColor(effect.severity) }]}>
             <View style={styles.sideEffectHeader}>
               <Text style={styles.sideEffectTitle}>{effect.effect}</Text>
               <View style={[styles.severityBadge, { backgroundColor: getSeverityColor(effect.severity) + '18' }]}>
-                <Text style={[styles.severityText, { color: getSeverityColor(effect.severity) }]}>{effect.severity}</Text>
+                <Text style={[styles.severityText, { color: getSeverityColor(effect.severity) }]}>{getSeverityLabel(effect.severity)}</Text>
               </View>
             </View>
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Onset</Text>
-              <Text style={styles.detailValue}>{effect.onset || 'Unknown'}</Text>
+              <Text style={styles.detailLabel}>{t('reportDetail.labels.onset')}</Text>
+              <Text style={styles.detailValue}>{effect.onset || t('common.unknown')}</Text>
             </View>
             {effect.bodySystem && (
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Body System</Text>
+                <Text style={styles.detailLabel}>{t('reportDetail.labels.bodySystem')}</Text>
                 <Text style={styles.detailValue}>{effect.bodySystem}</Text>
               </View>
             )}
@@ -355,15 +397,15 @@ const ReportDetailScreen = ({ route, navigation }) => {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Ionicons name="time" size={20} color={colors.info} />
-          <Text style={styles.sectionTitle}>Medication Usage</Text>
+          <Text style={styles.sectionTitle}>{t('reportDetail.sections.medicationUsage')}</Text>
         </View>
         <View style={styles.card}>
           {[
-            ['Indication', report.medicationUsage?.indication || 'Not specified'],
-            ['Dosage', report.medicationUsage?.dosage?.amount || 'N/A'],
-            ['Frequency', report.medicationUsage?.dosage?.frequency || 'N/A'],
-            ['Route', report.medicationUsage?.dosage?.route || 'N/A'],
-            ['Start Date', formatDate(report.medicationUsage?.startDate)],
+            [t('reportDetail.labels.indication'), report.medicationUsage?.indication || t('reportDetail.labels.notSpecified')],
+            [t('reportDetail.labels.dosage'), report.medicationUsage?.dosage?.amount || t('common.notAvailable')],
+            [t('reportDetail.labels.frequency'), report.medicationUsage?.dosage?.frequency || t('common.notAvailable')],
+            [t('reportDetail.labels.route'), report.medicationUsage?.dosage?.route || t('common.notAvailable')],
+            [t('reportDetail.labels.startDate'), formatDate(report.medicationUsage?.startDate)],
           ].map(([label, value]) => (
             <View key={label} style={styles.detailRow}>
               <Text style={styles.detailLabel}>{label}</Text>
@@ -377,14 +419,14 @@ const ReportDetailScreen = ({ route, navigation }) => {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Ionicons name="document-text" size={20} color={colors.textSecondary} />
-          <Text style={styles.sectionTitle}>Report Details</Text>
+          <Text style={styles.sectionTitle}>{t('reportDetail.sections.reportDetails')}</Text>
         </View>
         <View style={styles.card}>
           {[
-            ['Incident Date', formatDate(report.reportDetails?.incidentDate)],
-            ['Report Date', formatDate(report.createdAt)],
-            ['Seriousness', report.reportDetails?.seriousness || 'Not assessed'],
-            ['Outcome', report.reportDetails?.outcome || 'Unknown'],
+            [t('reportDetail.labels.incidentDate'), formatDate(report.reportDetails?.incidentDate)],
+            [t('reportDetail.labels.reportDate'), formatDate(report.createdAt)],
+            [t('reportDetail.labels.seriousness'), report.reportDetails?.seriousness || t('reportDetail.labels.notAssessed')],
+            [t('reportDetail.labels.outcome'), report.reportDetails?.outcome || t('common.unknown')],
           ].map(([label, value]) => (
             <View key={label} style={styles.detailRow}>
               <Text style={styles.detailLabel}>{label}</Text>
@@ -395,11 +437,11 @@ const ReportDetailScreen = ({ route, navigation }) => {
       </View>
 
       {/* ═══ AI Analysis Section (matching web) ═══ */}
-      {aiProcessed && ai ? (
+      {aiStatus === 'completed' && ai ? (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="analytics" size={20} color="#7C4DFF" />
-            <Text style={styles.sectionTitle}>AI Analysis</Text>
+            <Text style={styles.sectionTitle}>{t('reportDetail.sections.aiAnalysis')}</Text>
           </View>
           <View style={[styles.card, { borderLeftWidth: 3, borderLeftColor: '#7C4DFF', overflow: 'hidden' }]}>
             {/* Urgency Banner */}
@@ -417,7 +459,7 @@ const ReportDetailScreen = ({ route, navigation }) => {
               <View style={styles.guidanceBox}>
                 <View style={styles.guidanceHeader}>
                   <Ionicons name="information-circle" size={16} color={colors.info} />
-                  <Text style={styles.guidanceTitle}>What This Means For You</Text>
+                  <Text style={styles.guidanceTitle}>{t('reportDetail.labels.whatThisMeans')}</Text>
                 </View>
                 <Text style={styles.guidanceText}>{ai.patientGuidance.recommendation}</Text>
               </View>
@@ -426,7 +468,7 @@ const ReportDetailScreen = ({ route, navigation }) => {
             {/* Recommended Next Steps */}
             {ai.patientGuidance?.nextSteps?.length > 0 && (
               <View style={styles.aiListSection}>
-                <Text style={styles.aiListTitle}>Recommended Next Steps</Text>
+                <Text style={styles.aiListTitle}>{t('reportDetail.labels.recommendedNextSteps')}</Text>
                 {ai.patientGuidance.nextSteps.map((step, i) => (
                   <View key={i} style={styles.aiListRow}>
                     <View style={styles.aiListDot}>
@@ -441,7 +483,7 @@ const ReportDetailScreen = ({ route, navigation }) => {
             {/* Warning Signs to Watch */}
             {ai.patientGuidance?.warningSignsToWatch?.length > 0 && (
               <View style={[styles.aiListSection, { backgroundColor: '#FFF3E0', borderRadius: borderRadius.md, padding: spacing.md }]}>
-                <Text style={[styles.aiListTitle, { color: '#E65100' }]}>Warning Signs to Watch</Text>
+                <Text style={[styles.aiListTitle, { color: '#E65100' }]}>{t('reportDetail.labels.warningSigns')}</Text>
                 {ai.patientGuidance.warningSignsToWatch.map((sign, i) => (
                   <View key={i} style={styles.aiListRow}>
                     <Ionicons name="alert-circle" size={14} color="#E65100" />
@@ -460,7 +502,7 @@ const ReportDetailScreen = ({ route, navigation }) => {
                     onPress={() => Linking.openURL('tel:911')}
                   >
                     <Ionicons name="call" size={16} color="#fff" />
-                    <Text style={styles.emergencyBtnText}>Call Emergency</Text>
+                    <Text style={styles.emergencyBtnText}>{t('reportDetail.buttons.callEmergency')}</Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
@@ -468,57 +510,85 @@ const ReportDetailScreen = ({ route, navigation }) => {
                   onPress={() => Linking.openURL('https://www.google.com/maps/search/hospital+near+me')}
                 >
                   <Ionicons name="medkit" size={16} color={urgencyConfig.color} />
-                  <Text style={[styles.findCareBtnText, { color: urgencyConfig.color }]}>Find Nearby Care</Text>
+                  <Text style={[styles.findCareBtnText, { color: urgencyConfig.color }]}>{t('reportDetail.buttons.findNearbyCare')}</Text>
                 </TouchableOpacity>
               </View>
             )}
 
             {/* Clinical Summary */}
-            {ai.summary && (
+            {(ai.summary || ai.clinicalSummary) && (
               <View style={styles.aiReasoningBox}>
-                <Text style={styles.aiReasoningLabel}>Clinical Summary</Text>
-                <Text style={styles.aiReasoningText}>{typeof ai.summary === 'string' ? ai.summary : ''}</Text>
+                <Text style={styles.aiReasoningLabel}>{t('reportDetail.labels.clinicalSummary')}</Text>
+                <Text style={styles.aiReasoningText}>{safeStr(ai.summary) || safeStr(ai.clinicalSummary)}</Text>
               </View>
             )}
+            <View style={[styles.detailRow, { marginTop: spacing.md }]}>
+              <Text style={styles.detailLabel}>{t('reportDetail.labels.aiStatusLabel')}</Text>
+              <Text style={styles.detailValue}>{t(`reportDetail.aiStatus.${aiStatus}`)}</Text>
+            </View>
+            {report.metadata?.aiProvider ? (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{t('reportDetail.labels.aiProviderLabel')}</Text>
+                <Text style={styles.detailValue}>{report.metadata.aiProvider}</Text>
+              </View>
+            ) : null}
           </View>
         </View>
-      ) : !aiProcessed ? (
+      ) : aiStatus === 'failed' ? (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="analytics" size={20} color="#7C4DFF" />
-            <Text style={styles.sectionTitle}>AI Analysis</Text>
+            <Text style={styles.sectionTitle}>{t('reportDetail.sections.aiAnalysis')}</Text>
+          </View>
+          <View style={[styles.card, { alignItems: 'flex-start', paddingVertical: spacing.xl }]}>
+            <Text style={[styles.sectionTitle, { fontSize: 15 }]}>{t('reportDetail.aiStatus.failed')}</Text>
+            <Text style={[styles.descriptionText, { color: colors.textSecondary }]}>
+              {t('reportDetail.aiStatusDescription.failed')}
+            </Text>
+            {report.metadata?.aiProcessingError ? (
+              <Text style={[styles.descriptionText, { marginTop: spacing.sm }]}>
+                {t('reportDetail.labels.aiFailureReasonLabel')}: {report.metadata.aiProcessingError}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      ) : (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="analytics" size={20} color="#7C4DFF" />
+            <Text style={styles.sectionTitle}>{t('reportDetail.sections.aiAnalysis')}</Text>
           </View>
           <View style={[styles.card, { alignItems: 'center', paddingVertical: spacing.xl }]}>
             <ActivityIndicator size="large" color="#7C4DFF" />
-            <Text style={[styles.sectionTitle, { marginTop: spacing.base, fontSize: 15 }]}>Analyzing Your Report</Text>
+            <Text style={[styles.sectionTitle, { marginTop: spacing.base, fontSize: 15 }]}>{t(`reportDetail.aiStatus.${aiStatus === 'processing' ? 'processing' : 'queued'}`)}</Text>
             <Text style={[styles.descriptionText, { textAlign: 'center', color: colors.textSecondary }]}>
-              Our AI is reviewing your report. This usually takes a few moments. Pull down to refresh.
+              {t(`reportDetail.aiStatusDescription.${aiStatus === 'processing' ? 'processing' : 'queued'}`)}
             </Text>
           </View>
         </View>
-      ) : null}
+      )}
 
       {/* ═══ Doctor Review Section (matching web data paths) ═══ */}
       {review?.status === 'completed' && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="person" size={20} color={colors.success} />
-            <Text style={styles.sectionTitle}>Doctor Review</Text>
+            <Text style={styles.sectionTitle}>{t('reportDetail.sections.doctorReview')}</Text>
           </View>
           <View style={[styles.card, { borderLeftWidth: 3, borderLeftColor: colors.success }]}>
             {/* Success banner */}
             <View style={styles.reviewBanner}>
               <Ionicons name="checkmark-circle" size={16} color={colors.success} />
               <Text style={styles.reviewBannerText}>
-                Reviewed by Dr. {review.reviewedBy?.firstName} {review.reviewedBy?.lastName || ''}
+                {t('reportDetail.labels.reviewedBy', { name: `${review.reviewedBy?.firstName || ''} ${review.reviewedBy?.lastName || ''}`.trim() })}
               </Text>
-              <Text style={styles.reviewDate}>{formatDate(review.reviewedAt)}</Text>
+              <Text style={styles.reviewDate}>{formatShortDate(review.reviewedAt)}</Text>
             </View>
 
             {/* Remarks */}
             {review.remarks && (
               <View style={styles.reviewSection}>
-                <Text style={styles.reviewSectionLabel}>Doctor's Remarks</Text>
+                <Text style={styles.reviewSectionLabel}>{t('reportDetail.labels.doctorRemarks')}</Text>
                 <View style={styles.reviewTextBox}>
                   <Text style={styles.reviewText}>{review.remarks}</Text>
                 </View>
@@ -528,7 +598,7 @@ const ReportDetailScreen = ({ route, navigation }) => {
             {/* Recommendation */}
             {review.doctorAssessment?.recommendation && (
               <View style={styles.reviewSection}>
-                <Text style={styles.reviewSectionLabel}>Recommendation</Text>
+                <Text style={styles.reviewSectionLabel}>{t('reportDetail.labels.recommendation')}</Text>
                 <View style={styles.reviewTextBox}>
                   <Text style={styles.reviewText}>{review.doctorAssessment.recommendation}</Text>
                 </View>
@@ -538,7 +608,7 @@ const ReportDetailScreen = ({ route, navigation }) => {
             {/* Action Required */}
             {review.doctorAssessment?.actionRequired && review.doctorAssessment.actionRequired !== 'none' && (
               <View style={styles.reviewSection}>
-                <Text style={styles.reviewSectionLabel}>Action Required</Text>
+                <Text style={styles.reviewSectionLabel}>{t('reportDetail.labels.actionRequired')}</Text>
                 <View style={[styles.actionChip, { borderColor: getActionColor(review.doctorAssessment.actionRequired) }]}>
                   <Ionicons name="alert-circle" size={14} color={getActionColor(review.doctorAssessment.actionRequired)} />
                   <Text style={[styles.actionChipText, { color: getActionColor(review.doctorAssessment.actionRequired) }]}>
@@ -553,9 +623,11 @@ const ReportDetailScreen = ({ route, navigation }) => {
               <View style={[styles.followUpBox]}>
                 <Ionicons name="calendar" size={14} color={colors.info} />
                 <Text style={styles.followUpText}>
-                  Follow-up: {review.doctorAssessment.followUpDate
-                    ? formatDate(review.doctorAssessment.followUpDate)
-                    : 'Required'}
+                  {t('reportDetail.labels.followUp', {
+                    date: review.doctorAssessment.followUpDate
+                      ? formatDate(review.doctorAssessment.followUpDate)
+                      : t('reportDetail.labels.required'),
+                  })}
                 </Text>
               </View>
             )}
@@ -569,10 +641,10 @@ const ReportDetailScreen = ({ route, navigation }) => {
           <View style={[styles.card, { backgroundColor: colors.info + '08', borderWidth: 1, borderColor: colors.info + '30' }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
               <Ionicons name="hourglass" size={18} color={colors.info} />
-              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.info }}>Review Requested</Text>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.info }}>{t('reportDetail.labels.reviewRequested')}</Text>
             </View>
             <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: spacing.sm }}>
-              Your review request has been submitted. A doctor will review your report soon.
+              {t('reportDetail.labels.reviewRequestedDescription')}
             </Text>
           </View>
         </View>
@@ -583,7 +655,7 @@ const ReportDetailScreen = ({ route, navigation }) => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="attach" size={18} color={colors.primary} />
-            <Text style={styles.sectionTitle}>Attachments ({report.attachments.length})</Text>
+            <Text style={styles.sectionTitle}>{t('reportDetail.sections.attachments', { count: report.attachments.length })}</Text>
           </View>
           <View style={styles.card}>
             <View style={styles.attachmentsGrid}>
@@ -612,7 +684,7 @@ const ReportDetailScreen = ({ route, navigation }) => {
                       </View>
                     )}
                     <Text style={styles.attachmentName} numberOfLines={1}>
-                      {att.originalName || `File ${idx + 1}`}
+                      {att.originalName || t('reportDetail.labels.attachmentFile', { index: idx + 1 })}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -628,11 +700,11 @@ const ReportDetailScreen = ({ route, navigation }) => {
         <View style={styles.exportRow}>
           <TouchableOpacity style={styles.exportBtn} onPress={handleExportJSON}>
             <Ionicons name="share-outline" size={16} color={colors.primary} />
-            <Text style={styles.exportBtnText}>Export JSON</Text>
+            <Text style={styles.exportBtnText}>{t('common.exportJson')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.exportBtn} onPress={handlePrintReport}>
             <Ionicons name="print-outline" size={16} color={colors.primary} />
-            <Text style={styles.exportBtnText}>Print</Text>
+            <Text style={styles.exportBtnText}>{t('common.print')}</Text>
           </TouchableOpacity>
         </View>
         {canRequestReview && (
@@ -651,7 +723,7 @@ const ReportDetailScreen = ({ route, navigation }) => {
               ) : (
                 <>
                   <Ionicons name="person-add" size={18} color="#fff" />
-                  <Text style={styles.gradientBtnText}>Request Doctor Review</Text>
+                  <Text style={styles.gradientBtnText}>{t('reportDetail.buttons.requestDoctorReview')}</Text>
                 </>
               )}
             </LinearGradient>
@@ -661,7 +733,7 @@ const ReportDetailScreen = ({ route, navigation }) => {
         {canDelete && (
           <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteReport}>
             <Ionicons name="trash-outline" size={18} color={colors.error} />
-            <Text style={styles.deleteBtnText}>Delete Report</Text>
+            <Text style={styles.deleteBtnText}>{t('reportDetail.buttons.deleteReport')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -672,14 +744,14 @@ const ReportDetailScreen = ({ route, navigation }) => {
       <Modal visible={showReviewDialog} transparent animationType="fade">
         <View style={styles.dialogOverlay}>
           <View style={styles.dialogContent}>
-            <Text style={styles.dialogTitle}>Request Doctor Review</Text>
+            <Text style={styles.dialogTitle}>{t('reportDetail.dialog.title')}</Text>
             <Text style={styles.dialogDesc}>
-              A medical professional will review your report and provide their assessment. You'll be notified when the review is complete.
+              {t('reportDetail.dialog.description')}
             </Text>
-            <Text style={styles.dialogLabel}>Additional concerns or questions (optional)</Text>
+            <Text style={styles.dialogLabel}>{t('reportDetail.dialog.optionalPrompt')}</Text>
             <TextInput
               style={styles.dialogInput}
-              placeholder="Describe any specific concerns..."
+              placeholder={t('reportDetail.dialog.placeholder')}
               placeholderTextColor={colors.textDisabled}
               multiline
               numberOfLines={3}
@@ -692,7 +764,7 @@ const ReportDetailScreen = ({ route, navigation }) => {
                 style={styles.dialogCancelBtn}
                 onPress={() => { setShowReviewDialog(false); setReviewReason(''); }}
               >
-                <Text style={styles.dialogCancelText}>Cancel</Text>
+                <Text style={styles.dialogCancelText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.dialogSubmitBtn}
@@ -707,7 +779,7 @@ const ReportDetailScreen = ({ route, navigation }) => {
                   {isRequesting ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Text style={styles.dialogSubmitText}>Submit Request</Text>
+                    <Text style={styles.dialogSubmitText}>{t('reportDetail.buttons.submitRequest')}</Text>
                   )}
                 </LinearGradient>
               </TouchableOpacity>

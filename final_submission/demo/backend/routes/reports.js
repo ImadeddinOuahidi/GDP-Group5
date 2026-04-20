@@ -299,6 +299,8 @@ router.get('/', [
   query('seriousness').optional().isIn(['Serious', 'Non-serious']),
   query('severity').optional().isIn(['Mild', 'Moderate', 'Severe', 'Life-threatening']),
   query('medicine').optional().isMongoId(),
+  query('drugName').optional().isString().trim().isLength({ min: 1, max: 120 }),
+  query('medicineQuery').optional().isString().trim().isLength({ min: 1, max: 120 }),
   query('reportedBy').optional().isMongoId(),
   query('patient').optional().isMongoId(),
   query('fromDate').optional().isISO8601(),
@@ -591,7 +593,16 @@ router.get('/medicine/:medicineId', [
 ], reportController.getReportsByMedicine);
 
 // GET /api/reports/pending-reviews - Get reports pending doctor review (must be before /:id route)
-router.get('/pending-reviews', reportController.getPendingReviews);
+router.get('/pending-reviews', [
+  query('page').optional().isInt({ min: 1 }),
+  query('limit').optional().isInt({ min: 1, max: 100 }),
+  query('severity').optional().isIn(['Mild', 'Moderate', 'Severe', 'Life-threatening']),
+  query('fromDate').optional().isISO8601(),
+  query('toDate').optional().isISO8601(),
+  query('drugName').optional().isString().trim().isLength({ min: 1, max: 120 }),
+  query('medicineQuery').optional().isString().trim().isLength({ min: 1, max: 120 }),
+  query('assignedToMe').optional().isIn(['true', 'false'])
+], reportController.getPendingReviews);
 
 /**
  * @swagger
@@ -1124,6 +1135,11 @@ router.post('/:id/flag-duplicate',
 router.post('/:id/merge-duplicate', 
   restrictTo('admin', 'doctor'),
   reportController.mergeDuplicateReport
+);
+
+router.post('/:id/reprocess-ai',
+  restrictTo('admin', 'doctor'),
+  reportController.reprocessAiAnalysis
 );
 
 /**

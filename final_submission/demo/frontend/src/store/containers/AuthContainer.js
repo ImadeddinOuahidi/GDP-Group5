@@ -26,7 +26,33 @@ const MOCK_USERS = {
     isActive: true,
     isEmailVerified: true
   },
+  "admin@demo.com": {
+    _id: "demo-admin1",
+    email: "admin@demo.com",
+    password: "Demo@123",
+    role: "admin",
+    name: "Demo Admin",
+    firstName: "Demo",
+    lastName: "Admin",
+    isActive: true,
+    isEmailVerified: true
+  },
 };
+
+const VALID_ROLES = new Set(["admin", "doctor", "patient"]);
+
+const normalizeRole = (role) => {
+  const normalizedRole = String(role || "patient").trim().toLowerCase();
+  return VALID_ROLES.has(normalizedRole) ? normalizedRole : "patient";
+};
+
+const normalizeUser = (userData = {}) => ({
+  ...userData,
+  name: userData.name || userData.username || `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'User',
+  firstName: userData.firstName || userData.name?.split(' ')[0] || userData.username || 'User',
+  lastName: userData.lastName || userData.name?.split(' ')[1] || '',
+  role: normalizeRole(userData.role),
+});
 
 function useAuth(initialState = null) {
   const [user, setUser] = useState(initialState);
@@ -36,25 +62,52 @@ function useAuth(initialState = null) {
 
   // Initialize auth state from localStorage on mount
   useEffect(() => {
-    const initializeAuth = () => {
+    const initializeAuth = async () => {
       try {
         const savedUser = localStorage.getItem("user");
         const savedToken = localStorage.getItem("token");
         
         // Only auto-login if we have both user and a valid token
         if (savedUser && savedToken && !savedToken.startsWith('demo-token')) {
-          const userData = JSON.parse(savedUser);
-          
-          // Normalize user object to ensure required properties
-          const normalizedUser = {
-            ...userData,
-            name: userData.name || userData.username || `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'User',
-            firstName: userData.firstName || userData.name?.split(' ')[0] || userData.username || 'User',
-            lastName: userData.lastName || userData.name?.split(' ')[1] || '',
-            role: userData.role || 'patient'
-          };
-          
-          setUser(normalizedUser);
+          const cachedUser = normalizeUser(JSON.parse(savedUser));
+          const isStaleInitialization = () => localStorage.getItem("token") !== savedToken;
+
+          try {
+            const response = await api.auth.getProfile();
+            const profileUser = response?.data?.data?.user;
+
+            // Prevent stale boot-time auth from overriding a fresh login/logout.
+            if (isStaleInitialization()) {
+              return;
+            }
+
+            if (response?.data?.success && profileUser) {
+              const normalizedUser = normalizeUser(profileUser);
+              setUser(normalizedUser);
+              setIsAuthenticated(true);
+              localStorage.setItem("user", JSON.stringify(normalizedUser));
+              return;
+            }
+          } catch (profileError) {
+            if (isStaleInitialization()) {
+              return;
+            }
+
+            if (profileError?.response?.status === 401 || !localStorage.getItem('token')) {
+              localStorage.removeItem("token");
+              localStorage.removeItem("user");
+              setUser(null);
+              setIsAuthenticated(false);
+              return;
+            }
+            console.warn('Failed to refresh auth profile, falling back to cached user:', profileError?.message || profileError);
+          }
+
+          if (isStaleInitialization()) {
+            return;
+          }
+
+          setUser(cachedUser);
           setIsAuthenticated(true);
         } else {
           // Clear any invalid or demo tokens
@@ -86,15 +139,7 @@ function useAuth(initialState = null) {
         
         if (response.data.success) {
           const { user: apiUser, token } = response.data.data;
-          
-          // Normalize API user object
-          const normalizedUser = {
-            ...apiUser,
-            name: apiUser.name || `${apiUser.firstName || ''} ${apiUser.lastName || ''}`.trim() || apiUser.username || apiUser.email,
-            firstName: apiUser.firstName || apiUser.name?.split(' ')[0] || apiUser.username || 'User',
-            lastName: apiUser.lastName || apiUser.name?.split(' ')[1] || '',
-            role: apiUser.role || 'patient'
-          };
+          const normalizedUser = normalizeUser(apiUser);
           
           setUser(normalizedUser);
           setIsAuthenticated(true);
@@ -117,13 +162,7 @@ function useAuth(initialState = null) {
             
           if (mockUser && mockUser.password === password) {
             
-            // Use the complete mock user data with normalization
-            const normalizedUser = {
-              ...mockUser,
-              name: mockUser.name || mockUser.email,
-              firstName: mockUser.firstName || mockUser.name?.split(' ')[0] || 'User',
-              lastName: mockUser.lastName || mockUser.name?.split(' ')[1] || '',
-            };
+            const normalizedUser = normalizeUser(mockUser);
             
             setUser(normalizedUser);
             setIsAuthenticated(true);
@@ -174,15 +213,7 @@ function useAuth(initialState = null) {
       
       if (response.data.success) {
         const { user: newUser, token } = response.data.data;
-        
-        // Normalize user object
-        const normalizedUser = {
-          ...newUser,
-          name: newUser.name || `${newUser.firstName || ''} ${newUser.lastName || ''}`.trim() || newUser.username,
-          firstName: newUser.firstName || newUser.name?.split(' ')[0] || 'User',
-          lastName: newUser.lastName || newUser.name?.split(' ')[1] || '',
-          role: newUser.role || 'patient'
-        };
+        const normalizedUser = normalizeUser(newUser);
         
         setUser(normalizedUser);
         setIsAuthenticated(true);
@@ -214,11 +245,10 @@ function useAuth(initialState = null) {
       
       if (response.data.success) {
         const updatedUserData = response.data.data.user;
-        const normalizedUser = {
+        const normalizedUser = normalizeUser({
           ...user,
           ...updatedUserData,
-          name: updatedUserData.name || `${updatedUserData.firstName || ''} ${updatedUserData.lastName || ''}`.trim() || user.name,
-        };
+        });
         
         setUser(normalizedUser);
         localStorage.setItem("user", JSON.stringify(normalizedUser));
@@ -245,8 +275,9 @@ function useAuth(initialState = null) {
         // Ensure name consistency
         name: user.name || user.username || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User'
       };
-      setUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
+      const normalizedUser = normalizeUser(updatedUser);
+      setUser(normalizedUser);
+      localStorage.setItem("user", JSON.stringify(normalizedUser));
     }
   };
 

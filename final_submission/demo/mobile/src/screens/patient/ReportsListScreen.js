@@ -11,6 +11,7 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useI18n } from '../../context/I18nContext';
 import { reportService } from '../../services';
 import { colors, spacing, borderRadius, shadows } from '../../config/theme';
 
@@ -23,6 +24,7 @@ const SORT_OPTIONS = [
 ];
 
 const ReportsListScreen = ({ navigation }) => {
+  const { locale } = useI18n();
   const [allReports, setAllReports] = useState([]);
   const [filteredReports, setFilteredReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -122,7 +124,7 @@ const ReportsListScreen = ({ navigation }) => {
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    return new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'short', day: 'numeric' }).format(date);
   };
 
   const stats = {

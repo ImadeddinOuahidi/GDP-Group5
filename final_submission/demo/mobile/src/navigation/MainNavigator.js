@@ -23,6 +23,7 @@ import DoctorHomeScreen from '../screens/doctor/DoctorHomeScreen';
 import MedicationsScreen from '../screens/doctor/MedicationsScreen';
 import AddMedicationScreen from '../screens/doctor/AddMedicationScreen';
 import ReviewRequestsScreen from '../screens/doctor/ReviewRequestsScreen';
+import AnalyticsScreen from '../screens/doctor/AnalyticsScreen';
 
 // Services
 import { notificationService } from '../services';
@@ -102,10 +103,16 @@ const NotificationsStack = () => {
 // Doctor Home Stack
 const DoctorHomeStack = () => {
   const { t } = useI18n();
+  const { isAdmin } = useAuth();
 
   return (
     <Stack.Navigator screenOptions={headerOptions}>
-      <Stack.Screen name="DoctorHomeScreen" component={DoctorHomeScreen} options={{ title: t('nav.dashboard') }} />
+      <Stack.Screen
+        name="DoctorHomeScreen"
+        component={DoctorHomeScreen}
+        options={{ title: isAdmin ? t('nav.adminCommandCenter') : t('nav.dashboard') }}
+      />
+      <Stack.Screen name="StaffAnalytics" component={AnalyticsScreen} options={{ title: t('nav.dashboard') }} />
       <Stack.Screen name="ReportDetail" component={ReportDetailScreen} options={{ title: t('nav.reportDetails') }} />
     </Stack.Navigator>
   );
@@ -114,10 +121,15 @@ const DoctorHomeStack = () => {
 // Medications Stack
 const MedicationsStack = () => {
   const { t } = useI18n();
+  const { isAdmin } = useAuth();
 
   return (
     <Stack.Navigator screenOptions={headerOptions}>
-      <Stack.Screen name="MedicationsList" component={MedicationsScreen} options={{ title: t('nav.medications') }} />
+      <Stack.Screen
+        name="MedicationsList"
+        component={MedicationsScreen}
+        options={{ title: isAdmin ? t('nav.adminMedicationCatalog') : t('nav.medications') }}
+      />
       <Stack.Screen name="AddMedication" component={AddMedicationScreen} options={{ title: t('nav.addMedication') }} />
     </Stack.Navigator>
   );
@@ -126,10 +138,15 @@ const MedicationsStack = () => {
 // Review Stack
 const ReviewStack = () => {
   const { t } = useI18n();
+  const { isAdmin } = useAuth();
 
   return (
     <Stack.Navigator screenOptions={headerOptions}>
-      <Stack.Screen name="ReviewRequests" component={ReviewRequestsScreen} options={{ title: t('nav.reviewRequests') }} />
+      <Stack.Screen
+        name="ReviewRequests"
+        component={ReviewRequestsScreen}
+        options={{ title: isAdmin ? t('nav.adminReviewQueue') : t('nav.reviewRequests') }}
+      />
       <Stack.Screen name="ReportDetail" component={ReportDetailScreen} options={{ title: t('nav.reportDetails') }} />
     </Stack.Navigator>
   );
@@ -250,6 +267,7 @@ const PatientTabNavigator = () => {
 // Doctor Tab Navigator
 const DoctorTabNavigator = () => {
   const { t } = useI18n();
+  const { isAdmin } = useAuth();
   const unreadCount = useUnreadCount();
   return (
     <Tab.Navigator
@@ -259,7 +277,9 @@ const DoctorTabNavigator = () => {
           let iconName;
           switch (route.name) {
             case 'Dashboard':
-              iconName = focused ? 'grid' : 'grid-outline';
+              iconName = isAdmin
+                ? (focused ? 'shield-checkmark' : 'shield-checkmark-outline')
+                : (focused ? 'grid' : 'grid-outline');
               break;
             case 'Medications':
               iconName = focused ? 'medkit' : 'medkit-outline';
@@ -294,9 +314,21 @@ const DoctorTabNavigator = () => {
         },
       })}
     >
-      <Tab.Screen name="Dashboard" component={DoctorHomeStack} options={{ tabBarLabel: t('nav.tabs.dashboard') }} />
-      <Tab.Screen name="Medications" component={MedicationsStack} options={{ tabBarLabel: t('nav.tabs.medications') }} />
-      <Tab.Screen name="Review" component={ReviewStack} options={{ tabBarLabel: t('nav.tabs.review') }} />
+      <Tab.Screen
+        name="Dashboard"
+        component={DoctorHomeStack}
+        options={{ tabBarLabel: isAdmin ? t('nav.tabs.adminDashboard') : t('nav.tabs.dashboard') }}
+      />
+      <Tab.Screen
+        name="Medications"
+        component={MedicationsStack}
+        options={{ tabBarLabel: isAdmin ? t('nav.tabs.adminMedications') : t('nav.tabs.medications') }}
+      />
+      <Tab.Screen
+        name="Review"
+        component={ReviewStack}
+        options={{ tabBarLabel: isAdmin ? t('nav.tabs.adminReview') : t('nav.tabs.review') }}
+      />
       <Tab.Screen name="Notifications" component={NotificationsStack} options={{ tabBarLabel: t('nav.tabs.notifications') }} />
       <Tab.Screen name="Profile" component={ProfileStack} options={{ tabBarLabel: t('nav.tabs.profile') }} />
     </Tab.Navigator>
@@ -306,8 +338,8 @@ const DoctorTabNavigator = () => {
 // Main Navigator - switches based on user role
 const MainNavigator = () => {
   const { user } = useAuth();
-  const isDoctor = user?.role === 'doctor' || user?.role === 'admin';
-  return isDoctor ? <DoctorTabNavigator /> : <PatientTabNavigator />;
+  const isStaff = user?.role === 'doctor' || user?.role === 'admin';
+  return isStaff ? <DoctorTabNavigator /> : <PatientTabNavigator />;
 };
 
 export default MainNavigator;

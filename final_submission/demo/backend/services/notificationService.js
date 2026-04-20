@@ -57,8 +57,19 @@ const notificationService = {
   /**
    * Create a notification and send real-time alert
    */
-  async notify({ recipientId, type, title, message, priority = 'medium', relatedReport, metadata }) {
+  async notify({ recipientId, type, title, message, priority = 'medium', relatedReport, metadata = {} }) {
     try {
+      if (metadata?.dedupeKey) {
+        const existing = await Notification.findOne({
+          recipient: recipientId,
+          'metadata.dedupeKey': metadata.dedupeKey,
+        }).select('_id');
+
+        if (existing) {
+          return existing;
+        }
+      }
+
       // Save to database
       const notification = await Notification.create({
         recipient: recipientId,
@@ -91,7 +102,7 @@ const notificationService = {
   /**
    * Notify all staff (doctors + admins) about an urgent report
    */
-  async notifyStaffUrgentReport(report) {
+  async notifyStaffUrgentReport(report, options = {}) {
     try {
       // Find all doctors and admins
       const staff = await User.find({
@@ -104,24 +115,51 @@ const notificationService = {
         : 'Unknown patient';
 
       const medicineName = report.medicine?.name || 'Unknown medication';
-      const severity = report.metadata?.aiAnalysis?.severity?.level || 'Unknown';
-      const priority = report.priority || 'high';
+      const severity =
+        report.metadata?.aiAnalysis?.severity?.level ||
+        report.sideEffects?.[0]?.severity ||
+        'Unknown';
+      const urgencyLevel =
+        options.urgencyLevel ||
+        report.metadata?.aiAnalysis?.patientGuidance?.urgencyLevel ||
+        (severity === 'Life-threatening' ? 'emergency' : severity === 'Severe' ? 'urgent' : 'routine');
+      const priority =
+        urgencyLevel === 'emergency'
+          ? 'critical'
+          : urgencyLevel === 'urgent'
+            ? 'high'
+            : report.priority?.toLowerCase() || 'medium';
+      const type = priority === 'critical' ? 'critical_report' : 'urgent_report';
+      const notificationKey = type === 'critical_report'
+        ? 'notifications.types.criticalReport'
+        : 'notifications.types.urgentReport';
+      const dedupeKey = `${type}:${report._id}:${urgencyLevel}`;
 
       const notificationData = {
-        type: priority === 'critical' ? 'critical_report' : 'urgent_report',
-        title: priority === 'critical'
+        type,
+        title: type === 'critical_report'
           ? `CRITICAL: Immediate attention required`
           : `Urgent Report: ${medicineName}`,
-        message: priority === 'critical'
+        message: type === 'critical_report'
           ? `A critical ADR report for ${medicineName} by ${patientName} requires immediate review. Severity: ${severity}.`
           : `An urgent ADR report has been submitted for ${medicineName} by ${patientName}. Severity: ${severity}.`,
-        priority: priority === 'critical' ? 'critical' : 'high',
+        priority: type === 'critical_report' ? 'critical' : 'high',
         relatedReport: report._id,
         metadata: {
           patientName,
           medicineName,
           severity,
           reportId: report._id.toString(),
+          urgencyLevel,
+          trigger: options.trigger || 'submission',
+          notificationKey,
+          notificationArgs: {
+            patientName,
+            medicineName,
+            severity,
+            urgencyLevel,
+          },
+          dedupeKey,
         },
       };
 
@@ -156,6 +194,11 @@ const notificationService = {
       metadata: {
         medicineName,
         reportId: report._id.toString(),
+        notificationKey: 'notifications.types.statusUpdated',
+        notificationArgs: {
+          medicineName,
+          status: newStatus,
+        },
       },
     });
   },
@@ -180,6 +223,13 @@ const notificationService = {
         medicineName,
         severity: urgency,
         reportId: report._id.toString(),
+        urgencyLevel: urgency,
+        notificationKey: 'notifications.types.aiAnalysisComplete',
+        notificationArgs: {
+          medicineName,
+          urgency,
+        },
+        dedupeKey: `ai_analysis_complete:${report._id}:${urgency}`,
       },
     });
   },
@@ -205,6 +255,11 @@ const notificationService = {
       metadata: {
         medicineName,
         reportId: report._id.toString(),
+        notificationKey: 'notifications.types.reviewCompleted',
+        notificationArgs: {
+          medicineName,
+          doctorName,
+        },
       },
     });
   },

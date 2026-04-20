@@ -16,6 +16,7 @@ import {
   Avatar,
 } from '@mui/material';
 import {
+  AdminPanelSettings as AdminPanelIcon,
   Home as HomeIcon,
   EditNote as ReportIcon,
   History as HistoryIcon,
@@ -38,7 +39,7 @@ const Navigation = ({ mobileOpen, handleDrawerToggle }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { user, isPatient } = AuthContainer.useContainer();
+  const { user, isPatient, isAdmin } = AuthContainer.useContainer();
   const { unreadCount } = useNotifications();
   const { t } = useI18n();
 
@@ -57,7 +58,15 @@ const Navigation = ({ mobileOpen, handleDrawerToggle }) => {
     { text: t('navigation.settings'), caption: t('navigation.profileAndPreferences'), icon: <SettingsIcon />, path: '/settings', badge: null },
   ];
 
-  const navItems = isPatient ? patientNavItems : doctorNavItems;
+  const adminNavItems = [
+    { text: t('navigation.adminOverview'), caption: t('navigation.operationalSummary'), icon: <AdminPanelIcon />, path: '/admin-home', badge: null },
+    { text: t('navigation.staffInbox'), caption: t('navigation.adminQueueCaption'), icon: <ReviewIcon />, path: '/review-requests', badge: null },
+    { text: t('navigation.medicationGovernance'), caption: t('navigation.catalogGovernanceCaption'), icon: <MedicineIcon />, path: '/medications', badge: null },
+    { text: t('navigation.adminAnalytics'), caption: t('navigation.platformSignals'), icon: <DashboardIcon />, path: '/dashboard', badge: null },
+    { text: t('navigation.settings'), caption: t('navigation.profileAndPreferences'), icon: <SettingsIcon />, path: '/settings', badge: null },
+  ];
+
+  const navItems = isPatient ? patientNavItems : (isAdmin ? adminNavItems : doctorNavItems);
 
   const handleNavigation = (path) => {
     navigate(path);
@@ -100,7 +109,7 @@ const Navigation = ({ mobileOpen, handleDrawerToggle }) => {
             {t('common.appName')}
           </Typography>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-            {isPatient ? t('navigation.patientWorkspace') : t('navigation.doctorWorkspace')}
+            {isPatient ? t('navigation.patientWorkspace') : (isAdmin ? t('navigation.adminWorkspace') : t('navigation.doctorWorkspace'))}
           </Typography>
         </Box>
       </Box>

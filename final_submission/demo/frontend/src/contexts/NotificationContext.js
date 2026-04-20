@@ -1,16 +1,56 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { tokenManager } from '../services/apiClient';
+import { useI18n } from '../i18n';
 
 const NotificationContext = createContext(null);
 
 const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 export function NotificationProvider({ children }) {
+  const { t } = useI18n();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [connected, setConnected] = useState(false);
   const abortControllerRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
+
+  const localizeNotification = useCallback((notification = {}) => {
+    const metadata = notification.metadata || {};
+    const notificationArgs = metadata.notificationArgs || {};
+
+    const keyMap = {
+      urgent_report: {
+        title: 'notifications.types.urgentReport',
+        message: 'notifications.messages.urgentReport',
+      },
+      critical_report: {
+        title: 'notifications.types.criticalReport',
+        message: 'notifications.messages.criticalReport',
+      },
+      status_updated: {
+        title: 'notifications.types.statusUpdated',
+        message: 'notifications.messages.statusUpdated',
+      },
+      ai_analysis_complete: {
+        title: 'notifications.types.aiAnalysisComplete',
+        message: 'notifications.messages.aiAnalysisComplete',
+      },
+      review_completed: {
+        title: 'notifications.types.reviewCompleted',
+        message: 'notifications.messages.reviewCompleted',
+      },
+    };
+
+    const keys = keyMap[notification.type] || {};
+    const localizedTitle = keys.title ? t(keys.title, notificationArgs) : (notification.title || t('notifications.title'));
+    const localizedMessage = keys.message ? t(keys.message, notificationArgs) : (notification.message || '');
+
+    return {
+      ...notification,
+      localizedTitle,
+      localizedMessage,
+    };
+  }, [t]);
 
   // Fetch existing notifications from API
   const fetchNotifications = useCallback(async () => {
@@ -24,14 +64,14 @@ export function NotificationProvider({ children }) {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          setNotifications(data.data.notifications || []);
+          setNotifications((data.data.notifications || []).map(localizeNotification));
           setUnreadCount(data.data.unreadCount || 0);
         }
       }
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
     }
-  }, []);
+  }, [localizeNotification]);
 
   // Connect to SSE stream using fetch (supports auth headers)
   const connectSSE = useCallback(async () => {
@@ -80,13 +120,14 @@ export function NotificationProvider({ children }) {
             if (eventType === 'notification' && dataStr) {
               try {
                 const notification = JSON.parse(dataStr);
-                setNotifications((prev) => [notification, ...prev.slice(0, 19)]);
+                const localizedNotification = localizeNotification(notification);
+                setNotifications((prev) => [localizedNotification, ...prev.slice(0, 19)]);
                 setUnreadCount((prev) => prev + 1);
 
                 // Show browser notification if permitted
                 if ('Notification' in window && Notification.permission === 'granted') {
-                  new window.Notification(notification.title || 'New Notification', {
-                    body: notification.message,
+                  new window.Notification(localizedNotification.localizedTitle || t('notifications.title'), {
+                    body: localizedNotification.localizedMessage,
                     icon: '/logo192.png',
                     tag: notification._id || notification.id,
                   });
@@ -106,7 +147,7 @@ export function NotificationProvider({ children }) {
       // Reconnect after 10 seconds
       reconnectTimeoutRef.current = setTimeout(connectSSE, 10000);
     }
-  }, []);
+  }, [localizeNotification, t]);
 
   // Start SSE connection + polling fallback
   useEffect(() => {

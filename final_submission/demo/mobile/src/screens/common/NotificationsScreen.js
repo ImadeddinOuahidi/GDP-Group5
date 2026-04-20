@@ -12,8 +12,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { notificationService } from '../../services';
 import { colors, spacing, borderRadius, shadows } from '../../config/theme';
+import { useI18n } from '../../context/I18nContext';
 
 const NotificationsScreen = ({ navigation }) => {
+  const { t, locale } = useI18n();
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -59,8 +61,40 @@ const NotificationsScreen = ({ navigation }) => {
       await notificationService.markAllAsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     } catch (error) {
-      Alert.alert('Error', 'Failed to mark all as read');
+      Alert.alert(t('common.error'), t('notifications.markAllReadFailed'));
     }
+  };
+
+  const getLocalizedNotification = (item = {}) => {
+    const args = item.metadata?.notificationArgs || {};
+    const keyMap = {
+      urgent_report: {
+        title: 'notifications.types.urgentReport',
+        message: 'notifications.messages.urgentReport',
+      },
+      critical_report: {
+        title: 'notifications.types.criticalReport',
+        message: 'notifications.messages.criticalReport',
+      },
+      status_updated: {
+        title: 'notifications.types.statusUpdated',
+        message: 'notifications.messages.statusUpdated',
+      },
+      ai_analysis_complete: {
+        title: 'notifications.types.aiAnalysisComplete',
+        message: 'notifications.messages.aiAnalysisComplete',
+      },
+      review_completed: {
+        title: 'notifications.types.reviewCompleted',
+        message: 'notifications.messages.reviewCompleted',
+      },
+    };
+
+    const keys = keyMap[item.type] || {};
+    return {
+      title: keys.title ? t(keys.title, args) : (item.title || t('notifications.title')),
+      message: keys.message ? t(keys.message, args) : (item.message || ''),
+    };
   };
 
   const getNotificationIcon = (type) => {
@@ -99,17 +133,18 @@ const NotificationsScreen = ({ navigation }) => {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (diffMins < 1) return t('common.justNow');
+    if (diffMins < 60) return t('notifications.time.minutesAgo', { count: diffMins });
+    if (diffHours < 24) return t('notifications.time.hoursAgo', { count: diffHours });
+    if (diffDays < 7) return t('notifications.time.daysAgo', { count: diffDays });
+    return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(date);
   };
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const renderNotificationItem = ({ item }) => {
     const icon = getNotificationIcon(item.type);
+    const localized = getLocalizedNotification(item);
 
     return (
       <TouchableOpacity
@@ -132,10 +167,10 @@ const NotificationsScreen = ({ navigation }) => {
         </View>
         <View style={styles.contentContainer}>
           <Text style={[styles.notificationTitle, !item.isRead && styles.unreadText]}>
-            {item.title || 'Notification'}
+            {localized.title}
           </Text>
           <Text style={styles.notificationMessage} numberOfLines={2}>
-            {item.message || ''}
+            {localized.message}
           </Text>
           <Text style={styles.timeText}>{formatTimeAgo(item.createdAt)}</Text>
         </View>
@@ -158,10 +193,10 @@ const NotificationsScreen = ({ navigation }) => {
       {notifications.length > 0 && unreadCount > 0 && (
         <View style={styles.headerActions}>
           <Text style={styles.unreadLabel}>
-            {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
+            {t('notifications.unreadCount', { count: unreadCount })}
           </Text>
           <TouchableOpacity onPress={handleMarkAllRead}>
-            <Text style={styles.markAllText}>Mark all as read</Text>
+            <Text style={styles.markAllText}>{t('notifications.markAllRead')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -179,9 +214,9 @@ const NotificationsScreen = ({ navigation }) => {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="notifications-off-outline" size={64} color={colors.textDisabled} />
-            <Text style={styles.emptyTitle}>No Notifications</Text>
+            <Text style={styles.emptyTitle}>{t('notifications.emptyTitle')}</Text>
             <Text style={styles.emptyText}>
-              You'll be notified when there are updates on your reports.
+              {t('notifications.emptyText')}
             </Text>
           </View>
         }

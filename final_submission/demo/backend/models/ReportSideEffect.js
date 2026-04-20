@@ -353,12 +353,22 @@ const reportSideEffectSchema = new mongoose.Schema({
       type: Boolean,
       default: false
     },
+    aiStatus: {
+      type: String,
+      enum: ['queued', 'processing', 'completed', 'failed'],
+      default: 'queued'
+    },
     aiProcessedAt: Date,
+    aiLastQueuedAt: Date,
+    aiLastStartedAt: Date,
+    aiLastCompletedAt: Date,
+    aiLastFailedAt: Date,
     aiProcessingAttempts: {
       type: Number,
       default: 0
     },
     aiProcessingError: String,
+    aiProvider: String,
     aiAnalysis: {
       severity: {
         level: {
@@ -451,6 +461,40 @@ const reportSideEffectSchema = new mongoose.Schema({
       ref: 'User'
     },
     mergedAt: Date,
+    duplicateAnalysis: {
+      status: {
+        type: String,
+        enum: ['idle', 'processing', 'completed', 'failed'],
+        default: 'idle'
+      },
+      analysisSource: String,
+      analyzedAt: Date,
+      reviewState: {
+        type: String,
+        enum: ['pending', 'flagged', 'merged', 'ignored'],
+        default: 'pending'
+      },
+      shortlistedCandidateIds: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'ReportSideEffect'
+      }],
+      candidates: [{
+        reportId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'ReportSideEffect'
+        },
+        heuristicScore: Number,
+        confidence: Number,
+        isDuplicate: Boolean,
+        reasoning: String,
+        recommendedAction: {
+          type: String,
+          enum: ['review', 'flag', 'merge', 'ignore'],
+          default: 'review'
+        }
+      }],
+      lastError: String
+    },
     aiModelUsed: String,
     aiRiskScore: Number
   },

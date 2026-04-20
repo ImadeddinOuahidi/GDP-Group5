@@ -9,6 +9,7 @@ import {
   Reports,
   ReportDetail,
   Settings,
+  AdminHome,
   DoctorHome,
   Dashboard,
   Login,
@@ -33,7 +34,7 @@ function AppContent() {
   const [showRegistration, setShowRegistration] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [appLoading, setAppLoading] = useState(true);
-  const { isAuthenticated, isPatient } = AuthContainer.useContainer();
+  const { isAuthenticated, isPatient, isAdmin } = AuthContainer.useContainer();
 
   // Initialize app
   useEffect(() => {
@@ -225,7 +226,8 @@ function AppContent() {
                 </>
               ) : (
                 <>
-                  <Route path="/doctor-home" element={<DoctorHome />} />
+                  <Route path="/admin-home" element={isAdmin ? <AdminHome /> : <Navigate to="/doctor-home" replace />} />
+                  <Route path="/doctor-home" element={isAdmin ? <Navigate to="/admin-home" replace /> : <DoctorHome />} />
                   <Route path="/review-requests" element={<ReviewRequests />} />
                   <Route path="/reports/:id" element={<ReportDetail />} />
                   {/* Medication System Routes for Side Effect Reporting */}
@@ -234,9 +236,9 @@ function AppContent() {
                   <Route path="/medications/edit/:id" element={<AddMedication />} />
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/settings" element={<Settings />} />
-                  <Route path="/doctor" element={<Navigate to="/doctor-home" replace />} />
-                  <Route path="/" element={<Navigate to="/doctor-home" replace />} />
-                  <Route path="*" element={<Navigate to="/doctor-home" replace />} />
+                  <Route path="/doctor" element={<Navigate to={isAdmin ? "/admin-home" : "/doctor-home"} replace />} />
+                  <Route path="/" element={<Navigate to={isAdmin ? "/admin-home" : "/doctor-home"} replace />} />
+                  <Route path="*" element={<Navigate to={isAdmin ? "/admin-home" : "/doctor-home"} replace />} />
                 </>
               )}
             </Routes>

@@ -11,11 +11,13 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../context/AuthContext';
+import { useI18n } from '../../context/I18nContext';
 import { reportService } from '../../services';
 import { colors, spacing, borderRadius, shadows } from '../../config/theme';
 
 const HomeScreen = ({ navigation }) => {
   const { user } = useAuth();
+  const { locale } = useI18n();
   const [recentReports, setRecentReports] = useState([]);
   const [stats, setStats] = useState({ total: 0, pending: 0, reviewed: 0, underReview: 0 });
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -227,7 +229,7 @@ const HomeScreen = ({ navigation }) => {
                     {report.sideEffects?.[0]?.effect || 'No description'}
                   </Text>
                   <Text style={styles.reportDate}>
-                    {new Date(report.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    {new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(new Date(report.createdAt))}
                   </Text>
                 </View>
               </View>

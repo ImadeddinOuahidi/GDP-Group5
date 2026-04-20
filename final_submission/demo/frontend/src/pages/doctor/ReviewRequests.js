@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  InputAdornment,
   MenuItem,
   Alert,
   Avatar,
@@ -37,6 +38,7 @@ import {
   VerifiedUser as VerifiedIcon,
   Link as LinkIcon,
   Science as ScienceIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { reportService } from '../../services';
@@ -45,10 +47,19 @@ import { useI18n } from '../../i18n';
 export default function ReviewRequests() {
   const theme = useTheme();
   const navigate = useNavigate();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [pendingReviews, setPendingReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [feedback, setFeedback] = useState(null);
+  const [duplicateResults, setDuplicateResults] = useState({});
+  const [actionState, setActionState] = useState({});
+  const [filters, setFilters] = useState({
+    severity: '',
+    fromDate: '',
+    toDate: '',
+    drugName: '',
+  });
   
   // Review dialog state
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
@@ -59,15 +70,18 @@ export default function ReviewRequests() {
   const [agreedWithAI, setAgreedWithAI] = useState(true);
   const [submittingReview, setSubmittingReview] = useState(false);
 
-  useEffect(() => {
-    loadPendingReviews();
-  }, []);
+  const buildPendingReviewParams = (activeFilters = filters) => ({
+    severity: activeFilters.severity || undefined,
+    fromDate: activeFilters.fromDate || undefined,
+    toDate: activeFilters.toDate || undefined,
+    drugName: activeFilters.drugName?.trim() || undefined,
+  });
 
-  const loadPendingReviews = async () => {
+  const loadPendingReviews = async (activeFilters = filters) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await reportService.getPendingReviews();
+      const response = await reportService.getPendingReviews(buildPendingReviewParams(activeFilters));
       if (response.success && response.data?.reports) {
         setPendingReviews(response.data.reports);
       } else {
@@ -80,6 +94,33 @@ export default function ReviewRequests() {
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    loadPendingReviews(filters);
+    // Intentionally track scalar filter fields to avoid unnecessary reruns from object identity changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.severity, filters.fromDate, filters.toDate, filters.drugName]);
+
+  const hasActiveFilters = Boolean(
+    filters.severity || filters.fromDate || filters.toDate || filters.drugName.trim()
+  );
+
+  const handleFilterChange = (field) => (event) => {
+    const value = event.target.value;
+    setFilters((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      severity: '',
+      fromDate: '',
+      toDate: '',
+      drugName: '',
+    });
   };
 
   const handleOpenReviewDialog = (report) => {
@@ -114,6 +155,80 @@ export default function ReviewRequests() {
     }
   };
 
+  const handleReprocessAi = async (reportId) => {
+    try {
+      setActionState((prev) => ({ ...prev, [`reprocess:${reportId}`]: true }));
+      await reportService.reprocessAiAnalysis(reportId);
+      setFeedback({ severity: 'success', message: t('doctor.aiReprocessQueued') });
+      await loadPendingReviews();
+    } catch (err) {
+      console.error('Error reprocessing AI analysis:', err);
+      setFeedback({ severity: 'error', message: err.message || t('doctor.aiReprocessFailed') });
+    } finally {
+      setActionState((prev) => ({ ...prev, [`reprocess:${reportId}`]: false }));
+    }
+  };
+
+  const handleLoadDuplicates = async (reportId) => {
+    try {
+      setDuplicateResults((prev) => ({
+        ...prev,
+        [reportId]: { ...(prev[reportId] || {}), loading: true, error: null },
+      }));
+      const response = await reportService.findDuplicates(reportId);
+      const payload = response.data || {};
+      setDuplicateResults((prev) => ({
+        ...prev,
+        [reportId]: {
+          loading: false,
+          loaded: true,
+          analysisSource: payload.analysisSource,
+          duplicates: payload.duplicates || [],
+        },
+      }));
+    } catch (err) {
+      console.error('Error loading duplicates:', err);
+      setDuplicateResults((prev) => ({
+        ...prev,
+        [reportId]: {
+          loading: false,
+          loaded: true,
+          error: err.message || t('doctor.loadDuplicatesFailed'),
+          duplicates: [],
+        },
+      }));
+    }
+  };
+
+  const handleDuplicateDecision = async ({ action, candidateId, originalReportId }) => {
+    const actionKey = `${action}:${candidateId}`;
+
+    try {
+      setActionState((prev) => ({ ...prev, [actionKey]: true }));
+
+      if (action === 'merge') {
+        await reportService.mergeDuplicate(candidateId, originalReportId);
+      } else {
+        await reportService.flagDuplicate(candidateId, originalReportId);
+      }
+
+      setFeedback({
+        severity: 'success',
+        message: action === 'merge' ? t('doctor.duplicateMerged') : t('doctor.duplicateFlagged'),
+      });
+
+      await Promise.all([
+        handleLoadDuplicates(originalReportId),
+        loadPendingReviews(),
+      ]);
+    } catch (err) {
+      console.error('Error updating duplicate decision:', err);
+      setFeedback({ severity: 'error', message: err.message || t('doctor.duplicateActionFailed') });
+    } finally {
+      setActionState((prev) => ({ ...prev, [actionKey]: false }));
+    }
+  };
+
   const getUrgencyColor = (urgency) => {
     switch (urgency?.toLowerCase()) {
       case 'emergency': case 'urgent': return 'error';
@@ -135,13 +250,22 @@ export default function ReviewRequests() {
 
   const formatDate = (dateString) => {
     if (!dateString) return t('common.notAvailable');
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Intl.DateTimeFormat(locale, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
-    });
+    }).format(new Date(dateString));
+  };
+
+  const getAiStatusColor = (status) => {
+    switch (status) {
+      case 'completed': return 'success';
+      case 'processing': return 'info';
+      case 'failed': return 'error';
+      default: return 'warning';
+    }
   };
 
   if (loading) {
@@ -184,6 +308,83 @@ export default function ReviewRequests() {
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>
       )}
+
+      {feedback && (
+        <Alert severity={feedback.severity} sx={{ mb: 3 }} onClose={() => setFeedback(null)}>
+          {feedback.message}
+        </Alert>
+      )}
+
+      <Card elevation={0} sx={{ mb: 3, border: 1, borderColor: 'divider', borderRadius: '16px' }}>
+        <CardContent>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} md={5}>
+              <TextField
+                fullWidth
+                size="small"
+                label={t('dashboard.drugNameFilter')}
+                placeholder={t('dashboard.searchPlaceholder')}
+                value={filters.drugName}
+                onChange={handleFilterChange('drugName')}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                fullWidth
+                size="small"
+                select
+                label={t('reports.severity')}
+                value={filters.severity}
+                onChange={handleFilterChange('severity')}
+              >
+                <MenuItem value="">{t('common.all')}</MenuItem>
+                <MenuItem value="Life-threatening">{t('severity.lifeThreatening')}</MenuItem>
+                <MenuItem value="Severe">{t('severity.severe')}</MenuItem>
+                <MenuItem value="Moderate">{t('severity.moderate')}</MenuItem>
+                <MenuItem value="Mild">{t('severity.mild')}</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6} md={2}>
+              <TextField
+                fullWidth
+                size="small"
+                type="date"
+                label={t('dashboard.dateFrom')}
+                value={filters.fromDate}
+                onChange={handleFilterChange('fromDate')}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={2}>
+              <TextField
+                fullWidth
+                size="small"
+                type="date"
+                label={t('dashboard.dateTo')}
+                value={filters.toDate}
+                onChange={handleFilterChange('toDate')}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            {hasActiveFilters && (
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Button variant="outlined" color="inherit" onClick={handleClearFilters} sx={{ borderRadius: 999 }}>
+                    {t('doctor.clearFilters')}
+                  </Button>
+                </Box>
+              </Grid>
+            )}
+          </Grid>
+        </CardContent>
+      </Card>
 
       {pendingReviews.length === 0 ? (
         <Card elevation={0} sx={{ p: 4, textAlign: 'center', border: 1, borderColor: 'divider' }}>
@@ -434,8 +635,160 @@ export default function ReviewRequests() {
                       </Accordion>
                     )}
 
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+                      <Chip
+                        label={t('reports.aiStatusLabel', {
+                          status: t(`reports.aiStatus.${report.metadata?.aiStatus || 'queued'}`),
+                        })}
+                        color={getAiStatusColor(report.metadata?.aiStatus || 'queued')}
+                        size="small"
+                        variant="outlined"
+                      />
+                      {report.metadata?.aiProvider && (
+                        <Chip
+                          label={t('doctor.aiProviderLabel', { provider: report.metadata.aiProvider })}
+                          size="small"
+                          variant="outlined"
+                        />
+                      )}
+                    </Box>
+
+                    {report.metadata?.aiStatus === 'failed' && report.metadata?.aiProcessingError && (
+                      <Alert severity="error" sx={{ mb: 2 }}>
+                        {report.metadata.aiProcessingError}
+                      </Alert>
+                    )}
+
+                    {duplicateResults[report._id]?.loaded && (
+                      <Box
+                        sx={{
+                          mb: 2,
+                          p: 2,
+                          borderRadius: '14px',
+                          border: 1,
+                          borderColor: 'divider',
+                          bgcolor: alpha(theme.palette.background.paper, 0.65),
+                        }}
+                      >
+                        <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                          {t('doctor.duplicateReviewTitle')}
+                        </Typography>
+                        {duplicateResults[report._id]?.error && (
+                          <Alert severity="error" sx={{ mb: 2 }}>
+                            {duplicateResults[report._id].error}
+                          </Alert>
+                        )}
+                        {duplicateResults[report._id]?.duplicates?.length === 0 && !duplicateResults[report._id]?.error && (
+                          <Alert severity="success">
+                            {t('doctor.noDuplicateCandidates')}
+                          </Alert>
+                        )}
+                        {duplicateResults[report._id]?.duplicates?.map((candidate) => (
+                          <Box
+                            key={candidate.reportId}
+                            sx={{
+                              p: 2,
+                              mb: 1.5,
+                              borderRadius: 2,
+                              border: 1,
+                              borderColor: alpha(theme.palette.divider, 0.8),
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+                              <Typography variant="body2" fontWeight={600}>
+                                {candidate.medicine?.name || t('common.unknown')} · {formatDate(candidate.reportDate || candidate.createdAt)}
+                              </Typography>
+                              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                <Chip
+                                  label={t('doctor.duplicateConfidenceLabel', {
+                                    confidence: `${Math.round((candidate.confidence || 0) * 100)}%`,
+                                  })}
+                                  size="small"
+                                  color={candidate.isDuplicate ? 'warning' : 'default'}
+                                  variant="outlined"
+                                />
+                                <Chip
+                                  label={t('doctor.analysisSourceLabel', {
+                                    source: candidate.analysisSource || duplicateResults[report._id]?.analysisSource || t('common.unknown'),
+                                  })}
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              </Box>
+                            </Box>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                              {candidate.reasoning}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                              {t('doctor.mergePreviewLabel', {
+                                sideEffects: candidate.mergePreview?.addedSideEffects || 0,
+                                followUps: candidate.mergePreview?.totalFollowUps || 0,
+                                attachments: candidate.mergePreview?.totalAttachments || 0,
+                              })}
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={() => navigate(`/reports/${candidate.reportId}`)}
+                                sx={{ borderRadius: 999 }}
+                              >
+                                {t('doctor.compareReport')}
+                              </Button>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="warning"
+                                disabled={candidate.reviewState === 'flagged' || actionState[`flag:${candidate.reportId}`]}
+                                onClick={() => handleDuplicateDecision({
+                                  action: 'flag',
+                                  candidateId: candidate.reportId,
+                                  originalReportId: report._id,
+                                })}
+                                sx={{ borderRadius: 999 }}
+                              >
+                                {t('doctor.flagDuplicate')}
+                              </Button>
+                              <Button
+                                size="small"
+                                variant="contained"
+                                color="warning"
+                                disabled={candidate.reviewState === 'merged' || actionState[`merge:${candidate.reportId}`]}
+                                onClick={() => handleDuplicateDecision({
+                                  action: 'merge',
+                                  candidateId: candidate.reportId,
+                                  originalReportId: report._id,
+                                })}
+                                sx={{ borderRadius: 999 }}
+                              >
+                                {t('doctor.mergeDuplicate')}
+                              </Button>
+                            </Box>
+                          </Box>
+                        ))}
+                      </Box>
+                    )}
+
                     {/* Action Buttons */}
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5, mt: 2, flexWrap: 'wrap' }}>
+                      <Button
+                        variant="outlined"
+                        startIcon={duplicateResults[report._id]?.loading ? <CircularProgress size={16} /> : <LinkIcon />}
+                        onClick={() => handleLoadDuplicates(report._id)}
+                        disabled={duplicateResults[report._id]?.loading}
+                        sx={{ borderRadius: 999 }}
+                      >
+                        {t('doctor.reviewDuplicates')}
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        startIcon={actionState[`reprocess:${report._id}`] ? <CircularProgress size={16} /> : <AIIcon />}
+                        onClick={() => handleReprocessAi(report._id)}
+                        disabled={actionState[`reprocess:${report._id}`]}
+                        sx={{ borderRadius: 999 }}
+                      >
+                        {t('doctor.reprocessAi')}
+                      </Button>
                       <Button 
                         variant="outlined" 
                         onClick={() => navigate(`/reports/${report._id}`)}

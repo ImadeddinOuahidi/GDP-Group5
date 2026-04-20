@@ -70,7 +70,7 @@ export default function Dashboard() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -82,24 +82,39 @@ export default function Dashboard() {
   const [snackbar, setSnackbar] = React.useState({ open: false, message: '', severity: 'success' });
   const [exportMenuAnchor, setExportMenuAnchor] = React.useState(null);
   const [reports, setReports] = React.useState([]);
+  const [totalReportsCount, setTotalReportsCount] = React.useState(0);
   const [dashboardStats, setDashboardStats] = React.useState(null);
 
   // Fetch real data from API
   const fetchData = React.useCallback(async () => {
     setIsLoading(true);
     try {
+      const reportParams = {
+        page: page + 1,
+        limit: rowsPerPage,
+        sortBy: 'reportDetails.reportDate',
+        sortOrder: 'desc',
+        severity: severityFilter || undefined,
+        fromDate: dateFrom || undefined,
+        toDate: dateTo || undefined,
+        drugName: searchTerm || undefined,
+      };
+
       // Fetch reports and dashboard stats in parallel
       const [reportsRes, statsRes] = await Promise.all([
-        api.reports.getAll({ limit: 100, sortBy: 'reportDetails.reportDate', sortOrder: 'desc' }).catch(() => null),
+        api.reports.getAll(reportParams).catch(() => null),
         api.reports.getDashboard ? api.reports.getDashboard().catch(() => null) : Promise.resolve(null),
       ]);
 
-      // sendPaginated returns { success, data: [...], meta: { pagination } }
-      if (Array.isArray(reportsRes?.data?.data)) {
-        setReports(reportsRes.data.data);
-      } else if (Array.isArray(reportsRes?.data?.reports)) {
-        setReports(reportsRes.data.reports);
-      }
+      const reportItems = Array.isArray(reportsRes?.data?.data)
+        ? reportsRes.data.data
+        : Array.isArray(reportsRes?.data?.reports)
+          ? reportsRes.data.reports
+          : [];
+
+      const pagination = reportsRes?.data?.meta?.pagination || reportsRes?.data?.pagination || {};
+      setReports(reportItems);
+      setTotalReportsCount(pagination.total ?? reportItems.length);
 
       // getDashboard uses sendSuccess → { success, data: { totalReports, ... } }
       if (statsRes?.data?.data) {
@@ -113,7 +128,7 @@ export default function Dashboard() {
     } finally {
       setIsLoading(false);
     }
-  }, [t]);
+  }, [dateFrom, dateTo, page, rowsPerPage, searchTerm, severityFilter, t]);
 
   React.useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -145,21 +160,8 @@ export default function Dashboard() {
   };
 
   // Helper: check if AI analysis exists
-  const hasAIAnalysis = (report) => !!report.metadata?.aiProcessed;
-
-  // Filter reports based on search, severity, and date range
-  const filteredReports = reports.filter(report => {
-    const patientName = getPatientName(report).toLowerCase();
-    const drugName = getDrugName(report).toLowerCase();
-    const symptom = getSymptom(report).toLowerCase();
-    const search = searchTerm.toLowerCase();
-    const matchesSearch = !searchTerm || patientName.includes(search) || drugName.includes(search) || symptom.includes(search);
-    const matchesSeverity = !severityFilter || getSeverity(report) === severityFilter || report.priority === severityFilter;
-    const reportDate = report.createdAt ? new Date(report.createdAt) : null;
-    const matchesDateFrom = !dateFrom || (reportDate && reportDate >= new Date(dateFrom));
-    const matchesDateTo = !dateTo || (reportDate && reportDate <= new Date(dateTo + 'T23:59:59'));
-    return matchesSearch && matchesSeverity && matchesDateFrom && matchesDateTo;
-  });
+  const hasAIAnalysis = (report) =>
+    report.metadata?.aiStatus === 'completed' || Boolean(report.metadata?.aiProcessed);
 
   // Computed stats from real data
   const criticalCount = dashboardStats?.severeCaseCount ?? reports.filter(r => r.priority === 'critical' || r.sideEffects?.some(e => e.severity === 'Severe' || e.severity === 'Life-threatening')).length;
@@ -218,6 +220,19 @@ export default function Dashboard() {
     }
   };
 
+  const formatDate = (value, options = { year: 'numeric', month: 'short', day: 'numeric' }) => {
+    if (!value) {
+      return t('common.notAvailable');
+    }
+
+    return new Intl.DateTimeFormat(locale, options).format(new Date(value));
+  };
+
+  const formatTime = (value) => new Intl.DateTimeFormat(locale, {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(value);
+
   const handleChangePage = (event, newPage) => { setPage(newPage); };
   const handleChangeRowsPerPage = (event) => { setRowsPerPage(parseInt(event.target.value, 10)); setPage(0); };
   const handleSearchChange = (event) => { setSearchTerm(event.target.value); setPage(0); };
@@ -239,15 +254,15 @@ export default function Dashboard() {
     try {
       if (format === 'csv') {
         const backendOk = await exportReportsCSV();
-        if (!backendOk) exportClientCSV(filteredReports);
+        if (!backendOk) exportClientCSV(reports);
       } else if (format === 'json') {
         const backendOk = await exportReportsJSON();
-        if (!backendOk) exportClientJSON(filteredReports);
+        if (!backendOk) exportClientJSON(reports);
       } else if (format === 'print') {
         // Print all filtered reports - generate a summary view
         const printWindow = window.open('', '_blank', 'width=900,height=700');
         if (printWindow) {
-          printWindow.document.write(generateDashboardPrintHTML(filteredReports));
+          printWindow.document.write(generateDashboardPrintHTML(reports));
           printWindow.document.close();
           setTimeout(() => printWindow.print(), 500);
         }
@@ -260,6 +275,12 @@ export default function Dashboard() {
 
   // Generate printable dashboard summary
   const generateDashboardPrintHTML = (data) => {
+    const dateFormatter = new Intl.DateTimeFormat(locale, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+
     const rows = data.map((r) => `<tr>
       <td>${r._id || ''}</td>
       <td>${getPatientName(r)}</td>
@@ -267,7 +288,7 @@ export default function Dashboard() {
       <td>${getSymptom(r)}</td>
       <td>${getSeverity(r)}</td>
       <td>${r.status || ''}</td>
-      <td>${r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ''}</td>
+      <td>${r.createdAt ? dateFormatter.format(new Date(r.createdAt)) : ''}</td>
     </tr>`).join('');
 
     return `<!DOCTYPE html><html><head><title>${t('dashboard.printTitle')}</title>
@@ -282,7 +303,7 @@ export default function Dashboard() {
       .footer{margin-top:24px;text-align:center;font-size:11px;color:#999;border-top:1px solid #ddd;padding-top:12px}
       @media print{body{padding:10px}}</style></head><body>
       <h1>${t('dashboard.printHeading')}</h1>
-      <p>${t('dashboard.generatedAt', { date: new Date().toLocaleString() })} | ${t('dashboard.totalReports')}: ${data.length}</p>
+      <p>${t('dashboard.generatedAt', { date: new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date()) })} | ${t('dashboard.totalReports')}: ${data.length}</p>
       <div class="stats">
         <div class="stat"><div class="stat-value">${reports.length}</div>${t('dashboard.totalReports')}</div>
         <div class="stat"><div class="stat-value">${criticalCount}</div>${t('dashboard.criticalCases')}</div>
@@ -430,7 +451,7 @@ export default function Dashboard() {
                 {t('dashboard.comprehensiveList')}
               </Typography>
               <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
-                {t('dashboard.lastUpdated', { time: lastUpdated.toLocaleTimeString() })} • {t('reports.reportsShown', { filtered: filteredReports.length, total: reports.length })}
+                {t('dashboard.lastUpdated', { time: formatTime(lastUpdated) })} • {t('reports.reportsShown', { filtered: reports.length, total: totalReportsCount })}
               </Typography>
             </Box>
             
@@ -438,6 +459,7 @@ export default function Dashboard() {
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                 <TextField
                   size="small"
+                  label={t('dashboard.drugNameFilter')}
                   placeholder={t('dashboard.searchPlaceholder')}
                   value={searchTerm}
                   onChange={handleSearchChange}
@@ -512,8 +534,7 @@ export default function Dashboard() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredReports
-                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+              {reports
                 .map((report) => {
                 const patientName = getPatientName(report);
                 const drugName = getDrugName(report);
@@ -581,11 +602,7 @@ export default function Dashboard() {
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <CalendarToday sx={{ fontSize: 16, color: 'text.secondary', mr: 1 }} />
                       <Typography variant="body2" color="text.secondary">
-                        {report.createdAt ? new Date(report.createdAt).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        }) : t('common.notAvailable')}
+                        {formatDate(report.createdAt)}
                       </Typography>
                     </Box>
                   </TableCell>
@@ -613,7 +630,7 @@ export default function Dashboard() {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25]}
           component="div"
-          count={filteredReports.length}
+          count={totalReportsCount}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}
@@ -749,7 +766,7 @@ export default function Dashboard() {
                       {t('dashboard.patientReportedSymptom', { patientName, symptom })}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {drugName} • {report.createdAt ? new Date(report.createdAt).toLocaleDateString() : ''}
+                      {drugName} • {report.createdAt ? formatDate(report.createdAt) : ''}
                     </Typography>
                   </Box>
                   <Chip

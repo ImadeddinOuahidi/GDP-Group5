@@ -40,7 +40,7 @@ const STEPS = ['Basic Information', 'Describe Symptoms', 'Additional Details'];
 
 const ReportScreen = ({ navigation }) => {
   const { user } = useAuth();
-  const { t, speechLanguage } = useI18n();
+  const { t, speechLanguage, locale } = useI18n();
   const [activeStep, setActiveStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -64,6 +64,11 @@ const ReportScreen = ({ navigation }) => {
   const [attachments, setAttachments] = useState([]);
   const [audioRecording, setAudioRecording] = useState(null);
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
+
+  // Duplicate warning flow
+  const [duplicateWarningVisible, setDuplicateWarningVisible] = useState(false);
+  const [potentialDuplicates, setPotentialDuplicates] = useState([]);
+  const [pendingReportData, setPendingReportData] = useState(null);
 
   // Speech-to-text (matches web's voice input that fills symptoms field)
   const [isListening, setIsListening] = useState(false);
@@ -389,6 +394,45 @@ const ReportScreen = ({ navigation }) => {
     throw new Error(response?.message || t('report.alerts.submitFailed'));
   };
 
+  const getSimilarityPercent = (candidate = {}) => {
+    const raw = candidate.similarityScore ?? candidate.score ?? candidate.heuristicScore ?? null;
+    if (raw === null || raw === undefined || Number.isNaN(Number(raw))) {
+      return null;
+    }
+    return Math.max(0, Math.min(100, Math.round(Number(raw) * 100)));
+  };
+
+  const handleCancelDuplicateWarning = () => {
+    setDuplicateWarningVisible(false);
+    setPendingReportData(null);
+    setPotentialDuplicates([]);
+    setIsLoading(false);
+  };
+
+  const handleSubmitDespiteDuplicates = async () => {
+    if (!pendingReportData) {
+      setDuplicateWarningVisible(false);
+      return;
+    }
+
+    setDuplicateWarningVisible(false);
+    setIsLoading(true);
+
+    try {
+      await submitFinalReport(pendingReportData);
+      setPendingReportData(null);
+      setPotentialDuplicates([]);
+    } catch (error) {
+      Alert.alert(
+        t('report.alerts.errorTitle'),
+        error.response?.data?.message || error.message || t('report.alerts.submitFailed')
+      );
+      console.error('Submit error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!validateStep()) return;
 
@@ -462,6 +506,7 @@ const ReportScreen = ({ navigation }) => {
 
       const duplicateCheck = await reportService.checkDuplicates({
         medicine: reportData.medicine,
+        patient: user?._id || user?.id,
         sideEffects: reportData.sideEffects,
         reportDetails: reportData.reportDetails,
       });
@@ -470,38 +515,9 @@ const ReportScreen = ({ navigation }) => {
         duplicateCheck?.data?.hasPotentialDuplicates ?? duplicateCheck?.data?.hasDuplicates;
 
       if (duplicateCheck?.success && hasPotentialDuplicates && duplicateCheck?.data?.duplicates?.length > 0) {
-        const duplicateCount = duplicateCheck.data.duplicates.length;
-        const duplicateSuffix = duplicateCount > 1 ? 's' : '';
-        Alert.alert(
-          t('report.alerts.possibleDuplicateTitle'),
-          t('report.alerts.possibleDuplicateMessage', {
-            count: duplicateCount,
-            suffix: duplicateSuffix,
-          }),
-          [
-            {
-              text: t('report.alerts.reviewAndEdit'),
-              style: 'cancel',
-            },
-            {
-              text: t('report.alerts.submitAnyway'),
-              onPress: async () => {
-                setIsLoading(true);
-                try {
-                  await submitFinalReport(reportData);
-                } catch (error) {
-                  Alert.alert(
-                    t('report.alerts.errorTitle'),
-                    error.response?.data?.message || error.message || t('report.alerts.submitFailed')
-                  );
-                  console.error('Submit error:', error);
-                } finally {
-                  setIsLoading(false);
-                }
-              }
-            }
-          ]
-        );
+        setPendingReportData(reportData);
+        setPotentialDuplicates(duplicateCheck.data.duplicates);
+        setDuplicateWarningVisible(true);
         return;
       }
 
@@ -520,7 +536,7 @@ const ReportScreen = ({ navigation }) => {
   const formatDisplayDate = (isoStr) => {
     if (!isoStr) return '';
     const d = new Date(isoStr);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric' }).format(d);
   };
 
   const handleDateConfirm = () => {
@@ -1176,6 +1192,76 @@ const ReportScreen = ({ navigation }) => {
 
       {renderNewMedModal()}
       {renderDatePickerModal()}
+
+      <Modal visible={duplicateWarningVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.duplicateModalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('report.alerts.possibleDuplicateTitle')}</Text>
+              <TouchableOpacity onPress={handleCancelDuplicateWarning}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSubtitle}>
+              {t('report.alerts.possibleDuplicateMessage', {
+                count: potentialDuplicates.length,
+                suffix: potentialDuplicates.length > 1 ? 's' : '',
+              })}
+            </Text>
+
+            <ScrollView style={styles.duplicateList} showsVerticalScrollIndicator={false}>
+              {potentialDuplicates.slice(0, 3).map((dup, index) => {
+                const similarity = getSimilarityPercent(dup);
+                const dateLabel = dup?.createdAt
+                  ? formatDisplayDate(dup.createdAt)
+                  : '--';
+
+                return (
+                  <View key={dup.reportId || `${dup.createdAt || 'duplicate'}-${index}`} style={styles.duplicateCard}>
+                    <Text style={styles.duplicateTitle} numberOfLines={2}>
+                      {dup?.medicine?.name || formData?.medicine?.name || 'Medication'}
+                    </Text>
+                    <Text style={styles.duplicateEffect} numberOfLines={2}>
+                      {dup?.sideEffects?.[0]?.effect || 'Similar symptoms reported'}
+                    </Text>
+                    <View style={styles.duplicateMetaRow}>
+                      <Text style={styles.duplicateMetaText}>{dateLabel}</Text>
+                      <Text style={styles.duplicateMetaText}>
+                        {similarity !== null ? `${similarity}%` : 'High'}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={handleCancelDuplicateWarning}>
+                <Text style={styles.modalCancelText}>{t('report.alerts.reviewAndEdit')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSubmitBtn, isLoading && styles.buttonDisabled]}
+                onPress={handleSubmitDespiteDuplicates}
+                disabled={isLoading}
+              >
+                <LinearGradient
+                  colors={[colors.warning, '#FFB74D']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.modalSubmitGradient}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.modalSubmitText}>{t('report.alerts.submitAnyway')}</Text>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -1663,6 +1749,14 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     maxHeight: '85%',
   },
+  duplicateModalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    marginHorizontal: spacing.base,
+    padding: spacing.lg,
+    maxHeight: '80%',
+    ...shadows.md,
+  },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1678,6 +1772,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textSecondary,
     marginBottom: spacing.lg,
+  },
+  duplicateList: {
+    maxHeight: 220,
+  },
+  duplicateCard: {
+    borderWidth: 1,
+    borderColor: colors.warning + '33',
+    backgroundColor: colors.warning + '12',
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  duplicateTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  duplicateEffect: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  duplicateMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  duplicateMetaText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
   catChip: {
     paddingHorizontal: spacing.md,

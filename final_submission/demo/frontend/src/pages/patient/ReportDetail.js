@@ -49,29 +49,34 @@ import { reportService } from '../../services';
 import { printReport, exportClientJSON } from '../../utils/exportUtils';
 import { useI18n } from '../../i18n';
 
-// Urgency level configurations
-const urgencyConfig = {
-  routine: {
+function getUrgencyConfig(level, t) {
+  return {
+    routine: {
+      color: 'success',
+      icon: <CheckIcon />,
+      label: t('reports.urgency.routine'),
+    },
+    soon: {
+      color: 'info',
+      icon: <InfoIcon />,
+      label: t('reports.urgency.soon'),
+    },
+    urgent: {
+      color: 'warning',
+      icon: <WarningIcon />,
+      label: t('reports.urgency.urgent'),
+    },
+    emergency: {
+      color: 'error',
+      icon: <ErrorIcon />,
+      label: t('reports.urgency.emergency'),
+    },
+  }[level] || {
     color: 'success',
     icon: <CheckIcon />,
-    label: 'Routine',
-  },
-  soon: {
-    color: 'info',
-    icon: <InfoIcon />,
-    label: 'See Doctor Soon',
-  },
-  urgent: {
-    color: 'warning',
-    icon: <WarningIcon />,
-    label: 'Urgent',
-  },
-  emergency: {
-    color: 'error',
-    icon: <ErrorIcon />,
-    label: 'Emergency',
-  }
-};
+    label: t('reports.urgency.routine'),
+  };
+}
 
 const severityConfig = {
   'Mild': { color: 'success', icon: <CheckIcon /> },
@@ -84,7 +89,7 @@ export default function ReportDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const theme = useTheme();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -162,14 +167,20 @@ export default function ReportDetail() {
   const aiAnalysis = report.metadata?.aiAnalysis;
   const patientGuidance = aiAnalysis?.patientGuidance;
   const doctorReview = report.doctorReview;
-  const urgency = urgencyConfig[patientGuidance?.urgencyLevel] || urgencyConfig.routine;
+  const aiStatus = report.metadata?.aiStatus || (report.metadata?.aiProcessed ? 'completed' : 'queued');
+  const urgency = getUrgencyConfig(patientGuidance?.urgencyLevel, t);
   const urgencyAccent = theme.palette[urgency.color]?.main || theme.palette.success.main;
   const statusHistory = [...(report.statusHistory || [])]
     .sort((a, b) => new Date(b.changedAt) - new Date(a.changedAt));
 
   const formatTimelineDate = (value) => {
     if (!value) return t('common.unknownTime');
-    return new Date(value).toLocaleString();
+    return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+  };
+
+  const formatDate = (value) => {
+    if (!value) return t('common.notAvailable');
+    return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(value));
   };
 
   const getChangedByLabel = (entry) => {
@@ -202,7 +213,48 @@ export default function ReportDetail() {
           variant="outlined"
           size="small"
           startIcon={<PrintIcon />}
-          onClick={() => printReport(report)}
+          onClick={() => printReport(report, {
+            locale,
+            popupBlockedMessage: t('reports.printPopupBlocked'),
+            labels: {
+              title: t('reports.printDocumentTitle'),
+              reportId: t('reports.reportId'),
+              generatedLabel: t('reports.printGeneratedLabel'),
+              reportOverview: t('reports.printOverview'),
+              status: t('reports.status'),
+              priority: t('reports.printPriority'),
+              patient: t('reports.patient'),
+              incidentDate: t('reports.printIncidentDate'),
+              reportDate: t('reports.reportDate'),
+              seriousness: t('reports.printSeriousness'),
+              medicationInformation: t('reports.printMedicationInfo'),
+              medication: t('reports.drug'),
+              genericName: t('medications.genericName'),
+              dosage: t('medications.dosage'),
+              route: t('reports.printRoute'),
+              indication: t('report.indication'),
+              sideEffects: t('reports.reportedSideEffects'),
+              effect: t('reports.symptom'),
+              severity: t('reports.severity'),
+              onset: t('reports.printOnset'),
+              bodySystem: t('reports.printBodySystem'),
+              noSideEffects: t('reports.noDescriptionProvided'),
+              aiAnalysis: t('reports.aiAnalysis'),
+              aiSeverityAssessment: t('reports.printAiSeverity'),
+              clinicalSummary: t('reports.clinicalSummary'),
+              patientGuidance: t('reports.whatThisMeans'),
+              recommendedNextSteps: t('reports.recommendedSteps'),
+              warningSigns: t('reports.warningSignsToWatch'),
+              doctorReview: t('reports.doctorReview'),
+              reviewedBy: t('reports.printReviewedBy'),
+              reviewedOn: t('reports.printReviewedOn'),
+              remarks: t('reports.printRemarks'),
+              recommendation: t('reports.recommendation'),
+              footerSystem: t('reports.printFooterSystem'),
+              footerMedicalRecordOnly: t('reports.printMedicalRecordOnly'),
+              footerConfidential: t('reports.printConfidential'),
+            },
+          })}
           sx={{ mr: 1, borderRadius: 999 }}
         >
           {t('common.print')}
@@ -284,7 +336,7 @@ export default function ReportDetail() {
                 <Grid item xs={6}>
                   <Typography variant="caption" color="text.secondary">{t('reports.reportedOn')}</Typography>
                   <Typography variant="body2">
-                    {new Date(report.createdAt).toLocaleDateString()}
+                    {formatDate(report.createdAt)}
                   </Typography>
                 </Grid>
               </Grid>
@@ -295,7 +347,7 @@ export default function ReportDetail() {
         {/* Right Column - AI Analysis & Doctor Review */}
         <Grid item xs={12} md={6}>
           {/* AI Analysis Card - Only show if processed */}
-          {report.metadata?.aiProcessed && (
+          {aiStatus === 'completed' && report.metadata?.aiProcessed && (
             <Card 
               sx={{ 
                 mb: 3, 
@@ -408,18 +460,23 @@ export default function ReportDetail() {
           )}
 
           {/* Processing Status if not yet processed */}
-          {!report.metadata?.aiProcessed && (
+          {aiStatus !== 'completed' && (
             <Card sx={{ mb: 3 }}>
               <CardContent>
                 <Box display="flex" alignItems="center">
-                  <CircularProgress size={24} sx={{ mr: 2 }} />
+                  {aiStatus === 'failed' ? <ErrorIcon color="error" sx={{ mr: 2 }} /> : <CircularProgress size={24} sx={{ mr: 2 }} />}
                   <Box>
-                    <Typography variant="h6">{t('reports.analyzingReport')}</Typography>
+                    <Typography variant="h6">{t(`reports.aiStatus.${aiStatus}`)}</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {t('reports.analyzingDesc')}
+                      {t(`reports.aiStatusDescription.${aiStatus}`)}
                     </Typography>
                   </Box>
                 </Box>
+                {report.metadata?.aiProcessingError && (
+                  <Alert severity="error" sx={{ mt: 2 }}>
+                    {report.metadata.aiProcessingError}
+                  </Alert>
+                )}
               </CardContent>
             </Card>
           )}
@@ -486,7 +543,7 @@ export default function ReportDetail() {
                 <Box>
                   <Alert severity="success" sx={{ mb: 2 }}>
                     <AlertTitle>{t('reports.reviewedByDoctor', { name: `${doctorReview.reviewedBy?.firstName || ''} ${doctorReview.reviewedBy?.lastName || ''}`.trim() })}</AlertTitle>
-                    {t('reports.reviewedOn', { date: new Date(doctorReview.reviewedAt).toLocaleDateString() })}
+                    {t('reports.reviewedOn', { date: formatDate(doctorReview.reviewedAt) })}
                   </Alert>
 
                   {doctorReview.remarks && (
@@ -518,7 +575,7 @@ export default function ReportDetail() {
                   {doctorReview.doctorAssessment?.followUpRequired && (
                     <Chip 
                       icon={<ScheduleIcon />}
-                      label={t('reports.followUpLabel', { date: new Date(doctorReview.doctorAssessment.followUpDate).toLocaleDateString() })}
+                      label={t('reports.followUpLabel', { date: formatDate(doctorReview.doctorAssessment.followUpDate) })}
                       color="info"
                     />
                   )}
@@ -534,7 +591,7 @@ export default function ReportDetail() {
                       : ` ${t('reports.doctorWillReview')}`}
                   </Alert>
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                    {t('reports.requestedOn', { date: new Date(doctorReview.requestedAt).toLocaleDateString() })}
+                    {t('reports.requestedOn', { date: formatDate(doctorReview.requestedAt) })}
                   </Typography>
                 </Box>
               ) : (

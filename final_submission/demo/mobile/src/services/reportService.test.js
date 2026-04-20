@@ -88,4 +88,15 @@ describe('mobile reportService', () => {
     expect(duplicates).toEqual({ success: true, data: { duplicates: [{ _id: 'dup-1' }] } });
     expect(merge).toEqual({ success: true, data: { merged: true } });
   });
+
+  test('queues AI reprocessing for staff review screens', async () => {
+    apiClient.post.mockResolvedValueOnce({
+      data: { success: true, data: { aiAnalysisStatus: 'queued' } },
+    });
+
+    const result = await reportService.reprocessAiAnalysis('report-9');
+
+    expect(apiClient.post).toHaveBeenCalledWith('/reports/report-9/reprocess-ai');
+    expect(result).toEqual({ success: true, data: { aiAnalysisStatus: 'queued' } });
+  });
 });

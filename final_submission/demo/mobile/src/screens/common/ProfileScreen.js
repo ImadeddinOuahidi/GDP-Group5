@@ -14,12 +14,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
+import { useI18n } from '../../context/I18nContext';
 import { authService } from '../../services';
 import apiClient from '../../services/apiClient';
 import { API_CONFIG } from '../../config/constants';
 import { colors, spacing, borderRadius, shadows } from '../../config/theme';
 
 const ProfileScreen = ({ navigation }) => {
+  const { locale } = useI18n();
   const { user, updateUser, logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -227,9 +229,9 @@ const ProfileScreen = ({ navigation }) => {
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>Date of Birth</Text>
               <Text style={styles.fieldValue}>
-                {new Date(user.dateOfBirth).toLocaleDateString('en-US', {
+                {new Intl.DateTimeFormat(locale, {
                   year: 'numeric', month: 'long', day: 'numeric'
-                })}
+                }).format(new Date(user.dateOfBirth))}
               </Text>
             </View>
           )}

@@ -30,31 +30,49 @@ userSchema.methods.correctPassword = async function(candidatePassword, userPassw
 
 const User = mongoose.model('User', userSchema);
 
-async function createDemoUser() {
+const demoUsers = [
+  {
+    firstName: 'Demo',
+    lastName: 'Patient',
+    email: 'patient@demo.com',
+    password: 'Demo@123',
+    phone: '555-123-4567',
+    role: 'patient',
+  },
+  {
+    firstName: 'Demo',
+    lastName: 'Doctor',
+    email: 'doctor@demo.com',
+    password: 'Demo@123',
+    phone: '555-123-4568',
+    role: 'doctor',
+  },
+  {
+    firstName: 'Demo',
+    lastName: 'Admin',
+    email: 'admin@demo.com',
+    password: 'Demo@123',
+    phone: '555-123-4569',
+    role: 'admin',
+  },
+];
+
+async function createDemoUsers() {
   try {
     await mongoose.connect(MONGO_URI);
     console.log('Connected to MongoDB');
 
-    // Check if demo user exists
-    const existingUser = await User.findOne({ email: 'patient@demo.com' });
-    if (existingUser) {
-      console.log('Demo user already exists:', existingUser.email);
-      return;
+    for (const userData of demoUsers) {
+      const existingUser = await User.findOne({ email: userData.email });
+      if (existingUser) {
+        console.log('Demo user already exists:', existingUser.email);
+        continue;
+      }
+
+      const demoUser = new User(userData);
+      await demoUser.save();
+      console.log('Demo user created successfully:', demoUser.email);
     }
-
-    // Create demo patient user
-    const demoUser = new User({
-      firstName: 'Demo',
-      lastName: 'Patient',
-      email: 'patient@demo.com',
-      password: 'Demo@123',
-      phone: '555-123-4567',
-      role: 'patient',
-    });
-
-    await demoUser.save();
-    console.log('Demo user created successfully:', demoUser.email);
-
   } catch (error) {
     console.error('Error creating demo user:', error);
   } finally {
@@ -63,4 +81,4 @@ async function createDemoUser() {
   }
 }
 
-createDemoUser();
+createDemoUsers();

@@ -44,7 +44,7 @@ const CustomAppBar = ({ onOpenMobileNav }) => {
   const theme = useTheme();
   const location = useLocation();
   const { isDarkMode, toggleTheme } = useThemeMode();
-  const { user, logout } = AuthContainer.useContainer();
+  const { user, logout, isAdmin } = AuthContainer.useContainer();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const { locale, changeLanguage, supportedLanguages, t } = useI18n();
   
@@ -58,14 +58,15 @@ const CustomAppBar = ({ onOpenMobileNav }) => {
     if (pathname === '/reports') return t('navigation.myReports');
     if (pathname.startsWith('/reports/')) return t('reports.reportDetails');
     if (pathname === '/settings') return t('navigation.settings');
+    if (pathname === '/admin-home') return t('navigation.adminOverview');
     if (pathname === '/doctor-home') return t('navigation.doctorOverview');
-    if (pathname === '/review-requests') return t('navigation.reviewRequests');
-    if (pathname === '/medications') return t('doctor.medicationManagement');
+    if (pathname === '/review-requests') return isAdmin ? t('navigation.staffInbox') : t('navigation.reviewRequests');
+    if (pathname === '/medications') return isAdmin ? t('navigation.medicationGovernance') : t('doctor.medicationManagement');
     if (pathname === '/add-medication') return t('doctor.addMedication');
     if (pathname.startsWith('/medications/edit/')) return t('doctor.editMedication');
-    if (pathname === '/dashboard') return t('doctor.analyticsDashboard');
+    if (pathname === '/dashboard') return isAdmin ? t('navigation.adminAnalytics') : t('doctor.analyticsDashboard');
     return t('common.appName');
-  }, [t]);
+  }, [isAdmin, t]);
 
   // Safe function to get user display name
   const getUserDisplayName = () => {
@@ -313,8 +314,8 @@ const CustomAppBar = ({ onOpenMobileNav }) => {
                         >
                           <ListItemIcon sx={{ minWidth: 36 }}>{icon}</ListItemIcon>
                           <ListItemText
-                            primary={notif.title}
-                            secondary={notif.message}
+                            primary={notif.localizedTitle || notif.title}
+                            secondary={notif.localizedMessage || notif.message}
                             primaryTypographyProps={{ variant: 'body2', fontWeight: notif.isRead ? 'normal' : 'bold' }}
                             secondaryTypographyProps={{ variant: 'caption', noWrap: true }}
                           />

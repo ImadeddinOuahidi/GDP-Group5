@@ -119,6 +119,16 @@ export const reportService = {
     }
   },
 
+  reprocessAiAnalysis: async (reportId) => {
+    try {
+      const response = await apiClient.post(`${ENDPOINTS.REPORTS}/${reportId}/reprocess-ai`);
+      return response.data;
+    } catch (error) {
+      console.error('Reprocess AI analysis error:', error);
+      throw error;
+    }
+  },
+
   /**
    * Submit report with AI processing (multimodal)
    */

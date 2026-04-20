@@ -17,22 +17,25 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { reportService } from '../../services';
 import { colors, spacing, borderRadius, shadows } from '../../config/theme';
+import { useI18n } from '../../context/I18nContext';
 
-// Action options matching web exactly
-const ACTION_OPTIONS = [
-  { value: 'none', label: 'No immediate action needed' },
-  { value: 'monitor', label: 'Continue monitoring' },
-  { value: 'adjust_medication', label: 'Adjust medication dosage' },
-  { value: 'discontinue', label: 'Discontinue medication' },
-  { value: 'schedule_appointment', label: 'Schedule follow-up appointment' },
-  { value: 'emergency', label: 'Seek immediate medical attention' },
-];
+const SEVERITY_OPTIONS = ['', 'Life-threatening', 'Severe', 'Moderate', 'Mild'];
 
 const ReviewRequestsScreen = ({ navigation }) => {
+  const { t, locale } = useI18n();
   const [reports, setReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
+  const [mode, setMode] = useState('pending');
+  const [filters, setFilters] = useState({
+    drugName: '',
+    fromDate: '',
+    toDate: '',
+    severity: '',
+  });
+  const [duplicateResults, setDuplicateResults] = useState({});
+  const [actionState, setActionState] = useState({});
 
   // Review dialog state
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -46,18 +49,74 @@ const ReviewRequestsScreen = ({ navigation }) => {
     followUpRequired: false,
   });
 
-  useEffect(() => { fetchReports(); }, []);
+  const ACTION_OPTIONS = [
+    { value: 'none', label: t('reviewRequests.actions.none') },
+    { value: 'monitor', label: t('reviewRequests.actions.monitor') },
+    { value: 'adjust_medication', label: t('reviewRequests.actions.adjustMedication') },
+    { value: 'discontinue', label: t('reviewRequests.actions.discontinue') },
+    { value: 'schedule_appointment', label: t('reviewRequests.actions.scheduleAppointment') },
+    { value: 'emergency', label: t('reviewRequests.actions.emergency') },
+  ];
+
+  const normalizeDateFilter = (value = '') => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) return undefined;
+
+    const isoPattern = /^\d{4}-\d{2}-\d{2}$/;
+    if (!isoPattern.test(trimmed)) return undefined;
+
+    const parsedDate = new Date(`${trimmed}T00:00:00.000Z`);
+    if (Number.isNaN(parsedDate.getTime())) return undefined;
+
+    return trimmed;
+  };
+
+  const getSeverityLabel = (severity) => {
+    const severityKeyMap = {
+      Mild: 'reviewRequests.severity.mild',
+      Moderate: 'reviewRequests.severity.moderate',
+      Severe: 'reviewRequests.severity.severe',
+      'Life-threatening': 'reviewRequests.severity.lifeThreatening',
+    };
+
+    const key = severityKeyMap[severity];
+    return key ? t(key) : (severity || t('common.unknown'));
+  };
 
   const fetchReports = async () => {
     try {
-      const response = await reportService.getPendingReviews();
+      const params = {
+        severity: filters.severity || undefined,
+        fromDate: normalizeDateFilter(filters.fromDate),
+        toDate: normalizeDateFilter(filters.toDate),
+        drugName: filters.drugName || undefined,
+      };
+
+      const response = mode === 'pending'
+        ? await reportService.getPendingReviews(params)
+        : await reportService.getAllReports(params);
+
       if (response.data) {
-        setReports(Array.isArray(response.data) ? response.data : response.data.reports || []);
+        if (Array.isArray(response.data)) {
+          setReports(response.data);
+        } else if (Array.isArray(response.data.reports)) {
+          setReports(response.data.reports);
+        } else if (Array.isArray(response.data.data)) {
+          setReports(response.data.data);
+        } else {
+          setReports([]);
+        }
       }
     } catch (error) {
       try {
-        const fallback = await reportService.getAllReports({ status: 'Submitted' });
-        if (fallback.data) setReports(Array.isArray(fallback.data) ? fallback.data : []);
+        const fallback = await reportService.getAllReports({
+          ...(mode === 'pending' ? { status: 'Submitted' } : {}),
+          severity: filters.severity || undefined,
+          fromDate: normalizeDateFilter(filters.fromDate),
+          toDate: normalizeDateFilter(filters.toDate),
+          drugName: filters.drugName || undefined,
+        });
+        if (fallback.data) setReports(Array.isArray(fallback.data) ? fallback.data : fallback.data.data || []);
       } catch (e) {
         console.error('Error fetching reports:', e);
       }
@@ -65,6 +124,8 @@ const ReviewRequestsScreen = ({ navigation }) => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => { fetchReports(); }, [mode, filters]);
 
   const onRefresh = async () => {
     setIsRefreshing(true);
@@ -86,7 +147,7 @@ const ReviewRequestsScreen = ({ navigation }) => {
 
   const handleSubmitReview = async () => {
     if (!reviewForm.remarks.trim()) {
-      Alert.alert('Required', 'Please enter your remarks before submitting.');
+      Alert.alert(t('common.required'), t('reviewRequests.remarksRequired'));
       return;
     }
     try {
@@ -99,12 +160,75 @@ const ReviewRequestsScreen = ({ navigation }) => {
         agreedWithAI: reviewForm.agreedWithAI,
       });
       setShowReviewModal(false);
-      Alert.alert('Success', 'Review submitted successfully. The patient will be notified.');
+      Alert.alert(t('common.success'), t('reviewRequests.reviewSubmitted'));
       fetchReports();
     } catch (error) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to submit review.');
+      Alert.alert(t('common.error'), error.response?.data?.message || t('reviewRequests.reviewSubmitFailed'));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleLoadDuplicates = async (reportId) => {
+    try {
+      setDuplicateResults((prev) => ({
+        ...prev,
+        [reportId]: { ...(prev[reportId] || {}), loading: true, error: null },
+      }));
+      const response = await reportService.findDuplicates(reportId);
+      const payload = response.data || {};
+      setDuplicateResults((prev) => ({
+        ...prev,
+        [reportId]: {
+          loading: false,
+          loaded: true,
+          analysisSource: payload.analysisSource,
+          duplicates: payload.duplicates || [],
+        },
+      }));
+    } catch (error) {
+      setDuplicateResults((prev) => ({
+        ...prev,
+        [reportId]: {
+          loading: false,
+          loaded: true,
+          error: error.response?.data?.message || t('reviewRequests.loadDuplicatesFailed'),
+          duplicates: [],
+        },
+      }));
+    }
+  };
+
+  const handleDuplicateDecision = async ({ action, candidateId, originalReportId }) => {
+    const key = `${action}:${candidateId}`;
+
+    try {
+      setActionState((prev) => ({ ...prev, [key]: true }));
+      if (action === 'merge') {
+        await reportService.mergeDuplicate(candidateId, originalReportId);
+        Alert.alert(t('common.success'), t('reviewRequests.duplicateMerged'));
+      } else {
+        await reportService.flagDuplicate(candidateId, originalReportId);
+        Alert.alert(t('common.success'), t('reviewRequests.duplicateFlagged'));
+      }
+      await Promise.all([handleLoadDuplicates(originalReportId), fetchReports()]);
+    } catch (error) {
+      Alert.alert(t('common.error'), error.response?.data?.message || t('reviewRequests.duplicateActionFailed'));
+    } finally {
+      setActionState((prev) => ({ ...prev, [key]: false }));
+    }
+  };
+
+  const handleReprocessAi = async (reportId) => {
+    try {
+      setActionState((prev) => ({ ...prev, [`reprocess:${reportId}`]: true }));
+      await reportService.reprocessAiAnalysis(reportId);
+      Alert.alert(t('common.success'), t('reviewRequests.aiReprocessQueued'));
+      await fetchReports();
+    } catch (error) {
+      Alert.alert(t('common.error'), error.response?.data?.message || t('reviewRequests.aiReprocessFailed'));
+    } finally {
+      setActionState((prev) => ({ ...prev, [`reprocess:${reportId}`]: false }));
     }
   };
 
@@ -120,17 +244,20 @@ const ReviewRequestsScreen = ({ navigation }) => {
 
   const getUrgencyConfig = (level) => {
     switch (level?.toLowerCase()) {
-      case 'emergency': return { color: '#F44336', label: 'Emergency', icon: 'alert-circle' };
-      case 'urgent': return { color: '#FF9800', label: 'Urgent', icon: 'warning' };
-      case 'soon': return { color: '#42A5F5', label: 'Soon', icon: 'time' };
-      default: return { color: '#4CAF50', label: 'Routine', icon: 'checkmark-circle' };
+      case 'emergency': return { color: '#F44336', label: t('reviewRequests.urgency.emergency'), icon: 'alert-circle' };
+      case 'urgent': return { color: '#FF9800', label: t('reviewRequests.urgency.urgent'), icon: 'warning' };
+      case 'soon': return { color: '#42A5F5', label: t('reviewRequests.urgency.soon'), icon: 'time' };
+      default: return { color: '#4CAF50', label: t('reviewRequests.urgency.routine'), icon: 'checkmark-circle' };
     }
   };
 
-  const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
+  const formatDate = (d) => d
+    ? new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(d))
+    : t('common.notAvailable');
 
   const renderReportItem = ({ item }) => {
     const ai = item.metadata?.aiAnalysis;
+    const aiStatus = item.metadata?.aiStatus || (item.metadata?.aiProcessed ? 'completed' : 'queued');
     const urgency = getUrgencyConfig(ai?.patientGuidance?.urgencyLevel || ai?.priorityLevel);
     const maxSeverity = item.sideEffects?.reduce((max, se) => {
       const order = { 'Life-threatening': 4, 'Severe': 3, 'Moderate': 2, 'Mild': 1 };
@@ -145,7 +272,7 @@ const ReviewRequestsScreen = ({ navigation }) => {
             <View style={{ flex: 1 }}>
               <View style={styles.headerRow}>
                 <Ionicons name="medkit" size={16} color={colors.primary} />
-                <Text style={styles.medicineName}>{item.medicine?.name || 'Unknown'}</Text>
+                <Text style={styles.medicineName}>{item.medicine?.name || t('common.unknown')}</Text>
               </View>
               <Text style={styles.patientName}>
                 {item.patient?.firstName} {item.patient?.lastName}
@@ -158,7 +285,7 @@ const ReviewRequestsScreen = ({ navigation }) => {
                 <Text style={[styles.urgencyChipText, { color: urgency.color }]}>{urgency.label}</Text>
               </View>
               <View style={[styles.severityBadge, { backgroundColor: getSeverityColor(maxSeverity) + '18' }]}>
-                <Text style={[styles.severityBadgeText, { color: getSeverityColor(maxSeverity) }]}>{maxSeverity}</Text>
+                <Text style={[styles.severityBadgeText, { color: getSeverityColor(maxSeverity) }]}>{getSeverityLabel(maxSeverity)}</Text>
               </View>
             </View>
           </View>
@@ -189,7 +316,7 @@ const ReviewRequestsScreen = ({ navigation }) => {
             {ai && (
               <View style={styles.aiBadge}>
                 <Ionicons name="analytics" size={12} color="#7C4DFF" />
-                <Text style={styles.aiBadgeText}>AI</Text>
+                <Text style={styles.aiBadgeText}>{t('reviewRequests.aiStatus', { status: aiStatus })}</Text>
               </View>
             )}
             <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textSecondary} />
@@ -207,7 +334,7 @@ const ReviewRequestsScreen = ({ navigation }) => {
                   style={styles.aiHeader}
                 >
                   <Ionicons name="analytics" size={14} color="#fff" />
-                  <Text style={styles.aiHeaderText}>AI Analysis</Text>
+                  <Text style={styles.aiHeaderText}>{t('reviewRequests.aiAnalysis')}</Text>
                 </LinearGradient>
                 <View style={styles.aiBody}>
                   {/* Summary */}
@@ -218,7 +345,7 @@ const ReviewRequestsScreen = ({ navigation }) => {
                   {/* Patient Guidance */}
                   {ai.patientGuidance?.recommendation && (
                     <View style={styles.aiGuidanceBox}>
-                      <Text style={styles.aiGuidanceLabel}>Patient Guidance Given</Text>
+                      <Text style={styles.aiGuidanceLabel}>{t('reviewRequests.patientGuidance')}</Text>
                       <Text style={styles.aiGuidanceText}>{ai.patientGuidance.recommendation}</Text>
                     </View>
                   )}
@@ -226,7 +353,7 @@ const ReviewRequestsScreen = ({ navigation }) => {
                   {/* Recommended Actions */}
                   {(ai.recommendedActions?.length > 0 || ai.recommendations?.length > 0) && (
                     <View style={{ marginTop: spacing.sm }}>
-                      <Text style={styles.aiSubLabel}>Recommended Actions</Text>
+                      <Text style={styles.aiSubLabel}>{t('reviewRequests.recommendedActions')}</Text>
                       {(ai.recommendedActions || ai.recommendations || []).map((rec, i) => (
                         <View key={i} style={styles.aiRecRow}>
                           <Ionicons name="checkmark-circle" size={12} color="#7C4DFF" />
@@ -239,43 +366,43 @@ const ReviewRequestsScreen = ({ navigation }) => {
                   {/* Medication Verification */}
                   {ai.medicationVerification && (
                     <View style={{ marginTop: spacing.sm }}>
-                      <Text style={styles.aiSubLabel}>Medication Verification</Text>
+                      <Text style={styles.aiSubLabel}>{t('reviewRequests.medicationVerification')}</Text>
                       {ai.medicationVerification.isVerifiedMedication !== undefined && (
                         <View style={styles.aiRow}>
-                          <Text style={styles.aiLabel}>Verified</Text>
+                          <Text style={styles.aiLabel}>{t('reviewRequests.medicationVerification')}</Text>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                             <Ionicons
                               name={ai.medicationVerification.isVerifiedMedication ? 'checkmark-circle' : 'close-circle'}
                               size={12}
                               color={ai.medicationVerification.isVerifiedMedication ? colors.success : colors.error}
                             />
-                            <Text style={styles.aiValue}>{ai.medicationVerification.isVerifiedMedication ? 'Yes' : 'No'}</Text>
+                            <Text style={styles.aiValue}>{ai.medicationVerification.isVerifiedMedication ? t('reviewRequests.verified') : t('reviewRequests.notVerified')}</Text>
                           </View>
                         </View>
                       )}
                       {ai.medicationVerification.drugClass && (
                         <View style={styles.aiRow}>
-                          <Text style={styles.aiLabel}>Drug Class</Text>
+                          <Text style={styles.aiLabel}>{t('reviewRequests.drugClassLabel')}</Text>
                           <Text style={styles.aiValue}>{ai.medicationVerification.drugClass}</Text>
                         </View>
                       )}
                       {ai.medicationVerification.knownADR !== undefined && (
                         <View style={styles.aiRow}>
-                          <Text style={styles.aiLabel}>Known ADR</Text>
+                          <Text style={styles.aiLabel}>{t('reviewRequests.knownAdrLabel')}</Text>
                           <Text style={[styles.aiValue, { color: ai.medicationVerification.knownADR ? colors.warning : colors.success }]}>
-                            {ai.medicationVerification.knownADR ? 'Yes' : 'No'}
+                            {ai.medicationVerification.knownADR ? t('reviewRequests.verified') : t('reviewRequests.notVerified')}
                           </Text>
                         </View>
                       )}
                       {ai.medicationVerification.knownADRFrequency && (
                         <View style={styles.aiRow}>
-                          <Text style={styles.aiLabel}>Frequency</Text>
+                          <Text style={styles.aiLabel}>{t('reviewRequests.frequencyLabel')}</Text>
                           <Text style={styles.aiValue}>{ai.medicationVerification.knownADRFrequency}</Text>
                         </View>
                       )}
                       {ai.medicationVerification.labelWarnings && (
                         <View style={{ marginTop: spacing.xs }}>
-                          <Text style={styles.aiLabel}>Label Warnings</Text>
+                          <Text style={styles.aiLabel}>{t('reviewRequests.labelWarnings')}</Text>
                           <Text style={[styles.aiRecText, { color: '#E65100' }]}>{ai.medicationVerification.labelWarnings}</Text>
                         </View>
                       )}
@@ -285,7 +412,7 @@ const ReviewRequestsScreen = ({ navigation }) => {
                   {/* References */}
                   {ai.references?.length > 0 && (
                     <View style={{ marginTop: spacing.sm }}>
-                      <Text style={styles.aiSubLabel}>References</Text>
+                      <Text style={styles.aiSubLabel}>{t('reviewRequests.references')}</Text>
                       {ai.references.map((ref, i) => (
                         <Text key={i} style={[styles.aiRecText, { color: colors.primary }]}>
                           {ref.title || ref.uri || ref}
@@ -299,23 +426,25 @@ const ReviewRequestsScreen = ({ navigation }) => {
                     {ai.causalityAssessment?.likelihood && (
                       <View style={[styles.aiChip, { backgroundColor: '#7C4DFF15' }]}>
                         <Text style={[styles.aiChipText, { color: '#7C4DFF' }]}>
-                          Causality: {typeof ai.causalityAssessment.likelihood === 'object'
-                            ? ai.causalityAssessment.likelihood.level || 'Unknown'
-                            : ai.causalityAssessment.likelihood}
+                          {t('reviewRequests.causality', {
+                            value: typeof ai.causalityAssessment.likelihood === 'object'
+                              ? ai.causalityAssessment.likelihood.level || t('common.unknown')
+                              : ai.causalityAssessment.likelihood,
+                          })}
                         </Text>
                       </View>
                     )}
                     {(ai.overallRiskScore || ai.confidenceScore) && (
                       <View style={[styles.aiChip, { backgroundColor: '#FF980015' }]}>
                         <Text style={[styles.aiChipText, { color: '#FF9800' }]}>
-                          Risk: {ai.overallRiskScore || ai.confidenceScore}%
+                          {t('reviewRequests.risk', { value: `${ai.overallRiskScore || ai.confidenceScore}%` })}
                         </Text>
                       </View>
                     )}
                     {(ai.priority || ai.priorityLevel) && (
                       <View style={[styles.aiChip, { backgroundColor: urgency.color + '15' }]}>
                         <Text style={[styles.aiChipText, { color: urgency.color }]}>
-                          {ai.priority || ai.priorityLevel}
+                          {t('reviewRequests.priority', { value: ai.priority || ai.priorityLevel })}
                         </Text>
                       </View>
                     )}
@@ -324,13 +453,142 @@ const ReviewRequestsScreen = ({ navigation }) => {
               </View>
             )}
 
+            <View style={styles.aiChipsRow}>
+              <View style={[styles.aiChip, { backgroundColor: colors.info + '15' }]}>
+                <Text style={[styles.aiChipText, { color: colors.info }]}>
+                  {t('reviewRequests.aiStatus', { status: aiStatus })}
+                </Text>
+              </View>
+              {item.metadata?.aiProvider && (
+                <View style={[styles.aiChip, { backgroundColor: colors.primary + '15' }]}>
+                  <Text style={[styles.aiChipText, { color: colors.primary }]}>
+                    {t('reviewRequests.aiProvider', { provider: item.metadata.aiProvider })}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {aiStatus === 'failed' && item.metadata?.aiProcessingError ? (
+              <View style={styles.aiErrorBox}>
+                <Text style={styles.aiErrorText}>{item.metadata.aiProcessingError}</Text>
+              </View>
+            ) : null}
+
+            {duplicateResults[item._id]?.loaded && (
+              <View style={[styles.aiCard, { marginTop: spacing.sm }]}>
+                <View style={styles.aiBody}>
+                  <Text style={styles.aiSubLabel}>{t('reviewRequests.duplicateCandidates')}</Text>
+                  {duplicateResults[item._id]?.error ? (
+                    <Text style={styles.errorText}>{duplicateResults[item._id].error}</Text>
+                  ) : duplicateResults[item._id]?.duplicates?.length ? (
+                    duplicateResults[item._id].duplicates.map((candidate) => {
+                      const isFlagActionLoading = actionState[`flag:${candidate.reportId}`];
+                      const isMergeActionLoading = actionState[`merge:${candidate.reportId}`];
+                      const isFlagDisabled = candidate.reviewState === 'flagged' || isFlagActionLoading;
+                      const isMergeDisabled = candidate.reviewState === 'merged' || isMergeActionLoading;
+
+                      return (
+                        <View key={candidate.reportId} style={styles.aiGuidanceBox}>
+                          <Text style={styles.aiGuidanceLabel}>
+                            {(candidate.medicine?.name || t('common.unknown'))} · {formatDate(candidate.reportDate || candidate.createdAt)}
+                          </Text>
+                          <Text style={styles.aiGuidanceText}>{candidate.reasoning}</Text>
+                          <Text style={styles.aiRecText}>
+                            {t('reviewRequests.duplicateConfidence', {
+                              confidence: `${Math.round((candidate.confidence || 0) * 100)}%`,
+                            })}
+                          </Text>
+                          <Text style={styles.aiRecText}>
+                            {t('reviewRequests.analysisSource', {
+                              source: candidate.analysisSource || duplicateResults[item._id]?.analysisSource || 'heuristic',
+                            })}
+                          </Text>
+                          <Text style={styles.aiRecText}>
+                            {t('reviewRequests.mergePreview', {
+                              sideEffects: candidate.mergePreview?.addedSideEffects || 0,
+                              followUps: candidate.mergePreview?.totalFollowUps || 0,
+                              attachments: candidate.mergePreview?.totalAttachments || 0,
+                            })}
+                          </Text>
+                          <View style={styles.expandedActions}>
+                            <TouchableOpacity
+                              style={styles.viewDetailBtn}
+                              onPress={() => navigation.navigate('ReportDetail', { reportId: candidate.reportId })}
+                            >
+                              <Text style={styles.viewDetailText}>{t('reviewRequests.viewFullReport')}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={[styles.viewDetailBtn, isFlagDisabled && styles.actionDisabledBtn]}
+                              disabled={isFlagDisabled}
+                              onPress={() => handleDuplicateDecision({
+                                action: 'flag',
+                                candidateId: candidate.reportId,
+                                originalReportId: item._id,
+                              })}
+                            >
+                              {isFlagActionLoading ? (
+                                <ActivityIndicator size="small" color={colors.primary} />
+                              ) : (
+                                <Text style={styles.viewDetailText}>{t('reviewRequests.flagDuplicate')}</Text>
+                              )}
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={[styles.reviewButton, isMergeDisabled && styles.actionDisabledBtn]}
+                              disabled={isMergeDisabled}
+                              onPress={() => handleDuplicateDecision({
+                                action: 'merge',
+                                candidateId: candidate.reportId,
+                                originalReportId: item._id,
+                              })}
+                            >
+                              <LinearGradient colors={['#FB8C00', '#FFB300']} style={styles.reviewBtnGradient}>
+                                {isMergeActionLoading ? (
+                                  <ActivityIndicator size="small" color="#fff" />
+                                ) : (
+                                  <Text style={styles.reviewBtnText}>{t('reviewRequests.mergeDuplicate')}</Text>
+                                )}
+                              </LinearGradient>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      );
+                    })
+                  ) : (
+                    <Text style={styles.descriptionText}>{t('reviewRequests.noDuplicateCandidates')}</Text>
+                  )}
+                </View>
+              </View>
+            )}
+
             <View style={styles.expandedActions}>
+              <TouchableOpacity
+                style={[styles.viewDetailBtn, duplicateResults[item._id]?.loading && styles.actionDisabledBtn]}
+                onPress={() => handleLoadDuplicates(item._id)}
+                disabled={duplicateResults[item._id]?.loading}
+              >
+                {duplicateResults[item._id]?.loading ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Text style={styles.viewDetailText}>{t('reviewRequests.reviewDuplicates')}</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.viewDetailBtn, actionState[`reprocess:${item._id}`] && styles.actionDisabledBtn]}
+                onPress={() => handleReprocessAi(item._id)}
+                disabled={actionState[`reprocess:${item._id}`]}
+              >
+                {actionState[`reprocess:${item._id}`] ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Text style={styles.viewDetailText}>{t('reviewRequests.reprocessAi')}</Text>
+                )}
+              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.viewDetailBtn}
                 onPress={() => navigation.navigate('ReportDetail', { reportId: item._id })}
               >
                 <Ionicons name="eye-outline" size={16} color={colors.primary} />
-                <Text style={styles.viewDetailText}>View Full Report</Text>
+                <Text style={styles.viewDetailText}>{t('reviewRequests.viewFullReport')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.reviewButton} onPress={() => openReviewDialog(item)}>
                 <LinearGradient
@@ -339,7 +597,7 @@ const ReviewRequestsScreen = ({ navigation }) => {
                   style={styles.reviewBtnGradient}
                 >
                   <Ionicons name="checkmark-circle" size={16} color="#fff" />
-                  <Text style={styles.reviewBtnText}>Submit Review</Text>
+                  <Text style={styles.reviewBtnText}>{t('reviewRequests.submitReview')}</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -353,7 +611,7 @@ const ReviewRequestsScreen = ({ navigation }) => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading review requests...</Text>
+        <Text style={styles.loadingText}>{t('reviewRequests.loading')}</Text>
       </View>
     );
   }
@@ -363,7 +621,71 @@ const ReviewRequestsScreen = ({ navigation }) => {
       {/* Header count */}
       <View style={styles.countBanner}>
         <Ionicons name="clipboard" size={18} color={colors.primary} />
-        <Text style={styles.countText}>{reports.length} pending review{reports.length !== 1 ? 's' : ''}</Text>
+        <Text style={styles.countText}>{t(mode === 'pending' ? 'reviewRequests.modePending' : 'reviewRequests.modeAll')} · {reports.length}</Text>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+        <TouchableOpacity
+          style={[styles.filterPill, mode === 'pending' && styles.filterPillActive]}
+          onPress={() => setMode('pending')}
+        >
+          <Text style={[styles.filterPillText, mode === 'pending' && styles.filterPillTextActive]}>
+            {t('reviewRequests.modePending')}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterPill, mode === 'all' && styles.filterPillActive]}
+          onPress={() => setMode('all')}
+        >
+          <Text style={[styles.filterPillText, mode === 'all' && styles.filterPillTextActive]}>
+            {t('reviewRequests.modeAll')}
+          </Text>
+        </TouchableOpacity>
+        {SEVERITY_OPTIONS.map((severity) => (
+          <TouchableOpacity
+            key={severity || 'all'}
+            style={[styles.filterPill, filters.severity === severity && styles.filterPillActive]}
+            onPress={() => setFilters((prev) => ({ ...prev, severity }))}
+          >
+            <Text style={[styles.filterPillText, filters.severity === severity && styles.filterPillTextActive]}>
+              {severity
+                ? t(`reviewRequests.severity.${severity === 'Life-threatening' ? 'lifeThreatening' : severity.toLowerCase()}`)
+                : t('reviewRequests.severity.all')}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <View style={styles.inputFilters}>
+        <TextInput
+          style={styles.filterInput}
+          value={filters.drugName}
+          onChangeText={(value) => setFilters((prev) => ({ ...prev, drugName: value }))}
+          placeholder={t('reviewRequests.drugFilter')}
+          placeholderTextColor={colors.textDisabled}
+        />
+        <TextInput
+          style={styles.filterInput}
+          value={filters.fromDate}
+          onChangeText={(value) => setFilters((prev) => ({ ...prev, fromDate: value }))}
+          placeholder={t('reviewRequests.fromDate')}
+          placeholderTextColor={colors.textDisabled}
+          autoCorrect={false}
+          autoCapitalize="none"
+          keyboardType="numbers-and-punctuation"
+          maxLength={10}
+        />
+        <TextInput
+          style={styles.filterInput}
+          value={filters.toDate}
+          onChangeText={(value) => setFilters((prev) => ({ ...prev, toDate: value }))}
+          placeholder={t('reviewRequests.toDate')}
+          placeholderTextColor={colors.textDisabled}
+          autoCorrect={false}
+          autoCapitalize="none"
+          keyboardType="numbers-and-punctuation"
+          maxLength={10}
+        />
       </View>
 
       <FlatList
@@ -375,8 +697,12 @@ const ReviewRequestsScreen = ({ navigation }) => {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="checkmark-circle" size={64} color={colors.success} />
-            <Text style={styles.emptyStateTitle}>All Caught Up!</Text>
-            <Text style={styles.emptyStateText}>No pending reports to review</Text>
+            <Text style={styles.emptyStateTitle}>
+              {t(mode === 'pending' ? 'reviewRequests.emptyPendingTitle' : 'reviewRequests.emptyAllTitle')}
+            </Text>
+            <Text style={styles.emptyStateText}>
+              {t(mode === 'pending' ? 'reviewRequests.emptyPendingText' : 'reviewRequests.emptyAllText')}
+            </Text>
           </View>
         }
       />
@@ -387,7 +713,7 @@ const ReviewRequestsScreen = ({ navigation }) => {
           <View style={styles.modalContent}>
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Submit Review</Text>
+                <Text style={styles.modalTitle}>{t('reviewRequests.submitReview')}</Text>
                 <TouchableOpacity onPress={() => setShowReviewModal(false)}>
                   <Ionicons name="close" size={24} color={colors.text} />
                 </TouchableOpacity>
@@ -411,7 +737,7 @@ const ReviewRequestsScreen = ({ navigation }) => {
               {/* Agree with AI */}
               {reviewingReport?.metadata?.aiAnalysis && (
                 <View style={styles.formRow}>
-                  <Text style={styles.formLabel}>Do you agree with AI assessment?</Text>
+                  <Text style={styles.formLabel}>{t('reviewRequests.agreeWithAi')}</Text>
                   <View style={styles.agreeOptions}>
                     <TouchableOpacity
                       style={[styles.agreeBtn, reviewForm.agreedWithAI && styles.agreeBtnActive]}
@@ -419,7 +745,7 @@ const ReviewRequestsScreen = ({ navigation }) => {
                     >
                       <Ionicons name="checkmark-circle" size={16} color={reviewForm.agreedWithAI ? '#fff' : colors.success} />
                       <Text style={[styles.agreeBtnText, reviewForm.agreedWithAI && { color: '#fff' }]}>
-                        Yes, I agree
+                        {t('reviewRequests.agreeYes')}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -428,7 +754,7 @@ const ReviewRequestsScreen = ({ navigation }) => {
                     >
                       <Ionicons name="close-circle" size={16} color={!reviewForm.agreedWithAI ? '#fff' : colors.warning} />
                       <Text style={[styles.agreeBtnText, !reviewForm.agreedWithAI && { color: '#fff' }]}>
-                        No, different assessment
+                        {t('reviewRequests.agreeNo')}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -437,10 +763,10 @@ const ReviewRequestsScreen = ({ navigation }) => {
 
               {/* Remarks */}
               <View style={styles.formRow}>
-                <Text style={styles.formLabel}>Your Remarks / Medical Opinion *</Text>
+                <Text style={styles.formLabel}>{t('reviewRequests.remarksLabel')}</Text>
                 <TextInput
                   style={styles.textArea}
-                  placeholder="Provide your professional assessment and any additional observations..."
+                  placeholder={t('reviewRequests.remarksPlaceholder')}
                   placeholderTextColor={colors.textDisabled}
                   multiline
                   numberOfLines={4}
@@ -451,10 +777,10 @@ const ReviewRequestsScreen = ({ navigation }) => {
 
               {/* Recommendation */}
               <View style={styles.formRow}>
-                <Text style={styles.formLabel}>Recommendation for Patient</Text>
+                <Text style={styles.formLabel}>{t('reviewRequests.recommendationLabel')}</Text>
                 <TextInput
                   style={styles.textAreaSmall}
-                  placeholder="What should the patient do next? Any specific instructions?"
+                  placeholder={t('reviewRequests.recommendationPlaceholder')}
                   placeholderTextColor={colors.textDisabled}
                   multiline
                   numberOfLines={3}
@@ -465,7 +791,7 @@ const ReviewRequestsScreen = ({ navigation }) => {
 
               {/* Action Required */}
               <View style={styles.formRow}>
-                <Text style={styles.formLabel}>Action Required</Text>
+                <Text style={styles.formLabel}>{t('reviewRequests.actionRequiredLabel')}</Text>
                 <View style={styles.actionGrid}>
                   {ACTION_OPTIONS.map((opt) => (
                     <TouchableOpacity
@@ -497,7 +823,7 @@ const ReviewRequestsScreen = ({ navigation }) => {
               {/* Submit */}
               <View style={styles.modalActions}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowReviewModal(false)}>
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                  <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.submitBtn, !reviewForm.remarks.trim() && { opacity: 0.5 }]}
@@ -512,7 +838,7 @@ const ReviewRequestsScreen = ({ navigation }) => {
                     {isSubmitting ? (
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                      <Text style={styles.submitBtnText}>Submit Review</Text>
+                      <Text style={styles.submitBtnText}>{t('reviewRequests.submitReview')}</Text>
                     )}
                   </LinearGradient>
                 </TouchableOpacity>
@@ -535,6 +861,46 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary + '08', borderBottomWidth: 1, borderBottomColor: colors.divider,
   },
   countText: { fontSize: 14, fontWeight: '600', color: colors.primary },
+  filterRow: {
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
+  },
+  filterPill: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    backgroundColor: colors.surface,
+  },
+  filterPillActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterPillText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  filterPillTextActive: {
+    color: '#fff',
+  },
+  inputFilters: {
+    paddingHorizontal: spacing.base,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  filterInput: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.sm,
+    fontSize: 13,
+    color: colors.text,
+  },
   listContent: { padding: spacing.base, paddingBottom: 80 },
   // Report card
   reportCard: {
@@ -593,9 +959,23 @@ const styles = StyleSheet.create({
   aiLabel: { fontSize: 12, color: colors.textSecondary },
   aiValue: { fontSize: 12, fontWeight: '600', color: colors.text },
   aiChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
+  aiErrorBox: {
+    marginTop: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.error + '12',
+    borderWidth: 1,
+    borderColor: colors.error + '30',
+  },
+  aiErrorText: {
+    fontSize: 12,
+    color: colors.error,
+    lineHeight: 17,
+  },
   aiChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: borderRadius.full },
   aiChipText: { fontSize: 10, fontWeight: '700' },
-  expandedActions: { flexDirection: 'row', gap: spacing.sm },
+  expandedActions: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
+  actionDisabledBtn: { opacity: 0.55 },
   viewDetailBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs,
     paddingVertical: spacing.sm, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.primary + '40',

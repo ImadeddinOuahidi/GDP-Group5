@@ -120,15 +120,7 @@ exports.signup = async (req, res) => {
       address,
       role: role || 'patient'
     };
-
-    // Add role-specific data
-    if (role === 'doctor' && doctorInfo) {
-      userData.doctorInfo = doctorInfo;
-    } else if (role === 'patient' && patientInfo) {
-      userData.patientInfo = patientInfo;
-    } else if (role === 'admin' && adminInfo) {
-      userData.adminInfo = adminInfo;
-    }
+ 
 
     // Create new user
     const newUser = new User(userData);

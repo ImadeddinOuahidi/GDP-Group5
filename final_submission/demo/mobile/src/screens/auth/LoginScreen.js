@@ -20,6 +20,7 @@ import { colors, spacing, borderRadius, shadows } from '../../config/theme';
 const DEMO_ACCOUNTS = [
   { label: 'Patient Demo', email: 'patient@demo.com', password: 'Demo@123', icon: 'person', color: colors.primary },
   { label: 'Doctor Demo', email: 'doctor@demo.com', password: 'Demo@123', icon: 'medkit', color: '#7C4DFF' },
+  { label: 'Admin Demo', email: 'admin@demo.com', password: 'Demo@123', icon: 'shield-checkmark', color: colors.success },
 ];
 
 const LoginScreen = ({ navigation }) => {

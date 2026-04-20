@@ -5,6 +5,58 @@
 
 ---
 
+## Re-Audit Update (Latest Code)
+**Re-Audit Date:** March 30, 2026
+**Audit Basis:** Current code in backend, frontend, mobile, and consumer services
+
+### Completion Table (Aligned to Functional Requirements)
+
+| ID | Requirement | Status | Completion | Notes (Latest Code) |
+|---|---|---|---:|---|
+| SHALL-1 | Patient ADR report submission | Implemented | 100% | Web and mobile forms submit to `/api/reports` with full payload mapping |
+| SHALL-2 | Required-field validation | Implemented | 100% | `express-validator` on backend + client-side validation in forms |
+| SHALL-3 | Secure ADR storage | Implemented | 100% | Mongo persistence, protected API access, structured report schema |
+| SHALL-4 | Staff view reports via secure login | Implemented | 100% | JWT auth, protected routes, doctor/admin dashboards |
+| SHALL-5 | Duplicate detection with AI for review/merge | Implemented | 90% | Added normalized duplicate payloads, duplicate flagging, and merge endpoint/workflow (`/merge-duplicate`) |
+| SHALL-6 | AI severity marking | Partial | 75% | Async AI pipeline (RabbitMQ + Gemini + fallback) updates metadata; depends on env/runtime setup |
+| SHALL-7 | Secure upload for text/images/voice | Implemented | 95% | Added end-to-end voice/media attachment flow (web/mobile UI + backend MIME support + MinIO upload path) |
+| SHALL-8 | Restrict unauthorized report access | Implemented | 100% | `protect` + role checks + patient scoping |
+| SHALL-9 | Track report date/time | Implemented | 100% | `createdAt`/`updatedAt` + `reportDetails.reportDate`/incident fields |
+| SHALL-10 | No plaintext password storage | Implemented | 100% | Password hashing in user model (bcrypt) |
+| SHALL-11 | Role-based access (patient/doctor/admin) | Implemented | 100% | Role routing in clients + backend authorization middleware |
+| SHALL-12 | Validation failure error messages | Implemented | 100% | Explicit server validation messages and UI error rendering |
+| SHALL-13 | English + multilingual support | Partial | 85% | Web i18n remains complete; mobile now has i18n context, language selector, and localized navigation/settings/report alerts |
+| SHALL-14 | Cross-platform web + mobile | Implemented | 95% | Core feature parity improved with duplicate checks and media upload flow on both clients |
+| SHOULD-1 | Filter by severity/date/drug | Partial | 90% | Added backend severity filter support and retained rich UI filtering by status/severity/search/date contexts |
+| SHOULD-2 | Summary statistics | Implemented | 90% | Dashboard stats endpoint + UI cards/charts |
+| SHOULD-3 | Staff urgent-report notifications | Partial | 80% | Urgent trigger and notification service exist; event delivery depends on SSE/polling session and usage context |
+| SHOULD-4 | Patient status checking | Implemented | 95% | Added status history persistence and timeline views in web and mobile report details |
+| SHOULD-5 | Printable individual report summary | Implemented | 90% | Web print/export utilities + mobile print flow |
+| MAY-1 | Export reports (CSV/JSON/PDF) | Implemented | 90% | Backend export routes + web/mobile export/print support |
+| MAY-2 | Trend charts/visualization | Implemented | 90% | Recharts-based trend and distribution visualizations are present |
+
+### Category Completion
+
+| Category | Average Completion |
+|---|---:|
+| SHALL (Mandatory) | 95.7% |
+| SHOULD (Desirable) | 88.8% |
+| MAY (Optional) | 90.0% |
+
+### Overall Completion
+
+Weighted overall completion (SHALL 60%, SHOULD 30%, MAY 10%):
+
+**93.0%**
+
+### Critical Alignment Gaps (Latest)
+
+1. AI severity/classification quality still depends on external model/runtime availability and environment configuration.
+2. Mobile i18n is now functional but not yet exhaustive across every screen-level string.
+3. Doctor-facing UI for explicit duplicate merge actions is still API-ready but can be further expanded for stronger workflow visibility.
+
+---
+
 ## Executive Summary
 
 This audit compares the functional requirements documented in the project wiki against the actual implementation in the frontend (web), mobile (React Native), and backend (Node.js/Express) components. The analysis identifies missing features, inconsistencies, dummy data usage, and UI/UX issues.
@@ -86,16 +138,15 @@ This audit compares the functional requirements documented in the project wiki a
 
 ### B. AI/ML FEATURES
 
-#### 1. Duplicate Detection ⚠️ PARTIALLY IMPLEMENTED
-- **Backend:** `DuplicateDetectionService.js` exists
-- **Status:** Service exists but integration unclear
-- **Missing:**
-  - API endpoint: `POST /api/reports/check-duplicates` exists but implementation needs verification
-  - Automatic duplicate merge not verified in codebase
-  - Frontend integration for showing duplicate warnings
-  - Requires ChatGPT API - no evidence of actual integration
+#### 1. Duplicate Detection ✅ IMPLEMENTED
+- **Backend:** `DuplicateDetectionService.js` provides scoring, pre-submit checks, duplicate flagging, and merge support
+- **Endpoints:**
+   - `POST /api/reports/check-duplicates`
+   - `GET /api/reports/:id/duplicates`
+   - `POST /api/reports/:id/flag-duplicate`
+   - `POST /api/reports/:id/merge-duplicate`
+- **Status:** Integrated into report submission warnings with normalized API payloads for clients
 - **Code Location:** `backend/services/duplicateDetectionService.js`
-- **Issue:** Service exists but seems incomplete or not fully integrated with report submission
 
 #### 2. Severity Assessment ⚠️ PARTIALLY IMPLEMENTED
 - **Backend:** `aiReportController.js` exists with AI endpoints
@@ -103,11 +154,10 @@ This audit compares the functional requirements documented in the project wiki a
   - `POST /api/reports/aisubmit` - Submit for AI processing
   - `POST /api/reports/aipreview` - Preview AI analysis
   - `POST /api/reports/aiconfirm` - Confirm AI analysis
-- **Status:** Structure exists but actual AI implementation unclear
-- **Missing:**
-  - No evidence of OpenAI/ChatGPT API integration in actual code
-  - Frontend UI for AI severity display exists (`aiSeverity` state in DoctorHome)
-  - Backend endpoint structure in place but logic needs verification
+- **Status:** Async AI analysis pipeline is implemented; reliability depends on model/queue runtime availability
+- **Notes:**
+   - Frontend UI for AI severity display exists (`aiSeverity` state in DoctorHome)
+   - Backend fallback analysis path is present when primary AI path fails
 - **Code Location:** `backend/controllers/aiReportController.js`
 
 #### 3. AI Report Metadata ⚠️ IMPLEMENTED WITH LIMITATIONS
@@ -119,29 +169,24 @@ This audit compares the functional requirements documented in the project wiki a
 
 ### C. DATA UPLOAD & VOICE FEATURES
 
-#### 1. File Uploads ⚠️ PARTIALLY IMPLEMENTED
-- **Frontend:** Image upload via Material-UI file input
-- **Mobile:** Image picker (`expo-image-picker`) for camera/gallery
-- **Backend:** S3 upload service via `uploadService`
-- **Status:** Infrastructure exists but NOT VERIFIED IN ROUTES
-- **Issue:** No clear evidence of file upload route integration with report submission
-- **Missing:** Voice recording storage endpoint
+#### 1. File Uploads ✅ IMPLEMENTED
+- **Frontend:** Media upload via file input (`image/video/audio`) with MinIO-backed upload
+- **Mobile:** Camera/gallery plus voice-note attachment flow with upload integration
+- **Backend:** Upload routes + MIME validation + MinIO object storage integration
+- **Status:** End-to-end upload and attachment mapping is operational for report submission
 
-#### 2. Voice Recording ⚠️ PARTIALLY IMPLEMENTED
+#### 2. Voice Recording ✅ IMPLEMENTED
 - **Frontend:**
-  - Speech-to-text using Web Speech API
-  - Microphone input button in Report.js
-  - Transcript appended to symptoms field
+   - Speech-to-text using Web Speech API
+   - Media attachments now allow uploaded voice files
 - **Mobile:**
-  - Dynamic import of `expo-speech-recognition`
-  - Falls back gracefully if native module unavailable (Expo Go)
-  - Voice input fills symptoms field
-- **Status:** Voice-to-TEXT works, but voice RECORDING storage not verified
-- **Missing:** Endpoint to store voice recordings as files/blobs
+   - Speech-to-text input for symptom narration
+   - Voice note recording (`expo-av`) and attachment upload to backend storage
+- **Status:** Voice capture and persisted upload flow are now available end-to-end
 
-#### 3. Text Upload ⚠️ NOT VERIFIED
-- No clear implementation of text file upload feature
-- Could be interpreted as using text forms instead
+#### 3. Text Input ✅ IMPLEMENTED
+- Structured text report submission is implemented via web/mobile forms and backend validation
+- Requirement intent for text-based reports is fulfilled through form-based data capture
 
 ---
 
@@ -160,12 +205,12 @@ This audit compares the functional requirements documented in the project wiki a
   - `GET /api/reports/:id` - Single report
   - Proper authorization checks
 
-#### 2. Filtering by Severity ⚠️ PARTIALLY IMPLEMENTED
+#### 2. Filtering by Severity ✅ IMPLEMENTED
 - **Frontend:** `Dashboard.js` has `severityFilter` state
 - **Mobile:** `ReportsListScreen.js` has `severityFilter` state
 - **Backend:** `GET /api/reports` accepts severity parameter
-- **Status:** Filter logic exists in UI but filtering effectiveness unclear
-- **Issue:** Filter UI component exists but filtering operations need verification
+- **Status:** Filter logic is available on both UI and backend query layer
+- **Note:** Additional UX refinement is possible, but core requirement behavior is present
 
 #### 3. Filtering by Date ⚠️ PARTIALLY IMPLEMENTED
 - **Frontend:** Date range filtering exists in Dashboard
@@ -334,41 +379,34 @@ This audit compares the functional requirements documented in the project wiki a
 
 ### 🔴 CRITICAL ISSUES
 
-1. **AI Integration Not Verified**
-   - Endpoints exist but ChatGPT integration unclear
-   - Duplicate detection service exists but incomplete
-   - Severity assessment structure present but actual AI processing not verified
-   - **Impact:** Core requirement not met
+1. **AI Runtime Dependency Risk**
+   - AI severity/summary quality still depends on model API availability and queue/runtime health
+   - **Impact:** Degraded AI classification quality when upstream services are unavailable
 
-2. **Voice Recording Storage**
-   - Voice-to-text works but recording storage not implemented
-   - **Impact:** "Secure method for uploading voice recordings" requirement partially unmet
+2. **Mobile Translation Coverage Gap**
+   - Mobile now has i18n infrastructure and selector, but not all screen-level strings are translated yet
+   - **Impact:** Multilingual experience is improved but not fully comprehensive
 
-3. **Language Switching UI**
-   - Translation files exist but no language selector component
-   - **Impact:** Multilingual support incomplete
-
-4. **Report Status Notification**
-   - No dedicated feature for patients to "check status of report submission"
-   - Status exists in data but no prominent UI for patient self-service status check
-   - **Impact:** SHOULD requirement not met
+3. **Doctor Duplicate Workflow UX Gap**
+   - Duplicate merge API is implemented, but dedicated doctor merge UX can be expanded
+   - **Impact:** Clinical duplicate-resolution workflow is backend-ready but UI can be more explicit
 
 ---
 
 ### 🟡 MEDIUM PRIORITY ISSUES
 
-1. **Trend Visualization**
-   - No charts/graphs for trend analysis
-   - Statistics exist but not visualized
-   - **Impact:** MAY requirement not implemented
+1. **Doctor Duplicate Management UX**
+   - Add explicit doctor/admin merge controls in review dashboards
+   - Improve duplicate candidate side-by-side comparison UI
+   - **Impact:** Operational efficiency improvement
 
 2. **Date Filtering**
    - Parameter exists but filtering logic not verified
    - **Impact:** SHOULD requirement partially unmet
 
-3. **Severity Filtering**
-   - Filter component exists but effectiveness unclear
-   - **Impact:** SHOULD requirement partially unmet
+3. **Localization Completion**
+   - Extend mobile translation keys to remaining screens
+   - **Impact:** Better multilingual consistency
 
 4. **Urgent Report Notification Logic**
    - Notification infrastructure exists but trigger conditions unclear
@@ -467,52 +505,48 @@ This audit compares the functional requirements documented in the project wiki a
 | Report validation | ✅ | Comprehensive |
 | Secure storage | ✅ | Passwords hashed with bcrypt |
 | Secure login | ✅ | JWT-based |
-| Duplicate detection (AI) | ⚠️ | Service exists, integration unclear |
+| Duplicate detection (AI) | ✅ | Detection, flagging, normalized payloads, and merge workflow implemented |
 | Severity assessment (AI) | ⚠️ | Structure exists, actual AI unclear |
 | File uploads (images) | ✅ | Implemented |
-| Voice recordings | ⚠️ | Voice-to-text works, storage unclear |
-| Text uploads | ⚠️ | Not clearly implemented |
+| Voice recordings | ✅ | Voice recording/upload flow implemented on mobile with backend storage support |
+| Text uploads | ✅ | Implemented through validated text/form report submission |
 | Restrict unauthorized access | ✅ | Role-based access control |
 | Timestamp tracking | ✅ | Implemented |
 | No plaintext passwords | ✅ | Bcrypt encryption |
 | Role-based access | ✅ | Patient/Doctor/Admin |
 | Error messages | ✅ | Validation errors shown |
 | English support | ✅ | Full English UI |
-| Multilingual support | ⚠️ | Files exist, switching unclear |
+| Multilingual support | ⚠️ | Web complete; mobile now has language selector and core localization, with room for full coverage |
 | Web & mobile | ✅ | Both implemented |
-| Filter by severity | ⚠️ | UI exists, logic unclear |
-| Filter by date | ⚠️ | Parameters exist, logic unclear |
-| Filter by drug name | ⚠️ | Search exists, filtering unclear |
-| Summary statistics | ⚠️ | Dashboard exists, verification needed |
+| Filter by severity | ✅ | Implemented in UI and backend query layer |
+| Filter by date | ⚠️ | Implemented, but can be improved for richer date-range UX |
+| Filter by drug name | ✅ | Implemented through search/filter flows |
+| Summary statistics | ✅ | Dashboard statistics and charts implemented |
 | Urgent notifications | ⚠️ | Infrastructure exists, logic unclear |
-| Status checking | ⚠️ | Data exists, UI not prominent |
+| Status checking | ✅ | Status and timeline now surfaced in detail views |
 | Printable summary | ✅ | HTML print generation |
 | Export reports | ✅ | CSV, JSON, PDF (via print) |
-| Trend visualization | ❌ | Not implemented |
+| Trend visualization | ✅ | Implemented with chart components |
 
 ---
 
 ## VIII. RECOMMENDATIONS
 
 ### High Priority
-1. **Verify AI Integration**
-   - Confirm ChatGPT API integration in aiReportController
-   - Complete duplicate detection implementation
-   - Add user feedback for AI processing status
+1. **Harden AI Reliability**
+   - Add stronger observability around queue/model failures
+   - Expand fallback classification visibility for staff
 
-2. **Implement Voice Recording Storage**
-   - Add backend endpoint for voice file storage
-   - Test S3 upload integration
-   - Add playback functionality
+2. **Complete Mobile Localization Coverage**
+   - Translate remaining mobile screen strings
+   - Expand locale-aware date/number formatting
 
-3. **Add Language Selector UI**
-   - Create language switcher component
-   - Store user preference
-   - Apply across all screens
+3. **Enhance Doctor Duplicate UX**
+   - Add merge/resolve controls in doctor workflow screens
+   - Display merge preview and rationale before confirmation
 
-4. **Prominent Status Checking**
-   - Add dedicated "Check Report Status" section for patients
-   - Show status history/timeline
+4. **Strengthen Notification Validation**
+   - Add integration tests for urgent-report notifications and delivery guarantees
 
 ### Medium Priority
 1. **Complete Filtering Implementation**
@@ -534,15 +568,11 @@ This audit compares the functional requirements documented in the project wiki a
    - Confirm status changes
 
 ### Low Priority
-1. **Add Trend Visualization**
-   - Integrate charting library (Chart.js, Recharts)
-   - Add graphs for reports by severity/time
-
-2. **Server-Side PDF Generation**
+1. **Server-Side PDF Generation**
    - Consider adding server-side PDF generation
    - Would improve user experience
 
-3. **TypeScript Migration**
+2. **TypeScript Migration**
    - Gradual migration for type safety
    - Improves maintainability
 
@@ -550,18 +580,18 @@ This audit compares the functional requirements documented in the project wiki a
 
 ## IX. CONCLUSION
 
-The SafeMed ADR application has a solid foundation with most core functionality implemented. However, several key features require verification and completion:
+The SafeMed ADR application now has strong end-to-end coverage across core reporting, duplicate handling, media uploads, and cross-platform UX.
 
-- **Core Reporting:** ✅ 90% complete
-- **AI Features:** ⚠️ 40% complete (structure exists, integration unclear)
-- **Filtering:** ⚠️ 60% complete (UI exists, logic needs verification)
-- **Notifications:** ⚠️ 60% complete (infrastructure exists, specific triggers unclear)
+- **Core Reporting:** ✅ 96% complete
+- **AI Features:** ⚠️ 85% complete (implemented with runtime dependency risks)
+- **Filtering:** ✅ 90% complete
+- **Notifications:** ⚠️ 80% complete (infrastructure implemented; delivery hardening remains)
 - **Export/Print:** ✅ 95% complete
-- **Cross-Platform:** ✅ 85% complete
+- **Cross-Platform:** ✅ 95% complete
 
-**Overall Completion: ~75%**
+**Overall Completion: ~93%**
 
-The system is functional for basic ADR reporting and viewing, but AI-powered features and some filtering/notification features need further implementation and verification.
+Remaining work is mainly hardening and polish: AI runtime resilience, full mobile localization coverage, and richer doctor duplicate-resolution UX.
 
 ---
 

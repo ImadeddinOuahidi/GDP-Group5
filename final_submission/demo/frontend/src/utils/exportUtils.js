@@ -5,6 +5,17 @@
 
 const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
+function getLocale(explicitLocale) {
+  if (explicitLocale) return explicitLocale;
+  if (typeof navigator !== 'undefined' && navigator.language) return navigator.language;
+  return undefined;
+}
+
+function formatDateValue(value, locale, options = {}) {
+  if (!value) return '';
+  return new Intl.DateTimeFormat(locale, options).format(new Date(value));
+}
+
 /**
  * Get auth token
  */
@@ -77,7 +88,8 @@ export async function exportSingleReportJSON(reportId) {
 /**
  * Export from client-side data (fallback when API is unavailable)
  */
-export function exportClientCSV(reports, filename = 'adr-reports') {
+export function exportClientCSV(reports, filename = 'adr-reports', options = {}) {
+  const locale = getLocale(options.locale);
   const headers = [
     'Report ID', 'Patient', 'Medication', 'Side Effects', 'Severity',
     'Status', 'Priority', 'Seriousness', 'Date', 'AI Severity', 'Doctor Review'
@@ -92,7 +104,7 @@ export function exportClientCSV(reports, filename = 'adr-reports') {
     r.status || '',
     r.priority || '',
     r.reportDetails?.seriousness || '',
-    r.createdAt ? new Date(r.createdAt).toLocaleDateString() : r.date || '',
+    r.createdAt ? formatDateValue(r.createdAt, locale) : r.date || '',
     r.metadata?.aiAnalysis?.severity?.level || '',
     r.doctorReview?.status || 'not_requested',
   ]);
@@ -135,14 +147,14 @@ export function exportClientJSON(reports, filename = 'adr-reports') {
 /**
  * Generate a printable HTML view of a report and open browser print dialog
  */
-export function printReport(report) {
+export function printReport(report, options = {}) {
   const printWindow = window.open('', '_blank', 'width=800,height=600');
   if (!printWindow) {
-    alert('Please allow popups to print the report.');
+    alert(options.popupBlockedMessage || 'Please allow popups to print the report.');
     return;
   }
 
-  const html = generatePrintHTML(report);
+  const html = generatePrintHTML(report, options);
   printWindow.document.write(html);
   printWindow.document.close();
   printWindow.focus();
@@ -156,7 +168,47 @@ export function printReport(report) {
 /**
  * Generate a PDF-like printable HTML document for a report
  */
-export function generatePrintHTML(report) {
+export function generatePrintHTML(report, options = {}) {
+  const locale = getLocale(options.locale);
+  const labels = {
+    title: 'SafeMed ADR - Adverse Drug Reaction Report',
+    generatedLabel: 'Generated',
+    reportId: 'Report ID',
+    reportOverview: 'Report Overview',
+    status: 'Status',
+    priority: 'Priority',
+    patient: 'Patient',
+    incidentDate: 'Incident Date',
+    reportDate: 'Report Date',
+    seriousness: 'Seriousness',
+    medicationInformation: 'Medication Information',
+    medication: 'Medication',
+    genericName: 'Generic Name',
+    dosage: 'Dosage',
+    route: 'Route',
+    indication: 'Indication',
+    sideEffects: 'Side Effects',
+    effect: 'Effect',
+    severity: 'Severity',
+    onset: 'Onset',
+    bodySystem: 'Body System',
+    noSideEffects: 'No side effects recorded',
+    aiAnalysis: 'AI Analysis',
+    aiSeverityAssessment: 'AI Severity Assessment',
+    clinicalSummary: 'Clinical Summary',
+    patientGuidance: 'Patient Guidance',
+    recommendedNextSteps: 'Recommended Next Steps',
+    warningSigns: 'Warning Signs',
+    doctorReview: 'Doctor Review',
+    reviewedBy: 'Reviewed By',
+    reviewedOn: 'Reviewed On',
+    remarks: 'Remarks',
+    recommendation: 'Recommendation',
+    footerSystem: 'SafeMed ADR - Adverse Drug Reaction Reporting System',
+    footerMedicalRecordOnly: 'It is intended for medical record purposes only.',
+    footerConfidential: 'CONFIDENTIAL - This document contains protected health information.',
+    ...options.labels,
+  };
   const medication = report.medicine || report.report?.medication || {};
   const patient = report.patient || report.report?.patient || {};
   const sideEffects = report.sideEffects || report.report?.sideEffects || [];
@@ -169,9 +221,21 @@ export function generatePrintHTML(report) {
     patient.name || `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Anonymous';
   const medName = typeof medication === 'string' ? medication :
     medication.name || 'Unknown Medication';
+  const generatedAt = formatDateValue(new Date(), locale, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const footerDate = formatDateValue(new Date(), locale);
+  const footerTime = new Intl.DateTimeFormat(locale, {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date());
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${(locale || 'en').split('-')[0]}">
 <head>
   <meta charset="UTF-8">
   <title>ADR Report - ${report._id || report.id || 'Report'}</title>
@@ -207,74 +271,74 @@ export function generatePrintHTML(report) {
 </head>
 <body>
   <div class="header">
-    <h1>SafeMed ADR - Adverse Drug Reaction Report</h1>
-    <p>Report ID: ${report._id || report.id || 'N/A'} | Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+    <h1>${labels.title}</h1>
+    <p>${labels.reportId}: ${report._id || report.id || 'N/A'} | ${labels.generatedLabel}: ${generatedAt}</p>
   </div>
 
   <div class="section">
-    <div class="section-title">Report Overview</div>
+    <div class="section-title">${labels.reportOverview}</div>
     <div class="field-grid">
-      <div class="field"><div class="field-label">Status</div><div class="field-value"><span class="chip chip-default">${report.status || 'N/A'}</span></div></div>
-      <div class="field"><div class="field-label">Priority</div><div class="field-value"><span class="chip chip-${(report.priority || '').toLowerCase()}">${report.priority || 'N/A'}</span></div></div>
-      <div class="field"><div class="field-label">Patient</div><div class="field-value">${patientName}</div></div>
-      <div class="field"><div class="field-label">Incident Date</div><div class="field-value">${details.incidentDate ? new Date(details.incidentDate).toLocaleDateString() : 'N/A'}</div></div>
-      <div class="field"><div class="field-label">Report Date</div><div class="field-value">${details.reportDate ? new Date(details.reportDate).toLocaleDateString() : report.createdAt ? new Date(report.createdAt).toLocaleDateString() : 'N/A'}</div></div>
-      <div class="field"><div class="field-label">Seriousness</div><div class="field-value">${details.seriousness || 'N/A'}</div></div>
+      <div class="field"><div class="field-label">${labels.status}</div><div class="field-value"><span class="chip chip-default">${report.status || 'N/A'}</span></div></div>
+      <div class="field"><div class="field-label">${labels.priority}</div><div class="field-value"><span class="chip chip-${(report.priority || '').toLowerCase()}">${report.priority || 'N/A'}</span></div></div>
+      <div class="field"><div class="field-label">${labels.patient}</div><div class="field-value">${patientName}</div></div>
+      <div class="field"><div class="field-label">${labels.incidentDate}</div><div class="field-value">${details.incidentDate ? formatDateValue(details.incidentDate, locale) : 'N/A'}</div></div>
+      <div class="field"><div class="field-label">${labels.reportDate}</div><div class="field-value">${details.reportDate ? formatDateValue(details.reportDate, locale) : report.createdAt ? formatDateValue(report.createdAt, locale) : 'N/A'}</div></div>
+      <div class="field"><div class="field-label">${labels.seriousness}</div><div class="field-value">${details.seriousness || 'N/A'}</div></div>
     </div>
   </div>
 
   <div class="section">
-    <div class="section-title">Medication Information</div>
+    <div class="section-title">${labels.medicationInformation}</div>
     <div class="field-grid">
-      <div class="field"><div class="field-label">Medication</div><div class="field-value">${medName}</div></div>
-      <div class="field"><div class="field-label">Generic Name</div><div class="field-value">${medication.genericName || 'N/A'}</div></div>
-      <div class="field"><div class="field-label">Dosage</div><div class="field-value">${medUsage.dosage?.amount || ''} ${medUsage.dosage?.frequency || ''}</div></div>
-      <div class="field"><div class="field-label">Route</div><div class="field-value">${medUsage.dosage?.route || 'N/A'}</div></div>
-      <div class="field"><div class="field-label">Indication</div><div class="field-value">${medUsage.indication || 'N/A'}</div></div>
+      <div class="field"><div class="field-label">${labels.medication}</div><div class="field-value">${medName}</div></div>
+      <div class="field"><div class="field-label">${labels.genericName}</div><div class="field-value">${medication.genericName || 'N/A'}</div></div>
+      <div class="field"><div class="field-label">${labels.dosage}</div><div class="field-value">${medUsage.dosage?.amount || ''} ${medUsage.dosage?.frequency || ''}</div></div>
+      <div class="field"><div class="field-label">${labels.route}</div><div class="field-value">${medUsage.dosage?.route || 'N/A'}</div></div>
+      <div class="field"><div class="field-label">${labels.indication}</div><div class="field-value">${medUsage.indication || 'N/A'}</div></div>
     </div>
   </div>
 
   <div class="section">
-    <div class="section-title">Side Effects</div>
+    <div class="section-title">${labels.sideEffects}</div>
     <table>
-      <thead><tr><th>Effect</th><th>Severity</th><th>Onset</th><th>Body System</th></tr></thead>
+      <thead><tr><th>${labels.effect}</th><th>${labels.severity}</th><th>${labels.onset}</th><th>${labels.bodySystem}</th></tr></thead>
       <tbody>
         ${sideEffects.length > 0
           ? sideEffects.map((e) => `<tr><td>${e.effect || ''}</td><td><span class="chip chip-${(e.severity || '').toLowerCase()}">${e.severity || ''}</span></td><td>${e.onset || ''}</td><td>${e.bodySystem || ''}</td></tr>`).join('')
-          : '<tr><td colspan="4" style="text-align:center;color:#999;">No side effects recorded</td></tr>'}
+          : `<tr><td colspan="4" style="text-align:center;color:#999;">${labels.noSideEffects}</td></tr>`}
       </tbody>
     </table>
   </div>
 
   ${aiAnalysis.processed !== false && (aiAnalysis.summary || aiAnalysis.severity) ? `
   <div class="section">
-    <div class="section-title">AI Analysis</div>
+    <div class="section-title">${labels.aiAnalysis}</div>
     <div class="ai-box">
-      ${aiAnalysis.severity?.level ? `<div class="field"><div class="field-label">AI Severity Assessment</div><div class="field-value"><span class="chip chip-${(aiAnalysis.severity.level || '').toLowerCase()}">${aiAnalysis.severity.level}</span> (Confidence: ${aiAnalysis.severity.confidence || 'N/A'})</div></div>` : ''}
-      ${aiAnalysis.summary ? `<div class="field"><div class="field-label">Clinical Summary</div><div class="field-value">${aiAnalysis.summary}</div></div>` : ''}
-      ${guidance.recommendation ? `<div class="field"><div class="field-label">Patient Guidance</div><div class="field-value">${guidance.recommendation}</div></div>` : ''}
-      ${guidance.nextSteps?.length ? `<div class="field"><div class="field-label">Recommended Next Steps</div><div class="field-value"><ul>${guidance.nextSteps.map((s) => `<li>${s}</li>`).join('')}</ul></div></div>` : ''}
-      ${guidance.warningSignsToWatch?.length ? `<div class="field"><div class="field-label">Warning Signs</div><div class="field-value"><ul>${guidance.warningSignsToWatch.map((s) => `<li>${s}</li>`).join('')}</ul></div></div>` : ''}
+      ${aiAnalysis.severity?.level ? `<div class="field"><div class="field-label">${labels.aiSeverityAssessment}</div><div class="field-value"><span class="chip chip-${(aiAnalysis.severity.level || '').toLowerCase()}">${aiAnalysis.severity.level}</span> (Confidence: ${aiAnalysis.severity.confidence || 'N/A'})</div></div>` : ''}
+      ${aiAnalysis.summary ? `<div class="field"><div class="field-label">${labels.clinicalSummary}</div><div class="field-value">${aiAnalysis.summary}</div></div>` : ''}
+      ${guidance.recommendation ? `<div class="field"><div class="field-label">${labels.patientGuidance}</div><div class="field-value">${guidance.recommendation}</div></div>` : ''}
+      ${guidance.nextSteps?.length ? `<div class="field"><div class="field-label">${labels.recommendedNextSteps}</div><div class="field-value"><ul>${guidance.nextSteps.map((s) => `<li>${s}</li>`).join('')}</ul></div></div>` : ''}
+      ${guidance.warningSignsToWatch?.length ? `<div class="field"><div class="field-label">${labels.warningSigns}</div><div class="field-value"><ul>${guidance.warningSignsToWatch.map((s) => `<li>${s}</li>`).join('')}</ul></div></div>` : ''}
     </div>
   </div>` : ''}
 
   ${doctorReview.status === 'completed' ? `
   <div class="section">
-    <div class="section-title">Doctor Review</div>
+    <div class="section-title">${labels.doctorReview}</div>
     <div class="doctor-box">
       <div class="field-grid">
-        <div class="field"><div class="field-label">Reviewed By</div><div class="field-value">${doctorReview.reviewedBy ? (typeof doctorReview.reviewedBy === 'string' ? doctorReview.reviewedBy : `Dr. ${doctorReview.reviewedBy.firstName || ''} ${doctorReview.reviewedBy.lastName || ''}`) : 'Unknown'}</div></div>
-        <div class="field"><div class="field-label">Reviewed On</div><div class="field-value">${doctorReview.reviewedAt ? new Date(doctorReview.reviewedAt).toLocaleDateString() : 'N/A'}</div></div>
+        <div class="field"><div class="field-label">${labels.reviewedBy}</div><div class="field-value">${doctorReview.reviewedBy ? (typeof doctorReview.reviewedBy === 'string' ? doctorReview.reviewedBy : `Dr. ${doctorReview.reviewedBy.firstName || ''} ${doctorReview.reviewedBy.lastName || ''}`) : 'Unknown'}</div></div>
+        <div class="field"><div class="field-label">${labels.reviewedOn}</div><div class="field-value">${doctorReview.reviewedAt ? formatDateValue(doctorReview.reviewedAt, locale) : 'N/A'}</div></div>
       </div>
-      ${doctorReview.remarks ? `<div class="field"><div class="field-label">Remarks</div><div class="field-value">${doctorReview.remarks}</div></div>` : ''}
-      ${doctorReview.doctorAssessment?.recommendation || doctorReview.assessment?.recommendation ? `<div class="field"><div class="field-label">Recommendation</div><div class="field-value">${doctorReview.doctorAssessment?.recommendation || doctorReview.assessment?.recommendation}</div></div>` : ''}
+      ${doctorReview.remarks ? `<div class="field"><div class="field-label">${labels.remarks}</div><div class="field-value">${doctorReview.remarks}</div></div>` : ''}
+      ${doctorReview.doctorAssessment?.recommendation || doctorReview.assessment?.recommendation ? `<div class="field"><div class="field-label">${labels.recommendation}</div><div class="field-value">${doctorReview.doctorAssessment?.recommendation || doctorReview.assessment?.recommendation}</div></div>` : ''}
     </div>
   </div>` : ''}
 
   <div class="footer">
-    <p>SafeMed ADR - Adverse Drug Reaction Reporting System</p>
-    <p>This report was generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}. It is intended for medical record purposes only.</p>
-    <p>CONFIDENTIAL - This document contains protected health information.</p>
+    <p>${labels.footerSystem}</p>
+    <p>${labels.generatedLabel}: ${footerDate} ${footerTime}. ${labels.footerMedicalRecordOnly}</p>
+    <p>${labels.footerConfidential}</p>
   </div>
 </body>
 </html>`;

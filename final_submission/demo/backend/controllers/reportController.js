@@ -2,12 +2,12 @@ const { validationResult } = require('express-validator');
 const ReportSideEffect = require('../models/ReportSideEffect');
 const Medication = require('../models/Medication');
 const User = require('../models/User');
-const rabbitmqService = require('../services/rabbitmqService');
 const notificationService = require('../services/notificationService');
+const fuzzySearchService = require('../services/fuzzySearchService');
+const { queueReportAnalysis } = require('../services/reportAnalysisProcessor');
 const { sendSuccess, sendCreated, sendNotFound, sendForbidden, sendValidationError, sendError } = require('../utils/responseHelper');
 const { validateObjectId } = require('../utils/validationHelper');
-const { USER_ROLES, SUCCESS_MESSAGES, ERROR_MESSAGES } = require('../utils/constants');
-const AppError = require('../utils/appError');
+const { USER_ROLES, ERROR_MESSAGES } = require('../utils/constants');
 const DuplicateDetectionService = require('../services/duplicateDetectionService');
 
 // Submit a new side effect report
@@ -37,7 +37,16 @@ exports.submitReport = async (req, res) => {
       ...req.body,
       reportedBy: req.user._id,
       reporterRole: req.user.role,
-      'reportDetails.reportDate': new Date()
+      status: 'Submitted',
+      reportDetails: {
+        ...req.body.reportDetails,
+        reportDate: new Date()
+      },
+      metadata: {
+        ...(req.body.metadata || {}),
+        aiStatus: 'queued',
+        aiLastQueuedAt: new Date()
+      }
     };
 
     // If no patient specified and reporter is patient, set patient to reporter
@@ -55,26 +64,17 @@ exports.submitReport = async (req, res) => {
       { path: 'patient', select: 'firstName lastName' }
     ]);
 
-    // Publish event to RabbitMQ for async AI processing
-    setImmediate(async () => {
-      try {
-        console.log(`[Report Controller] Publishing report created event: ${report._id}`);
-        await rabbitmqService.publishReportCreated(report);
-      } catch (publishError) {
-        console.error('[Report Controller] Failed to publish event:', publishError);
-        // Non-blocking - report is still saved successfully
-      }
-    });
+    const queueResult = await queueReportAnalysis(report._id, { reportSnapshot: report });
 
     // Notify staff if the report has serious/critical severity indicators
     setImmediate(async () => {
       try {
         const hasSeriousIndicators = report.sideEffects?.some(
           (e) => e.severity === 'Severe' || e.severity === 'Life-threatening'
-        ) || report.reportDetails?.seriousness === 'serious' || report.reportDetails?.seriousness === 'life-threatening';
+        ) || report.reportDetails?.seriousness === 'Serious';
 
         if (hasSeriousIndicators) {
-          await notificationService.notifyStaffUrgentReport(report);
+          await notificationService.notifyStaffUrgentReport(report, { trigger: 'submission' });
         }
       } catch (notifyError) {
         console.error('[Report Controller] Failed to send notifications:', notifyError);
@@ -83,7 +83,8 @@ exports.submitReport = async (req, res) => {
 
     sendCreated(res, { 
       report,
-      aiAnalysisStatus: 'queued'
+      aiAnalysisStatus: 'queued',
+      aiDelivery: queueResult.delivery
     }, 'Side effect report submitted successfully');
 
   } catch (error) {
@@ -103,6 +104,8 @@ exports.getAllReports = async (req, res) => {
       seriousness,
       severity,
       medicine,
+      drugName,
+      medicineQuery,
       reportedBy,
       patient,
       fromDate,
@@ -114,36 +117,22 @@ exports.getAllReports = async (req, res) => {
     // Validate and parse pagination
     const { page, limit, skip } = validatePagination(req.query);
 
-    // Build filter object
-    const filter = { isActive: true, isDeleted: false };
-    
-    if (status) filter.status = status;
-    if (priority) filter.priority = priority;
-    if (seriousness) filter['reportDetails.seriousness'] = seriousness;
-    if (severity) filter['sideEffects.severity'] = severity;
-    if (medicine) filter.medicine = medicine;
-    if (reportedBy) filter.reportedBy = reportedBy;
-    if (patient) filter.patient = patient;
-
-    // Date range filter
-    if (fromDate || toDate) {
-      filter['reportDetails.incidentDate'] = {};
-      if (fromDate) filter['reportDetails.incidentDate'].$gte = new Date(fromDate);
-      if (toDate) filter['reportDetails.incidentDate'].$lte = new Date(toDate);
-    }
-
-    // Role-based filtering
-    if (req.user.role === 'patient') {
-      // Patients can only see their own reports
-      filter.$or = [
-        { reportedBy: req.user._id },
-        { patient: req.user._id }
-      ];
-    } else if (req.user.role === 'doctor') {
-      // Doctors can see ALL reports for review/monitoring purposes
-      // No additional filter needed - doctors have full visibility
-    }
-    // Admins can see all reports (no additional filter)
+    const filter = await buildReportFilter({
+      user: req.user,
+      filters: {
+        status,
+        priority,
+        seriousness,
+        severity,
+        medicine,
+        drugName,
+        medicineQuery,
+        reportedBy,
+        patient,
+        fromDate,
+        toDate
+      }
+    });
 
     // Sort options
     const sortOptions = {};
@@ -571,6 +560,133 @@ exports.getDashboardStats = async (req, res) => {
 };
 
 // Helper functions
+function escapeRegex(value = '') {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function resolveMedicationIdsFromQuery(searchTerm) {
+  if (!searchTerm || String(searchTerm).trim().length === 0) {
+    return [];
+  }
+
+  const trimmedQuery = String(searchTerm).trim();
+  const regex = new RegExp(escapeRegex(trimmedQuery), 'i');
+
+  const [regexMatches, fuzzyMatches] = await Promise.all([
+    Medication.find({
+      isActive: true,
+      $or: [
+        { name: regex },
+        { genericName: regex },
+        { tags: regex }
+      ]
+    })
+      .select('_id')
+      .limit(25)
+      .lean(),
+    fuzzySearchService.getSuggestions(trimmedQuery, 10).catch(() => [])
+  ]);
+
+  const medicationIds = new Set();
+
+  regexMatches.forEach((match = {}) => medicationIds.add(String(match._id)));
+  fuzzyMatches.forEach((match = {}) => {
+    if (match.id) {
+      medicationIds.add(String(match.id));
+    }
+  });
+
+  return [...medicationIds];
+}
+
+async function buildReportFilter({ user, filters = {}, extraConditions = [] }) {
+  const conditions = [{ isActive: true, isDeleted: false }, ...extraConditions];
+  const {
+    status,
+    priority,
+    seriousness,
+    severity,
+    medicine,
+    drugName,
+    medicineQuery,
+    reportedBy,
+    patient,
+    fromDate,
+    toDate
+  } = filters;
+
+  if (status) {
+    conditions.push({ status });
+  }
+
+  if (priority) {
+    conditions.push({ priority });
+  }
+
+  if (seriousness) {
+    conditions.push({ 'reportDetails.seriousness': seriousness });
+  }
+
+  if (severity) {
+    conditions.push({
+      $or: [
+        { 'doctorReview.doctorAssessment.severityOverride': severity },
+        { 'metadata.aiAnalysis.severity.level': severity },
+        { 'sideEffects.severity': severity }
+      ]
+    });
+  }
+
+  if (medicine) {
+    conditions.push({ medicine });
+  }
+
+  const medicationSearch = medicineQuery || drugName;
+  if (medicationSearch) {
+    const medicationIds = await resolveMedicationIdsFromQuery(medicationSearch);
+    conditions.push({ medicine: { $in: medicationIds } });
+  }
+
+  if (reportedBy) {
+    conditions.push({ reportedBy });
+  }
+
+  if (patient) {
+    conditions.push({ patient });
+  }
+
+  if (fromDate || toDate) {
+    const incidentDate = {};
+
+    if (fromDate) {
+      incidentDate.$gte = new Date(fromDate);
+    }
+
+    if (toDate) {
+      const endDate = new Date(toDate);
+      endDate.setHours(23, 59, 59, 999);
+      incidentDate.$lte = endDate;
+    }
+
+    conditions.push({ 'reportDetails.incidentDate': incidentDate });
+  }
+
+  if (user.role === USER_ROLES.PATIENT) {
+    conditions.push({
+      $or: [
+        { reportedBy: user._id },
+        { patient: user._id }
+      ]
+    });
+  }
+
+  if (conditions.length === 1) {
+    return conditions[0];
+  }
+
+  return { $and: conditions };
+}
+
 function canAccessReport(user, report) {
   // Admin can access all reports
   if (user.role === 'admin') return true;
@@ -887,17 +1003,19 @@ exports.getPendingReviews = async (req, res) => {
     const { validatePagination } = require('../utils/validationHelper');
     const { page, limit, skip } = validatePagination(req.query);
 
-    const filter = {
-      isActive: true,
-      isDeleted: false,
-      'doctorReview.requested': true,
-      'doctorReview.status': { $in: ['pending', 'in_review'] }
-    };
-
-    // If specific doctor, filter by assigned
-    if (req.query.assignedToMe === 'true') {
-      filter['doctorReview.assignedDoctor'] = req.user._id;
-    }
+    const filter = await buildReportFilter({
+      user: req.user,
+      filters: req.query,
+      extraConditions: [
+        {
+          'doctorReview.requested': true,
+          'doctorReview.status': { $in: ['pending', 'in_review'] }
+        },
+        ...(req.query.assignedToMe === 'true'
+          ? [{ 'doctorReview.assignedDoctor': req.user._id }]
+          : [])
+      ]
+    });
 
     const [reports, total] = await Promise.all([
       ReportSideEffect.find(filter)
@@ -931,6 +1049,50 @@ exports.getPendingReviews = async (req, res) => {
       return sendError(res, error.message, error.statusCode);
     }
     return sendError(res, 'Failed to fetch pending reviews', 500);
+  }
+};
+
+/**
+ * Requeue AI processing for a report
+ * POST /api/reports/:id/reprocess-ai
+ */
+exports.reprocessAiAnalysis = async (req, res) => {
+  try {
+    const { id } = req.params;
+    validateObjectId(id, 'Report ID');
+
+    if (req.user.role === USER_ROLES.PATIENT) {
+      return sendForbidden(res, 'Only healthcare staff can reprocess AI analysis');
+    }
+
+    const report = await ReportSideEffect.findById(id)
+      .populate('reportedBy', 'firstName lastName role')
+      .populate('medicine', 'name genericName category')
+      .populate('patient', 'firstName lastName');
+
+    if (!report) {
+      return sendNotFound(res, ERROR_MESSAGES.REPORT_NOT_FOUND || 'Report not found');
+    }
+
+    const queueResult = await queueReportAnalysis(report._id, {
+      force: true,
+      reportSnapshot: report
+    });
+
+    sendSuccess(res, {
+      data: {
+        reportId: report._id,
+        aiAnalysisStatus: 'queued',
+        aiDelivery: queueResult.delivery
+      },
+      message: 'AI analysis reprocessing queued successfully'
+    });
+  } catch (error) {
+    console.error('Reprocess AI analysis error:', error);
+    if (error.statusCode) {
+      return sendError(res, error.message, error.statusCode);
+    }
+    return sendError(res, 'Failed to reprocess AI analysis', 500);
   }
 };
 

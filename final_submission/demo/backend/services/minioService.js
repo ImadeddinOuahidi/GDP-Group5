@@ -233,6 +233,68 @@ class MinioService {
   isAvailable() {
     return this.isConfigured;
   }
+
+  /**
+   * Download a file into memory for AI processing.
+   */
+  async getFileBuffer(objectName) {
+    if (!this.isConfigured) {
+      throw new Error('MinIO not configured');
+    }
+
+    return new Promise((resolve, reject) => {
+      const chunks = [];
+
+      this.client.getObject(this.bucket, objectName, (error, stream) => {
+        if (error) {
+          return reject(error);
+        }
+
+        stream.on('data', (chunk) => chunks.push(chunk));
+        stream.on('end', () => resolve(Buffer.concat(chunks)));
+        stream.on('error', reject);
+      });
+    });
+  }
+
+  async getFileBase64(objectName) {
+    const buffer = await this.getFileBuffer(objectName);
+    return buffer.toString('base64');
+  }
+
+  async getFilesForProcessing(fileList = []) {
+    if (!this.isConfigured) {
+      return [];
+    }
+
+    const files = [];
+
+    for (const file of fileList) {
+      const objectName = file.key || file.objectName;
+
+      if (!objectName) {
+        continue;
+      }
+
+      try {
+        const [data, stat] = await Promise.all([
+          this.getFileBase64(objectName),
+          this.getFileStat(objectName),
+        ]);
+
+        files.push({
+          key: objectName,
+          data,
+          mimeType: file.mimeType || stat?.metaData?.['content-type'] || 'application/octet-stream',
+          size: stat?.size || file.size || 0,
+        });
+      } catch (error) {
+        console.error(`[MinIO] Failed to prepare ${objectName} for AI processing:`, error.message);
+      }
+    }
+
+    return files;
+  }
 }
 
 // Singleton instance

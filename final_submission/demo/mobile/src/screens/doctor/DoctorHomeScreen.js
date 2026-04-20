@@ -11,10 +11,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { reportService } from '../../services';
 import { useAuth } from '../../context/AuthContext';
+import { useI18n } from '../../context/I18nContext';
 import { colors, spacing, borderRadius, shadows } from '../../config/theme';
 
 const DoctorHomeScreen = ({ navigation }) => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const { t } = useI18n();
   const [stats, setStats] = useState({
     totalReports: 0,
     seriousReports: 0,
@@ -115,7 +117,7 @@ const DoctorHomeScreen = ({ navigation }) => {
   const topMedications = (() => {
     if (stats.mostReportedMedicines?.length) {
       return stats.mostReportedMedicines.slice(0, 5).map((m) => ({
-        name: m.medicineName || m.name || 'Unknown',
+        name: m.medicineName || m.name || t('common.unknown'),
         count: m.reportCount || m.count || 0,
       }));
     }
@@ -141,44 +143,108 @@ const DoctorHomeScreen = ({ navigation }) => {
     }
   };
 
+  const getSeverityLabel = (severity) => {
+    const severityKeyMap = {
+      Mild: 'reviewRequests.severity.mild',
+      Moderate: 'reviewRequests.severity.moderate',
+      Severe: 'reviewRequests.severity.severe',
+      'Life-threatening': 'reviewRequests.severity.lifeThreatening',
+    };
+
+    const key = severityKeyMap[severity];
+    return key ? t(key) : (severity || t('common.unknown'));
+  };
+
   const statCards = [
     {
-      title: 'Total Reports',
+      title: t('staffHome.stats.totalReports'),
       value: stats.totalReports || allReports.length,
       icon: 'document-text',
       gradient: ['#1565C0', '#42A5F5'],
     },
     {
-      title: 'Pending Review',
+      title: isAdmin ? t('staffHome.stats.reviewQueue') : t('staffHome.stats.pendingReview'),
       value: stats.pendingReviewCount || 0,
       icon: 'time',
       gradient: ['#E65100', '#FF9800'],
     },
     {
-      title: 'Reviewed',
+      title: t('staffHome.stats.reviewed'),
       value: stats.reviewedCount || 0,
       icon: 'checkmark-circle',
       gradient: ['#1B5E20', '#4CAF50'],
     },
     {
-      title: 'Severe Cases',
+      title: t('staffHome.stats.severeCases'),
       value: stats.severeCaseCount || stats.seriousReports || 0,
       icon: 'alert-circle',
       gradient: ['#B71C1C', '#F44336'],
     },
     {
-      title: 'High Priority',
+      title: t('staffHome.stats.highPriority'),
       value: stats.highPriorityCount || 0,
       icon: 'flame',
       gradient: ['#880E4F', '#E91E63'],
     },
     {
-      title: 'AI Analyzed',
+      title: t('staffHome.stats.aiAnalyzed'),
       value: stats.aiAnalyzedCount || 0,
       icon: 'analytics',
       gradient: ['#4A148C', '#7C4DFF'],
     },
   ];
+
+  const quickActions = [
+    {
+      key: 'review',
+      label: isAdmin ? t('staffHome.actions.adminReview') : t('staffHome.actions.doctorReview'),
+      icon: 'clipboard',
+      gradient: ['#E65100', '#FF9800'],
+      onPress: () => navigation.navigate('Review'),
+      badge: stats.pendingReviewCount || 0,
+    },
+    {
+      key: 'medications',
+      label: isAdmin ? t('staffHome.actions.adminMedications') : t('staffHome.actions.doctorMedications'),
+      icon: 'medkit',
+      gradient: ['#1565C0', '#42A5F5'],
+      onPress: () => navigation.navigate('Medications', { screen: 'MedicationsList' }),
+      badge: 0,
+    },
+    isAdmin
+      ? {
+        key: 'analytics',
+        label: t('staffHome.actions.adminTertiary'),
+        icon: 'stats-chart',
+        gradient: ['#6A1B9A', '#AB47BC'],
+        onPress: () => navigation.navigate('StaffAnalytics'),
+        badge: 0,
+      }
+      : {
+        key: 'add-medication',
+        label: t('staffHome.actions.doctorTertiary'),
+        icon: 'add-circle',
+        gradient: ['#1B5E20', '#4CAF50'],
+        onPress: () => navigation.navigate('Medications', { screen: 'AddMedication' }),
+        badge: 0,
+      },
+  ];
+
+  const headerColors = isAdmin
+    ? ['#1E3A8A', '#2563EB', '#38BDF8']
+    : ['#1565C0', '#1976D2', '#42A5F5'];
+  const doctorDisplayName = user?.lastName || user?.firstName || user?.name || t('common.system');
+  const userLabel = isAdmin
+    ? (user?.firstName || user?.name || t('common.system'))
+    : `Dr. ${doctorDisplayName}`;
+  const portalLabel = isAdmin ? t('staffHome.adminPortal') : t('staffHome.doctorPortal');
+  const subtitleLabel = isAdmin ? t('staffHome.adminSubtitle') : t('staffHome.doctorSubtitle');
+  const pendingTitle = isAdmin ? t('staffHome.pendingAdminTitle') : t('staffHome.pendingDoctorTitle');
+  const pendingDescription = isAdmin
+    ? t('staffHome.pendingAdminDescription', { count: stats.pendingReviewCount || 0 })
+    : t('staffHome.pendingDoctorDescription', { count: stats.pendingReviewCount || 0 });
+  const overviewTitle = isAdmin ? t('staffHome.sections.operations') : t('staffHome.sections.overview');
+  const recentTitle = isAdmin ? t('staffHome.sections.recentQueue') : t('staffHome.sections.recentReports');
 
   return (
     <ScrollView
@@ -188,19 +254,20 @@ const DoctorHomeScreen = ({ navigation }) => {
     >
       {/* Header */}
       <LinearGradient
-        colors={['#1565C0', '#1976D2', '#42A5F5']}
+        colors={headerColors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
       >
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.welcomeText}>Welcome back,</Text>
-            <Text style={styles.userName}>Dr. {user?.lastName || 'User'}</Text>
+            <Text style={styles.welcomeText}>{t('staffHome.welcome')}</Text>
+            <Text style={styles.userName}>{userLabel}</Text>
+            <Text style={styles.headerSubtitle}>{subtitleLabel}</Text>
           </View>
           <View style={styles.roleBadge}>
-            <Ionicons name="medkit" size={12} color="#fff" />
-            <Text style={styles.roleText}>Doctor Portal</Text>
+            <Ionicons name={isAdmin ? 'shield-checkmark' : 'medkit'} size={12} color="#fff" />
+            <Text style={styles.roleText}>{portalLabel}</Text>
           </View>
         </View>
       </LinearGradient>
@@ -216,10 +283,8 @@ const DoctorHomeScreen = ({ navigation }) => {
               <Ionicons name="alert" size={18} color="#fff" />
             </View>
             <View>
-              <Text style={styles.pendingAlertTitle}>Pending Reviews</Text>
-              <Text style={styles.pendingAlertDesc}>
-                {stats.pendingReviewCount} report{stats.pendingReviewCount > 1 ? 's' : ''} awaiting review
-              </Text>
+              <Text style={styles.pendingAlertTitle}>{pendingTitle}</Text>
+              <Text style={styles.pendingAlertDesc}>{pendingDescription}</Text>
             </View>
           </View>
           <Ionicons name="chevron-forward" size={20} color={colors.warning} />
@@ -228,7 +293,7 @@ const DoctorHomeScreen = ({ navigation }) => {
 
       {/* 6 Stat Cards Grid */}
       <View style={styles.statsSection}>
-        <Text style={styles.sectionTitle}>Overview</Text>
+        <Text style={styles.sectionTitle}>{overviewTitle}</Text>
         <View style={styles.statsGrid}>
           {statCards.map((card, idx) => (
             <TouchableOpacity
@@ -256,13 +321,13 @@ const DoctorHomeScreen = ({ navigation }) => {
 
       {/* AI Severity Distribution */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Severity Distribution</Text>
+        <Text style={styles.sectionTitle}>{t('staffHome.sections.severity')}</Text>
         <View style={styles.card}>
           {severityDist.map((item, idx) => (
             <View key={idx} style={styles.severityRow}>
               <View style={styles.severityLabelRow}>
                 <View style={[styles.severityDot, { backgroundColor: getSeverityColor(item.label) }]} />
-                <Text style={styles.severityLabel}>{item.label}</Text>
+                <Text style={styles.severityLabel}>{getSeverityLabel(item.label)}</Text>
                 <Text style={styles.severityCount}>{item.count}</Text>
               </View>
               <View style={styles.severityBarBg}>
@@ -282,7 +347,7 @@ const DoctorHomeScreen = ({ navigation }) => {
       {/* Top Medications */}
       {topMedications.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Most Reported Medications</Text>
+          <Text style={styles.sectionTitle}>{t('staffHome.sections.topMedications')}</Text>
           <View style={styles.card}>
             {topMedications.map((med, idx) => (
               <View key={idx} style={[styles.medRow, idx < topMedications.length - 1 && styles.medRowBorder]}>
@@ -301,49 +366,34 @@ const DoctorHomeScreen = ({ navigation }) => {
 
       {/* Quick Actions */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <Text style={styles.sectionTitle}>{t('staffHome.sections.quickActions')}</Text>
         <View style={styles.actionsRow}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('Review')}
-          >
-            <LinearGradient colors={['#E65100', '#FF9800']} style={styles.actionIconBg}>
-              <Ionicons name="clipboard" size={24} color="#fff" />
-            </LinearGradient>
-            <Text style={styles.actionText}>Review Reports</Text>
-            {(stats.pendingReviewCount || 0) > 0 && (
-              <View style={styles.actionBadge}>
-                <Text style={styles.actionBadgeText}>{stats.pendingReviewCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('Medications', { screen: 'MedicationsList' })}
-          >
-            <LinearGradient colors={['#1565C0', '#42A5F5']} style={styles.actionIconBg}>
-              <Ionicons name="medkit" size={24} color="#fff" />
-            </LinearGradient>
-            <Text style={styles.actionText}>Medications</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('Medications', { screen: 'AddMedication' })}
-          >
-            <LinearGradient colors={['#1B5E20', '#4CAF50']} style={styles.actionIconBg}>
-              <Ionicons name="add-circle" size={24} color="#fff" />
-            </LinearGradient>
-            <Text style={styles.actionText}>Add Medication</Text>
-          </TouchableOpacity>
+          {quickActions.map((action) => (
+            <TouchableOpacity
+              key={action.key}
+              style={styles.actionButton}
+              onPress={action.onPress}
+            >
+              <LinearGradient colors={action.gradient} style={styles.actionIconBg}>
+                <Ionicons name={action.icon} size={24} color="#fff" />
+              </LinearGradient>
+              <Text style={styles.actionText}>{action.label}</Text>
+              {action.badge > 0 && (
+                <View style={styles.actionBadge}>
+                  <Text style={styles.actionBadgeText}>{action.badge}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
 
       {/* Recent Reports */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Reports</Text>
+          <Text style={styles.sectionTitle}>{recentTitle}</Text>
           <TouchableOpacity onPress={() => navigation.navigate('Review')}>
-            <Text style={styles.seeAllText}>View All</Text>
+            <Text style={styles.seeAllText}>{t('common.viewAll')}</Text>
           </TouchableOpacity>
         </View>
         {recentReports.length > 0 ? recentReports.map((report) => (
@@ -366,10 +416,10 @@ const DoctorHomeScreen = ({ navigation }) => {
               </View>
               <View style={styles.reportInfo}>
                 <Text style={styles.reportMedicine} numberOfLines={1}>
-                  {report.medicine?.name || 'Unknown'}
+                  {report.medicine?.name || t('common.unknown')}
                 </Text>
                 <Text style={styles.reportPatient} numberOfLines={1}>
-                  {report.patient?.firstName} {report.patient?.lastName}
+                  {[report.patient?.firstName, report.patient?.lastName].filter(Boolean).join(' ') || t('common.notAvailable')}
                 </Text>
               </View>
             </View>
@@ -377,7 +427,7 @@ const DoctorHomeScreen = ({ navigation }) => {
               {report.sideEffects?.[0]?.severity && (
                 <View style={[styles.severityChip, { backgroundColor: getSeverityColor(report.sideEffects[0].severity) + '20' }]}>
                   <Text style={[styles.severityChipText, { color: getSeverityColor(report.sideEffects[0].severity) }]}>
-                    {report.sideEffects[0].severity}
+                    {getSeverityLabel(report.sideEffects[0].severity)}
                   </Text>
                 </View>
               )}
@@ -387,7 +437,7 @@ const DoctorHomeScreen = ({ navigation }) => {
         )) : (
           <View style={styles.emptyState}>
             <Ionicons name="document-text-outline" size={40} color={colors.textDisabled} />
-            <Text style={styles.emptyStateText}>No reports yet</Text>
+            <Text style={styles.emptyStateText}>{t('staffHome.emptyReports')}</Text>
           </View>
         )}
       </View>
@@ -421,6 +471,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
     marginTop: spacing.xs,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.82)',
+    marginTop: spacing.sm,
+    maxWidth: 250,
+    lineHeight: 18,
   },
   roleBadge: {
     flexDirection: 'row',

@@ -540,6 +540,7 @@ export default function Report() {
       // Step 3: Check for potential duplicates before submitting
       const dupCheckData = {
         medicine: reportData.medicine,
+        patient: user?._id || user?.id,
         sideEffects: reportData.sideEffects,
         reportDetails: reportData.reportDetails,
       };

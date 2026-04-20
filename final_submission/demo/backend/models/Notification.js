@@ -51,6 +51,11 @@ const notificationSchema = new mongoose.Schema({
     medicineName: String,
     severity: String,
     reportId: String,
+    urgencyLevel: String,
+    trigger: String,
+    notificationKey: String,
+    notificationArgs: mongoose.Schema.Types.Mixed,
+    dedupeKey: String,
   },
 }, {
   timestamps: true,
